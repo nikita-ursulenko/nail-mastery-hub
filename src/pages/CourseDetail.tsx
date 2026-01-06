@@ -88,8 +88,8 @@ const courseData = {
     {
       id: "self",
       name: "Самостоятельный",
-      price: 12900,
-      oldPrice: 19900,
+      price: 129,
+      oldPrice: 199,
       features: [
         "Доступ ко всем урокам",
         "Бессрочный доступ",
@@ -101,8 +101,8 @@ const courseData = {
     {
       id: "curator",
       name: "С куратором",
-      price: 19900,
-      oldPrice: 29900,
+      price: 199,
+      oldPrice: 299,
       popular: true,
       features: [
         "Всё из тарифа 'Самостоятельный'",
@@ -114,8 +114,8 @@ const courseData = {
     {
       id: "vip",
       name: "VIP",
-      price: 34900,
-      oldPrice: 49900,
+      price: 349,
+      oldPrice: 499,
       features: [
         "Всё из тарифа 'С куратором'",
         "Индивидуальные созвоны с экспертом",
@@ -132,11 +132,11 @@ const courseData = {
     experience: "12 лет опыта",
   },
   materials: [
-    "Аппарат для маникюра (от 10 000 ₽)",
-    "Набор фрез (от 2 000 ₽)",
-    "Лампа для сушки (от 3 000 ₽)",
-    "База, топ, гель-лаки (от 5 000 ₽)",
-    "Инструменты (от 3 000 ₽)",
+    "Аппарат для маникюра (от 100 €)",
+    "Набор фрез (от 20 €)",
+    "Лампа для сушки (от 30 €)",
+    "База, топ, гель-лаки (от 50 €)",
+    "Инструменты (от 30 €)",
   ],
 };
 
@@ -331,11 +331,11 @@ export default function CourseDetail() {
                   </CardTitle>
                   <div className="mt-4">
                     <span className="font-display text-4xl font-bold text-primary">
-                      {tariff.price.toLocaleString("ru-RU")} ₽
+                      {tariff.price.toLocaleString("de-DE")} €
                     </span>
                     {tariff.oldPrice && (
                       <span className="ml-2 text-lg text-muted-foreground line-through">
-                        {tariff.oldPrice.toLocaleString("ru-RU")} ₽
+                        {tariff.oldPrice.toLocaleString("de-DE")} €
                       </span>
                     )}
                   </div>

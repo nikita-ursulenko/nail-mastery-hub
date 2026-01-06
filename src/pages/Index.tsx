@@ -28,8 +28,8 @@ const featuredCourses = [
     description:
       "Освойте профессию nail-мастера с нуля. Классический и аппаратный маникюр, покрытие гель-лаком.",
     image: courseBasic,
-    price: 12900,
-    oldPrice: 19900,
+    price: 129,
+    oldPrice: 199,
     duration: "4 недели",
     students: 2847,
     rating: 4.9,
@@ -42,8 +42,8 @@ const featuredCourses = [
     description:
       "Научитесь создавать идеальные ногти любой формы. Работа с формами, апексом и архитектурой.",
     image: courseGel,
-    price: 15900,
-    oldPrice: 22900,
+    price: 159,
+    oldPrice: 229,
     duration: "6 недель",
     students: 1523,
     rating: 4.8,
@@ -55,7 +55,7 @@ const featuredCourses = [
     description:
       "Авторские техники дизайна: акварель, инкрустация, объёмный декор. Станьте востребованным художником.",
     image: courseArt,
-    price: 18900,
+    price: 189,
     duration: "8 недель",
     students: 892,
     rating: 4.9,
@@ -144,7 +144,7 @@ export default function Index() {
 
               <p className="text-lg text-muted-foreground lg:text-xl">
                 Онлайн-курсы от практикующих мастеров с международным опытом.
-                Начните зарабатывать от 100 000 ₽ в месяц уже через 2 месяца
+                Начните зарабатывать от 1 000 € в месяц уже через 2 месяца
                 обучения.
               </p>
 

@@ -90,11 +90,11 @@ export function CourseCard({
       <CardFooter className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-bold text-primary">
-            {price.toLocaleString("ru-RU")} ₽
+            {price.toLocaleString("de-DE")} €
           </span>
           {oldPrice && (
             <span className="text-sm text-muted-foreground line-through">
-              {oldPrice.toLocaleString("ru-RU")} ₽
+              {oldPrice.toLocaleString("de-DE")} €
             </span>
           )}
         </div>

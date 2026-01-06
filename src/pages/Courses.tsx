@@ -19,8 +19,8 @@ const allCourses = [
     description:
       "Освойте профессию nail-мастера с нуля. Классический и аппаратный маникюр, покрытие гель-лаком.",
     image: courseBasic,
-    price: 12900,
-    oldPrice: 19900,
+    price: 129,
+    oldPrice: 199,
     duration: "4 недели",
     students: 2847,
     rating: 4.9,
@@ -34,8 +34,8 @@ const allCourses = [
     description:
       "Научитесь создавать идеальные ногти любой формы. Работа с формами, апексом и архитектурой.",
     image: courseGel,
-    price: 15900,
-    oldPrice: 22900,
+    price: 159,
+    oldPrice: 229,
     duration: "6 недель",
     students: 1523,
     rating: 4.8,
@@ -48,7 +48,7 @@ const allCourses = [
     description:
       "Авторские техники дизайна: акварель, инкрустация, объёмный декор. Станьте востребованным художником.",
     image: courseArt,
-    price: 18900,
+    price: 189,
     duration: "8 недель",
     students: 892,
     rating: 4.9,
@@ -61,8 +61,8 @@ const allCourses = [
     description:
       "Профессиональное владение аппаратом. Фрезы, техники, работа с проблемными ногтями.",
     image: courseBasic,
-    price: 9900,
-    oldPrice: 14900,
+    price: 99,
+    oldPrice: 149,
     duration: "3 недели",
     students: 1892,
     rating: 4.7,
@@ -75,7 +75,7 @@ const allCourses = [
     description:
       "Секреты стойкого покрытия без сколов. Работа с базами, выравнивание, тонкие ногти.",
     image: courseGel,
-    price: 7900,
+    price: 79,
     duration: "2 недели",
     students: 3241,
     rating: 4.9,
@@ -89,7 +89,7 @@ const allCourses = [
     description:
       "Классическая техника наращивания. Идеальный C-изгиб, работа с проблемными ногтями.",
     image: courseGel,
-    price: 16900,
+    price: 169,
     duration: "6 недель",
     students: 734,
     rating: 4.6,
