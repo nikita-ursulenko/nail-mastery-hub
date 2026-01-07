@@ -227,6 +227,65 @@ class ApiClient {
     }
     return response.json();
   }
+
+  // Team Members API (admin)
+  async getTeamMembers(): Promise<any[]> {
+    return this.request<any[]>('/admin/team');
+  }
+
+  async getTeamMemberById(id: number): Promise<any> {
+    return this.request<any>(`/admin/team/${id}`);
+  }
+
+  async createTeamMember(data: any): Promise<any> {
+    return this.request<any>('/admin/team', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTeamMember(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/team/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTeamMember(id: number): Promise<void> {
+    return this.request<void>(`/admin/team/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadTeamImage(file: File): Promise<{ filename: string; url: string }> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const token = localStorage.getItem('admin_token');
+    const response = await fetch(`${API_BASE_URL}/admin/team/upload-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Ошибка при загрузке изображения');
+    }
+
+    return response.json();
+  }
+
+  // Public Team Members API (без авторизации)
+  async getPublicTeamMembers(): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/public/team`);
+    if (!response.ok) {
+      throw new Error('Ошибка при получении членов команды');
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();

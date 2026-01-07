@@ -15,8 +15,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
 import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
-
-import instructorImage from "@/assets/instructor.jpg";
+import { TeamSection } from "@/components/team/TeamSection";
 
 const stats = [
   { icon: Users, value: "15 000+", label: "Выпускников" },
@@ -51,43 +50,6 @@ const values = [
       "Присоединяйтесь к закрытому сообществу выпускников, где можно делиться опытом и находить клиентов.",
   },
 ];
-
-const team = [
-  {
-    name: "Анна Петрова",
-    role: "Основатель и главный преподаватель",
-    image: instructorImage,
-    bio: "Международный судья, призёр чемпионатов по nail-art. Обучила более 15 000 мастеров по всему миру.",
-    achievements: [
-      "12 лет опыта в индустрии",
-      "Автор уникальных техник",
-      "Эксперт beauty-изданий",
-    ],
-  },
-  {
-    name: "Мария Соколова",
-    role: "Преподаватель дизайна",
-    image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop",
-    bio: "Специалист по художественному дизайну ногтей. Работает с топовыми салонами Москвы и Санкт-Петербурга.",
-    achievements: [
-      "8 лет в профессии",
-      "Мастер международного класса",
-      "Победитель конкурсов дизайна",
-    ],
-  },
-  {
-    name: "Елена Новикова",
-    role: "Преподаватель наращивания",
-    image: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=400&h=400&fit=crop",
-    bio: "Эксперт по наращиванию гелем и акрилом. Помогла сотням мастеров освоить сложные техники.",
-    achievements: [
-      "10 лет опыта",
-      "Сертифицированный тренер",
-      "Автор курсов по архитектуре",
-    ],
-  },
-];
-
 
 const history = [
   {
@@ -247,54 +209,7 @@ export default function About() {
       </section>
 
       {/* Team Section */}
-      <section className="bg-secondary/30 py-16 lg:py-24">
-        <div className="container">
-          <div className="mb-12 text-center">
-            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-              Наша команда
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              Опытные преподаватели, которые помогут вам достичь успеха
-            </p>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {team.map((member) => (
-              <Card key={member.name} variant="elevated" className="group">
-                <CardContent className="p-6">
-                  <div className="mb-6 overflow-hidden rounded-xl">
-                    <img
-                      src={member.image}
-                      alt={member.name}
-                      className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                  </div>
-                  <h3 className="mb-1 font-display text-xl font-semibold">
-                    {member.name}
-                  </h3>
-                  <p className="mb-4 text-sm text-primary">{member.role}</p>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    {member.bio}
-                  </p>
-                  <ul className="space-y-2">
-                    {member.achievements.map((achievement) => (
-                      <li
-                        key={achievement}
-                        className="flex items-start gap-2 text-sm"
-                      >
-                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <span className="text-muted-foreground">
-                          {achievement}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+      <TeamSection className="bg-secondary/30" />
 
       {/* Testimonials Section */}
       <TestimonialsSection />

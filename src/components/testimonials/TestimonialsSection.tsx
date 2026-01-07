@@ -121,34 +121,95 @@ export function TestimonialsSection({
     const carouselElement = carouselRef.current;
     let pointerDownTime = 0;
     let hasMoved = false;
+    let startX = 0;
+    let startY = 0;
 
-    const handlePointerDown = () => {
+    const handlePointerDown = (e: PointerEvent) => {
+      // Игнорируем клики на кнопки навигации
+      const target = e.target as HTMLElement;
+      if (target.closest('button')) {
+        return;
+      }
       pointerDownTime = Date.now();
       hasMoved = false;
+      startX = e.clientX;
+      startY = e.clientY;
     };
 
-    const handlePointerMove = () => {
-      hasMoved = true;
+    const handlePointerMove = (e: PointerEvent) => {
+      if (pointerDownTime === 0) return;
+      const deltaX = Math.abs(e.clientX - startX);
+      const deltaY = Math.abs(e.clientY - startY);
+      // Считаем движением, если перемещение больше 5px
+      if (deltaX > 5 || deltaY > 5) {
+        hasMoved = true;
+      }
     };
 
     const handlePointerUp = () => {
       // Если был свайп (движение), считаем это ручным взаимодействием
-      if (hasMoved) {
+      if (hasMoved && pointerDownTime > 0) {
+        handleUserScroll();
+      }
+      pointerDownTime = 0;
+      hasMoved = false;
+    };
+
+    // Отслеживаем события pointer для определения свайпов только на контенте карусели
+    const carouselContent = carouselElement.querySelector('[role="region"]');
+    if (carouselContent) {
+      carouselContent.addEventListener("pointerdown", handlePointerDown);
+      carouselContent.addEventListener("pointermove", handlePointerMove);
+      carouselContent.addEventListener("pointerup", handlePointerUp);
+      carouselContent.addEventListener("pointercancel", handlePointerUp);
+
+      return () => {
+        carouselContent.removeEventListener("pointerdown", handlePointerDown);
+        carouselContent.removeEventListener("pointermove", handlePointerMove);
+        carouselContent.removeEventListener("pointerup", handlePointerUp);
+        carouselContent.removeEventListener("pointercancel", handlePointerUp);
+      };
+    }
+  }, [carouselApi, handleUserScroll]);
+
+  // Отслеживание кликов на кнопки навигации через события карусели
+  useEffect(() => {
+    if (!carouselApi) {
+      return;
+    }
+
+    let isManualScroll = false;
+
+    // Отслеживаем клики на кнопки навигации
+    const handleButtonClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const button = target.closest('button');
+      // Проверяем, что это кнопка навигации карусели
+      if (button && (button.getAttribute('aria-label')?.includes('slide') || 
+                     button.closest('[class*="CarouselPrevious"]') || 
+                     button.closest('[class*="CarouselNext"]'))) {
+        isManualScroll = true;
+      }
+    };
+
+    // Отслеживаем событие переключения слайда
+    const handleSelect = () => {
+      if (isManualScroll) {
+        isManualScroll = false;
         handleUserScroll();
       }
     };
 
-    // Отслеживаем события pointer для определения свайпов
-    carouselElement.addEventListener("pointerdown", handlePointerDown);
-    carouselElement.addEventListener("pointermove", handlePointerMove);
-    carouselElement.addEventListener("pointerup", handlePointerUp);
-    carouselElement.addEventListener("pointercancel", handlePointerUp);
+    if (carouselRef.current) {
+      carouselRef.current.addEventListener("click", handleButtonClick, false);
+    }
+    carouselApi.on("select", handleSelect);
 
     return () => {
-      carouselElement.removeEventListener("pointerdown", handlePointerDown);
-      carouselElement.removeEventListener("pointermove", handlePointerMove);
-      carouselElement.removeEventListener("pointerup", handlePointerUp);
-      carouselElement.removeEventListener("pointercancel", handlePointerUp);
+      if (carouselRef.current) {
+        carouselRef.current.removeEventListener("click", handleButtonClick, false);
+      }
+      carouselApi.off("select", handleSelect);
     };
   }, [carouselApi, handleUserScroll]);
 
@@ -164,7 +225,7 @@ export function TestimonialsSection({
     };
   }, [carouselApi, isHovered, isPaused, startAutoplay, clearTimers]);
 
-  // Обработчики наведения мыши
+  // Обработчики наведения мыши (только на контент карусели)
   const handleMouseEnter = useCallback(() => {
     setIsHovered(true);
     clearTimers();
@@ -203,8 +264,6 @@ export function TestimonialsSection({
           <div 
             ref={carouselRef}
             className="relative px-8 lg:px-16"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
           >
             <Carousel
               setApi={setCarouselApi}
@@ -214,7 +273,11 @@ export function TestimonialsSection({
               }}
               className="w-full"
             >
-              <CarouselContent className="-ml-2 md:-ml-4">
+              <CarouselContent 
+                className="-ml-2 md:-ml-4"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
                 {testimonials.map((testimonial) => (
                   <CarouselItem
                     key={testimonial.id || testimonial.name}
@@ -234,11 +297,9 @@ export function TestimonialsSection({
               </CarouselContent>
               <CarouselPrevious 
                 className="hidden lg:flex"
-                onClick={handleUserScroll}
               />
               <CarouselNext 
                 className="hidden lg:flex"
-                onClick={handleUserScroll}
               />
             </Carousel>
           </div>

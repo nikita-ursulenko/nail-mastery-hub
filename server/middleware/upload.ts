@@ -85,3 +85,35 @@ export const getFounderImageUrl = (filename: string): string => {
   return `/uploads/founder/${filename}`;
 };
 
+// Создаем папку для загрузок команды, если её нет
+const teamUploadsDir = path.join(process.cwd(), 'public', 'uploads', 'team');
+if (!fs.existsSync(teamUploadsDir)) {
+  fs.mkdirSync(teamUploadsDir, { recursive: true });
+}
+
+// Настройка хранилища для изображений команды
+const teamStorage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb) => {
+    cb(null, teamUploadsDir);
+  },
+  filename: (req: Request, file: Express.Multer.File, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `team-${uniqueSuffix}${ext}`);
+  },
+});
+
+// Настройка multer для изображений команды
+export const uploadTeamImage = multer({
+  storage: teamStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: fileFilter,
+});
+
+// Функция для получения URL загруженного изображения команды
+export const getTeamImageUrl = (filename: string): string => {
+  return `/uploads/team/${filename}`;
+};
+
