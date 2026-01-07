@@ -310,6 +310,8 @@ export default function Schedule() {
                         <img
                           src={event.image}
                           alt={event.title}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent" />
@@ -387,6 +389,8 @@ export default function Schedule() {
                           <img
                             src={event.instructorAvatar}
                             alt={event.instructor}
+                            loading="lazy"
+                            decoding="async"
                             className="h-12 w-12 rounded-full object-cover"
                           />
                         )}

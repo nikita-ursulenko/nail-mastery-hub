@@ -86,6 +86,8 @@ export function TeamSection({
                       <img
                         src={imageUrl}
                         alt={member.name}
+                        loading="lazy"
+                        decoding="async"
                         className="aspect-square w-full object-cover transition-transform group-hover:scale-105"
                       />
                     </div>

@@ -15,6 +15,7 @@ import {
   UserCircle,
   UserCog,
   FileText,
+  Search,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -30,6 +31,7 @@ const menuItems: MenuItem[] = [
   { icon: UserCircle, label: 'Основатель', path: '/admin/founder' },
   { icon: UserCog, label: 'Команда', path: '/admin/team' },
   { icon: FileText, label: 'Блог', path: '/admin/blog' },
+  { icon: Search, label: 'SEO', path: '/admin/seo' },
   { icon: BookOpen, label: 'Курсы', path: '/admin/courses' },
   { icon: Users, label: 'Пользователи', path: '/admin/users' },
   { icon: ShoppingCart, label: 'Заказы', path: '/admin/orders' },

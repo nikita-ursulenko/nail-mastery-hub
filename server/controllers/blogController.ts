@@ -225,7 +225,54 @@ export const createBlogPost = async (req: AuthRequest, res: Response) => {
       ]
     );
 
-    res.status(201).json(result.rows[0]);
+    const newPost = result.rows[0];
+
+    // Автоматически создаем SEO настройки для статьи
+    try {
+      const seoPath = `/blog/${slug}`;
+      const imageUrl = image_upload_path
+        ? `/uploads/blog/${image_upload_path}`
+        : image_url || 'https://lovable.dev/opengraph-image-p98pqg.png';
+
+      await pool.query(
+        `INSERT INTO seo_settings (
+          path, title, description, keywords, og_title, og_description,
+          og_image, og_type, twitter_card, twitter_title, twitter_description,
+          twitter_image, robots
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT (path) DO UPDATE SET
+          title = EXCLUDED.title,
+          description = EXCLUDED.description,
+          keywords = EXCLUDED.keywords,
+          og_title = EXCLUDED.og_title,
+          og_description = EXCLUDED.og_description,
+          og_image = EXCLUDED.og_image,
+          twitter_title = EXCLUDED.twitter_title,
+          twitter_description = EXCLUDED.twitter_description,
+          twitter_image = EXCLUDED.twitter_image,
+          updated_at = CURRENT_TIMESTAMP`,
+        [
+          seoPath,
+          `${title} | NailArt Academy`,
+          excerpt || title,
+          tags && tags.length > 0 ? tags.join(', ') : category,
+          title,
+          excerpt || title,
+          imageUrl,
+          'article',
+          'summary_large_image',
+          title,
+          excerpt || title,
+          imageUrl,
+          'index, follow',
+        ]
+      );
+    } catch (seoError) {
+      // Не прерываем создание статьи, если SEO не создалось
+      console.error('Error creating SEO for blog post:', seoError);
+    }
+
+    res.status(201).json(newPost);
   } catch (error) {
     console.error('Error creating blog post:', error);
     res.status(500).json({ error: 'Ошибка при создании статьи' });
@@ -302,7 +349,54 @@ export const updateBlogPost = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Статья не найдена' });
     }
 
-    res.json(result.rows[0]);
+    const updatedPost = result.rows[0];
+
+    // Автоматически обновляем SEO настройки для статьи
+    try {
+      const seoPath = `/blog/${slug}`;
+      const imageUrl = image_upload_path
+        ? `/uploads/blog/${image_upload_path}`
+        : image_url || 'https://lovable.dev/opengraph-image-p98pqg.png';
+
+      await pool.query(
+        `INSERT INTO seo_settings (
+          path, title, description, keywords, og_title, og_description,
+          og_image, og_type, twitter_card, twitter_title, twitter_description,
+          twitter_image, robots
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT (path) DO UPDATE SET
+          title = EXCLUDED.title,
+          description = EXCLUDED.description,
+          keywords = EXCLUDED.keywords,
+          og_title = EXCLUDED.og_title,
+          og_description = EXCLUDED.og_description,
+          og_image = EXCLUDED.og_image,
+          twitter_title = EXCLUDED.twitter_title,
+          twitter_description = EXCLUDED.twitter_description,
+          twitter_image = EXCLUDED.twitter_image,
+          updated_at = CURRENT_TIMESTAMP`,
+        [
+          seoPath,
+          `${title} | NailArt Academy`,
+          excerpt || title,
+          tags && tags.length > 0 ? tags.join(', ') : category,
+          title,
+          excerpt || title,
+          imageUrl,
+          'article',
+          'summary_large_image',
+          title,
+          excerpt || title,
+          imageUrl,
+          'index, follow',
+        ]
+      );
+    } catch (seoError) {
+      // Не прерываем обновление статьи, если SEO не обновилось
+      console.error('Error updating SEO for blog post:', seoError);
+    }
+
+    res.json(updatedPost);
   } catch (error) {
     console.error('Error updating blog post:', error);
     res.status(500).json({ error: 'Ошибка при обновлении статьи' });
@@ -312,13 +406,34 @@ export const updateBlogPost = async (req: AuthRequest, res: Response) => {
 export const deleteBlogPost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    
+    // Сначала получаем slug для удаления SEO
+    const postResult = await pool.query(
+      'SELECT slug FROM blog_posts WHERE id = $1',
+      [id]
+    );
+
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Статья не найдена' });
+    }
+
+    const slug = postResult.rows[0].slug;
+
+    // Удаляем статью
     const result = await pool.query(
       'DELETE FROM blog_posts WHERE id = $1 RETURNING id',
       [id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Статья не найдена' });
+    // Удаляем SEO настройки для этой статьи (опционально, можно оставить)
+    try {
+      await pool.query(
+        'DELETE FROM seo_settings WHERE path = $1',
+        [`/blog/${slug}`]
+      );
+    } catch (seoError) {
+      // Не прерываем удаление статьи, если SEO не удалилось
+      console.error('Error deleting SEO for blog post:', seoError);
     }
 
     res.json({ message: 'Статья успешно удалена' });

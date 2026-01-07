@@ -205,6 +205,8 @@ export default function CourseDetail() {
                 <img
                   src={courseData.instructor.image}
                   alt={courseData.instructor.name}
+                  loading="lazy"
+                  decoding="async"
                   className="h-16 w-16 rounded-full object-cover"
                 />
                 <div>
@@ -221,6 +223,8 @@ export default function CourseDetail() {
                 <img
                   src={courseData.image}
                   alt={courseData.title}
+                  loading="lazy"
+                  decoding="async"
                   className="aspect-video w-full object-cover"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-foreground/20">

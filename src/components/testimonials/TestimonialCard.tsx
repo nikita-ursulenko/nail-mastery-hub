@@ -30,6 +30,8 @@ export function TestimonialCard({
               <img
                 src={beforeImage}
                 alt="До"
+                loading="lazy"
+                decoding="async"
                 className="aspect-square w-full object-cover"
               />
               <span className="absolute bottom-2 left-2 rounded bg-foreground/80 px-2 py-0.5 text-xs text-background">
@@ -40,6 +42,8 @@ export function TestimonialCard({
               <img
                 src={afterImage}
                 alt="После"
+                loading="lazy"
+                decoding="async"
                 className="aspect-square w-full object-cover"
               />
               <span className="absolute bottom-2 left-2 rounded bg-primary/90 px-2 py-0.5 text-xs text-primary-foreground">
@@ -72,6 +76,8 @@ export function TestimonialCard({
             <img
               src={avatar}
               alt={name}
+              loading="lazy"
+              decoding="async"
               className="h-12 w-12 rounded-full object-cover"
             />
           ) : (

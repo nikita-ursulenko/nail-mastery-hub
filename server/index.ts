@@ -9,11 +9,13 @@ import contactsRoutes from './routes/contacts';
 import founderRoutes from './routes/founder';
 import teamRoutes from './routes/team';
 import blogRoutes from './routes/blog';
+import seoRoutes from './routes/seo';
 import publicRoutes from './routes/public';
 import { securityHeaders, preventNoSqlInjection } from './middleware/security';
 import { sanitize } from './middleware/validation';
 import { apiRateLimit, loginRateLimit, uploadRateLimit } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { injectSeoMiddleware } from './middleware/seoInjector';
 
 dotenv.config();
 
@@ -44,8 +46,12 @@ app.use('/api/auth/login', loginRateLimit);
 app.use('/api/admin', apiRateLimit);
 app.use('/api/public', apiRateLimit);
 
-// Статические файлы (для загруженных изображений)
-app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
+// Статические файлы (для загруженных изображений) с кэшированием
+app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads'), {
+  maxAge: '1y', // Кэшируем статические файлы на 1 год
+  etag: true,
+  lastModified: true,
+}));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -55,12 +61,18 @@ app.use('/api/admin/contacts', contactsRoutes);
 app.use('/api/admin/founder', founderRoutes);
 app.use('/api/admin/team', teamRoutes);
 app.use('/api/admin/blog', blogRoutes);
+app.use('/api/admin/seo', seoRoutes);
 app.use('/api/public', publicRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
+
+// SEO Injector - инжектит мета-теги в HTML перед отправкой
+// Должен быть перед notFoundHandler, но после всех API роутов
+// Это catch-all для всех не-API роутов
+app.get('*', injectSeoMiddleware);
 
 // Обработчик для несуществующих роутов (должен быть после всех роутов)
 app.use(notFoundHandler);

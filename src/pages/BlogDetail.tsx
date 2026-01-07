@@ -171,6 +171,8 @@ export default function BlogDetail() {
                 <img
                   src={post.image_url}
                   alt={post.title}
+                  loading="lazy"
+                  decoding="async"
                   className="aspect-video w-full object-cover"
                 />
               </div>
@@ -236,6 +238,8 @@ export default function BlogDetail() {
                     <img
                       src={post.author_avatar}
                       alt={post.author}
+                      loading="lazy"
+                      decoding="async"
                       className="h-24 w-24 shrink-0 rounded-full object-cover"
                     />
                   )}

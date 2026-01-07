@@ -197,6 +197,8 @@ export default function Dashboard() {
                         <img
                           src={course.image}
                           alt={course.title}
+                          loading="lazy"
+                          decoding="async"
                           className="h-32 w-32 shrink-0 rounded-l-xl object-cover"
                         />
                         <div className="flex flex-1 flex-col justify-center py-4 pr-4">

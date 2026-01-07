@@ -34,10 +34,18 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    // Добавляем кэширование для GET запросов (браузерное кэширование)
+    const cacheOptions: RequestInit = {
       ...options,
       headers,
-    });
+    };
+
+    // Для GET запросов добавляем cache: 'default' для использования браузерного кэша
+    if (!options.method || options.method === 'GET') {
+      cacheOptions.cache = 'default';
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, cacheOptions);
 
     if (!response.ok) {
       const error: ApiError = await response.json();
@@ -162,7 +170,9 @@ class ApiClient {
 
   // Public Contacts API (без авторизации)
   async getPublicContacts(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/public/contacts`);
+    const response = await fetch(`${API_BASE_URL}/public/contacts`, {
+      cache: 'default', // Используем браузерное кэширование
+    });
     if (!response.ok) {
       throw new Error('Ошибка при получении контактов');
     }
@@ -221,7 +231,9 @@ class ApiClient {
 
   // Public Founder Info API (без авторизации)
   async getPublicFounderInfo(): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/public/founder`);
+    const response = await fetch(`${API_BASE_URL}/public/founder`, {
+      cache: 'default', // Используем браузерное кэширование
+    });
     if (!response.ok) {
       throw new Error('Ошибка при получении информации об основателе');
     }
@@ -280,7 +292,9 @@ class ApiClient {
 
   // Public Team Members API (без авторизации)
   async getPublicTeamMembers(): Promise<any[]> {
-    const response = await fetch(`${API_BASE_URL}/public/team`);
+    const response = await fetch(`${API_BASE_URL}/public/team`, {
+      cache: 'default', // Используем браузерное кэширование
+    });
     if (!response.ok) {
       throw new Error('Ошибка при получении членов команды');
     }
@@ -374,7 +388,9 @@ class ApiClient {
     if (params?.offset) queryParams.append('offset', params.offset.toString());
     
     const url = `${API_BASE_URL}/public/blog${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      cache: 'default', // Используем браузерное кэширование
+    });
     if (!response.ok) {
       throw new Error('Ошибка при получении статей блога');
     }
@@ -382,7 +398,9 @@ class ApiClient {
   }
 
   async getPublicBlogPostBySlug(slug: string): Promise<any> {
-    const response = await fetch(`${API_BASE_URL}/public/blog/${slug}`);
+    const response = await fetch(`${API_BASE_URL}/public/blog/${slug}`, {
+      cache: 'default', // Используем браузерное кэширование
+    });
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('Статья не найдена');
@@ -391,6 +409,35 @@ class ApiClient {
       throw new Error(error.error || 'Ошибка при получении статьи');
     }
     return response.json();
+  }
+
+  // SEO Admin API
+  async getSEOSettings(): Promise<any[]> {
+    return this.request<any[]>('/admin/seo');
+  }
+
+  async getSEOSettingById(id: number): Promise<any> {
+    return this.request<any>(`/admin/seo/${id}`);
+  }
+
+  async upsertSEO(data: any): Promise<any> {
+    return this.request<any>('/admin/seo', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSEO(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/seo/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSEO(id: number): Promise<void> {
+    return this.request<void>(`/admin/seo/${id}`, {
+      method: 'DELETE',
+    });
   }
 }
 

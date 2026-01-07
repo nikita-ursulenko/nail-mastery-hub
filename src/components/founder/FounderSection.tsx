@@ -74,6 +74,8 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
                 <img
                   src={imageUrl}
                   alt={founderInfo.name}
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover rounded-2xl"
                 />
               </div>
