@@ -117,3 +117,35 @@ export const getTeamImageUrl = (filename: string): string => {
   return `/uploads/team/${filename}`;
 };
 
+// Создаем папку для загрузок блога, если её нет
+const blogUploadsDir = path.join(process.cwd(), 'public', 'uploads', 'blog');
+if (!fs.existsSync(blogUploadsDir)) {
+  fs.mkdirSync(blogUploadsDir, { recursive: true });
+}
+
+// Настройка хранилища для изображений блога
+const blogStorage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb) => {
+    cb(null, blogUploadsDir);
+  },
+  filename: (req: Request, file: Express.Multer.File, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `blog-${uniqueSuffix}${ext}`);
+  },
+});
+
+// Настройка multer для изображений блога
+export const uploadBlogImage = multer({
+  storage: blogStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB для блога
+  },
+  fileFilter: fileFilter,
+});
+
+// Функция для получения URL загруженного изображения блога
+export const getBlogImageUrl = (filename: string): string => {
+  return `/uploads/blog/${filename}`;
+};
+

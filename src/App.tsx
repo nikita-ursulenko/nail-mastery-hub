@@ -23,6 +23,7 @@ import AdminTestimonials from "./pages/admin/Testimonials";
 import AdminContacts from "./pages/admin/Contacts";
 import AdminFounder from "./pages/admin/Founder";
 import AdminTeam from "./pages/admin/Team";
+import AdminBlog from "./pages/admin/Blog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminTeam />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/blog"
+              element={
+                <ProtectedRoute>
+                  <AdminBlog />
                 </ProtectedRoute>
               }
             />

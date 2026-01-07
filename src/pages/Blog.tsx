@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Search, SlidersHorizontal, X, ArrowRight, Sparkles } from "lucide-react";
 import { Header } from "@/components/layout/Header";
@@ -8,131 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { api } from "@/lib/api";
 
-import courseBasic from "@/assets/course-basic.jpg";
-import courseGel from "@/assets/course-gel.jpg";
-import courseArt from "@/assets/course-art.jpg";
-import instructorImage from "@/assets/instructor.jpg";
-
-const blogPosts = [
-  {
-    id: "top-trends-2024",
-    title: "Топ-10 трендов маникюра 2024: что будет актуально",
-    excerpt:
-      "Разбираем самые актуальные тренды в nail-дизайне на 2024 год. От минималистичных французских маникюров до ярких геометрических принтов.",
-    image: courseArt,
-    author: "Анна Петрова",
-    authorAvatar: instructorImage,
-    date: "15 января 2024",
-    readTime: "5 мин",
-    category: "Тренды",
-    featured: true,
-  },
-  {
-    id: "gel-polish-guide",
-    title: "Как правильно наносить гель-лак: пошаговая инструкция",
-    excerpt:
-      "Детальный гайд по нанесению гель-лака для начинающих мастеров. Все этапы от подготовки ногтевой пластины до финального покрытия.",
-    image: courseGel,
-    author: "Мария Соколова",
-    authorAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    date: "12 января 2024",
-    readTime: "8 мин",
-    category: "Обучение",
-    featured: true,
-  },
-  {
-    id: "nail-care-tips",
-    title: "10 секретов ухода за ногтями в домашних условиях",
-    excerpt:
-      "Простые и эффективные советы по уходу за ногтями, которые помогут сохранить их здоровье и красоту между визитами к мастеру.",
-    image: courseBasic,
-    author: "Елена Новикова",
-    authorAvatar: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
-    date: "10 января 2024",
-    readTime: "6 мин",
-    category: "Уход",
-    featured: false,
-  },
-  {
-    id: "extension-mistakes",
-    title: "Типичные ошибки при наращивании ногтей и как их избежать",
-    excerpt:
-      "Разбираем самые распространённые ошибки начинающих мастеров при наращивании и даём практические советы по их исправлению.",
-    image: courseGel,
-    author: "Анна Петрова",
-    authorAvatar: instructorImage,
-    date: "8 января 2024",
-    readTime: "7 мин",
-    category: "Обучение",
-    featured: false,
-  },
-  {
-    id: "color-psychology",
-    title: "Психология цвета в маникюре: как выбрать оттенок",
-    excerpt:
-      "Как цвет лака влияет на настроение и восприятие? Узнайте, какие оттенки подходят для разных случаев и как создать гармоничный образ.",
-    image: courseArt,
-    author: "Мария Соколова",
-    authorAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    date: "5 января 2024",
-    readTime: "4 мин",
-    category: "Дизайн",
-    featured: false,
-  },
-  {
-    id: "tools-essentials",
-    title: "Необходимые инструменты для начинающего мастера",
-    excerpt:
-      "Полный список инструментов и материалов, которые понадобятся для начала работы. Что купить в первую очередь, а на чём можно сэкономить.",
-    image: courseBasic,
-    author: "Елена Новикова",
-    authorAvatar: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
-    date: "3 января 2024",
-    readTime: "9 мин",
-    category: "Инструменты",
-    featured: false,
-  },
-  {
-    id: "winter-manicure",
-    title: "Зимний маникюр: идеи и вдохновение",
-    excerpt:
-      "Коллекция идей для зимнего маникюра: от новогодних дизайнов до элегантных классических вариантов. Фото и пошаговые инструкции.",
-    image: courseArt,
-    author: "Анна Петрова",
-    authorAvatar: instructorImage,
-    date: "1 января 2024",
-    readTime: "5 мин",
-    category: "Дизайн",
-    featured: false,
-  },
-  {
-    id: "business-tips",
-    title: "Как открыть свой кабинет маникюра: бизнес-план",
-    excerpt:
-      "Практическое руководство по открытию собственного кабинета маникюра. От выбора локации до привлечения первых клиентов.",
-    image: courseBasic,
-    author: "Анна Петрова",
-    authorAvatar: instructorImage,
-    date: "28 декабря 2023",
-    readTime: "12 мин",
-    category: "Бизнес",
-    featured: false,
-  },
-  {
-    id: "nail-art-techniques",
-    title: "5 техник nail-арта, которые должен знать каждый мастер",
-    excerpt:
-      "Осваиваем базовые техники дизайна ногтей: стемпинг, градиент, акварель, инкрустация и объёмный декор. Пошаговые мастер-классы.",
-    image: courseArt,
-    author: "Мария Соколова",
-    authorAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    date: "25 декабря 2023",
-    readTime: "10 мин",
-    category: "Дизайн",
-    featured: false,
-  },
-];
+interface BlogPost {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  image_url?: string | null;
+  image_upload_path?: string | null;
+  author: string;
+  author_avatar?: string | null;
+  author_avatar_upload_path?: string | null;
+  date: string;
+  read_time: string;
+  category: string;
+  featured: boolean;
+}
 
 const categories = [
   { id: "all", label: "Все статьи" },
@@ -144,24 +36,120 @@ const categories = [
   { id: "Бизнес", label: "Бизнес" },
 ];
 
-const featuredPosts = blogPosts.filter((post) => post.featured);
-const regularPosts = blogPosts.filter((post) => !post.featured);
+const POSTS_PER_PAGE = 9;
 
 export default function Blog() {
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [featuredPosts, setFeaturedPosts] = useState<BlogPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
+  const observerTarget = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
 
-  const filteredPosts = blogPosts.filter((post) => {
-    const matchesSearch =
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.author.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || post.category === selectedCategory;
+  const loadBlogPosts = useCallback(async (reset: boolean = false) => {
+    if (reset) {
+      setIsLoading(true);
+      offsetRef.current = 0;
+      setBlogPosts([]);
+      setFeaturedPosts([]);
+    } else {
+      setIsLoadingMore(true);
+    }
+    
+    try {
+      const params: any = {
+        limit: POSTS_PER_PAGE,
+        offset: offsetRef.current,
+      };
+      if (selectedCategory !== "all") {
+        params.category = selectedCategory;
+      }
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+      const response = await api.getPublicBlogPosts(params);
+      
+      if (reset) {
+        // При сбросе разделяем featured и обычные посты
+        const featured = response.posts.filter((post: BlogPost) => post.featured);
+        const regular = response.posts.filter((post: BlogPost) => !post.featured);
+        setFeaturedPosts(featured);
+        
+        // Показываем посты в основной сетке
+        if (selectedCategory === "all" && !searchQuery) {
+          // Без фильтров: показываем только не-featured в основной сетке
+          setBlogPosts(regular);
+        } else {
+          // С фильтрами: показываем все посты
+          setBlogPosts(response.posts);
+        }
+        offsetRef.current = response.posts.length;
+      } else {
+        // При подгрузке добавляем посты
+        if (selectedCategory === "all" && !searchQuery) {
+          // Без фильтров: добавляем только не-featured
+          const regular = response.posts.filter((post: BlogPost) => !post.featured);
+          setBlogPosts((prev) => [...prev, ...regular]);
+        } else {
+          // С фильтрами: добавляем все
+          setBlogPosts((prev) => [...prev, ...response.posts]);
+        }
+        offsetRef.current += response.posts.length;
+      }
+      
+      setHasMore(response.hasMore);
+      setTotal(response.total);
+    } catch (error) {
+      console.error("Failed to load blog posts:", error);
+      if (reset) {
+        setBlogPosts([]);
+        setFeaturedPosts([]);
+        offsetRef.current = 0;
+      }
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [selectedCategory, searchQuery]);
 
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    loadBlogPosts(true);
+  }, [selectedCategory, searchQuery, loadBlogPosts]);
+
+  // Infinite scroll с Intersection Observer
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || isLoading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadBlogPosts(false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, isLoadingMore, isLoading, loadBlogPosts]);
+
+  // Для основной сетки показываем только не-featured посты, если нет фильтров
+  const filteredPosts = selectedCategory === "all" && !searchQuery
+    ? blogPosts
+    : blogPosts;
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -211,9 +199,31 @@ export default function Blog() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              {featuredPosts.map((post) => (
-                <BlogCard key={post.id} {...post} />
-              ))}
+              {featuredPosts.map((post) => {
+                const imageUrl = post.image_upload_path
+                  ? `/uploads/blog/${post.image_upload_path}`
+                  : post.image_url || "";
+                const formattedDate = new Date(post.date).toLocaleDateString('ru-RU', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                });
+                return (
+                  <BlogCard
+                    key={post.id}
+                    id={post.slug}
+                    title={post.title}
+                    excerpt={post.excerpt}
+                    image={imageUrl}
+                    author={post.author}
+                    authorAvatar={post.author_avatar || undefined}
+                    date={formattedDate}
+                    readTime={post.read_time}
+                    category={post.category}
+                    featured={post.featured}
+                  />
+                );
+              })}
             </div>
           </div>
         </section>
@@ -308,20 +318,56 @@ export default function Blog() {
       {/* Blog Posts Grid */}
       <section className="flex-1 py-12 lg:py-16">
         <div className="container">
-          {filteredPosts.length > 0 ? (
-            <>
-              <div className="mb-8 flex items-center justify-between">
-                <p className="text-muted-foreground">
-                  Найдено статей: {filteredPosts.length}
-                </p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+                <p className="text-muted-foreground">Загрузка статей...</p>
               </div>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredPosts.map((post) => (
-                  <BlogCard key={post.id} {...post} />
-                ))}
-              </div>
-            </>
-          ) : (
+            </div>
+          ) : filteredPosts.length > 0 || featuredPosts.length > 0 ? (
+              <>
+                <div className="mb-8 flex items-center justify-between">
+                  <p className="text-muted-foreground">
+                    Найдено статей: {total} {filteredPosts.length < total && `(показано ${filteredPosts.length + featuredPosts.length})`}
+                  </p>
+                </div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredPosts.map((post) => {
+                    const imageUrl = post.image_upload_path
+                      ? `/uploads/blog/${post.image_upload_path}`
+                      : post.image_url || "";
+                    const formattedDate = new Date(post.date).toLocaleDateString('ru-RU', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    });
+                    return (
+                      <BlogCard
+                        key={post.id}
+                        id={post.slug}
+                        title={post.title}
+                        excerpt={post.excerpt}
+                        image={imageUrl}
+                        author={post.author}
+                        authorAvatar={post.author_avatar || undefined}
+                        date={formattedDate}
+                        readTime={post.read_time}
+                        category={post.category}
+                        featured={post.featured}
+                      />
+                    );
+                  })}
+                </div>
+                {/* Элемент-триггер для infinite scroll */}
+                <div ref={observerTarget} className="h-10 w-full" />
+                {isLoadingMore && (
+                  <div className="mt-8 flex justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  </div>
+                )}
+              </>
+            ) : (
             <div className="py-16 text-center">
               <p className="mb-4 text-xl font-medium">Статьи не найдены</p>
               <p className="mb-6 text-muted-foreground">

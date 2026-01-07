@@ -20,6 +20,7 @@
     "seed-contacts": "tsx server/scripts/seed-contacts.ts",
     "seed-founder": "tsx server/scripts/seed-founder.ts",
     "seed-team": "tsx server/scripts/seed-team.ts",
+    "seed-blog": "tsx server/scripts/seed-blog.ts",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f postgres"

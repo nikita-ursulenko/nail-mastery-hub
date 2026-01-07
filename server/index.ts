@@ -7,6 +7,7 @@ import testimonialsRoutes from './routes/testimonials';
 import contactsRoutes from './routes/contacts';
 import founderRoutes from './routes/founder';
 import teamRoutes from './routes/team';
+import blogRoutes from './routes/blog';
 import publicRoutes from './routes/public';
 
 dotenv.config();
@@ -33,6 +34,7 @@ app.use('/api/admin/testimonials', testimonialsRoutes);
 app.use('/api/admin/contacts', contactsRoutes);
 app.use('/api/admin/founder', founderRoutes);
 app.use('/api/admin/team', teamRoutes);
+app.use('/api/admin/blog', blogRoutes);
 app.use('/api/public', publicRoutes);
 
 // Health check

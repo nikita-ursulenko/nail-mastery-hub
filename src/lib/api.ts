@@ -286,6 +286,112 @@ class ApiClient {
     }
     return response.json();
   }
+
+  // Blog Posts API (admin)
+  async getBlogPosts(): Promise<any[]> {
+    return this.request<any[]>('/admin/blog');
+  }
+
+  async getBlogPostById(id: number): Promise<any> {
+    return this.request<any>(`/admin/blog/${id}`);
+  }
+
+  async createBlogPost(data: any): Promise<any> {
+    return this.request<any>('/admin/blog', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateBlogPost(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/blog/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBlogPost(id: number): Promise<void> {
+    return this.request<void>(`/admin/blog/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadBlogImage(file: File): Promise<{ filename: string; url: string }> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const token = localStorage.getItem('admin_token');
+    const response = await fetch(`${API_BASE_URL}/admin/blog/upload-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Ошибка при загрузке изображения');
+    }
+
+    return response.json();
+  }
+
+  async uploadAuthorAvatar(file: File): Promise<{ filename: string; url: string }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const token = localStorage.getItem('admin_token');
+    const response = await fetch(`${API_BASE_URL}/admin/blog/upload-author-avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Ошибка при загрузке аватара автора');
+    }
+
+    return response.json();
+  }
+
+  // Public Blog Posts API (без авторизации)
+  async getPublicBlogPosts(params?: { 
+    category?: string; 
+    featured?: boolean; 
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ posts: any[]; total: number; hasMore: boolean }> {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.featured) queryParams.append('featured', 'true');
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    
+    const url = `${API_BASE_URL}/public/blog${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Ошибка при получении статей блога');
+    }
+    return response.json();
+  }
+
+  async getPublicBlogPostBySlug(slug: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/public/blog/${slug}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Статья не найдена');
+      }
+      const error = await response.json().catch(() => ({ error: 'Ошибка при получении статьи' }));
+      throw new Error(error.error || 'Ошибка при получении статьи');
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();
