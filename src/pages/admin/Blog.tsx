@@ -37,6 +37,7 @@ interface BlogPost {
   image_url?: string | null;
   image_upload_path?: string | null;
   author: string;
+  author_id?: number | null;
   author_avatar?: string | null;
   author_avatar_upload_path?: string | null;
   author_bio?: string | null;
@@ -64,6 +65,7 @@ export default function AdminBlog() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     slug: '',
     title: '',
@@ -72,6 +74,7 @@ export default function AdminBlog() {
     image_url: '',
     image_upload_path: '',
     author: '',
+    author_id: null as number | null,
     author_avatar: '',
     author_avatar_upload_path: '',
     author_bio: '',
@@ -94,6 +97,7 @@ export default function AdminBlog() {
 
   useEffect(() => {
     loadBlogPosts();
+    loadTeamMembers();
   }, []);
 
   const loadBlogPosts = async () => {
@@ -104,6 +108,15 @@ export default function AdminBlog() {
       console.error('Failed to load blog posts:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadTeamMembers = async () => {
+    try {
+      const data = await api.getTeamMembers();
+      setTeamMembers(data.filter((member: any) => member.is_active));
+    } catch (error) {
+      console.error('Failed to load team members:', error);
     }
   };
 
@@ -122,7 +135,35 @@ export default function AdminBlog() {
         // Если не JSON, оставляем как есть
       }
 
-      const isAuthorAvatarUploaded = post.author_avatar_upload_path;
+      // Если есть author_id, подтягиваем данные из команды
+      let authorData = {
+        author: post.author,
+        author_avatar: post.author_avatar || '',
+        author_avatar_upload_path: post.author_avatar_upload_path || '',
+        author_bio: post.author_bio || '',
+      };
+      
+      if (post.author_id && teamMembers.length > 0) {
+        const teamMember = teamMembers.find(m => m.id === post.author_id);
+        if (teamMember) {
+          // Используем данные из команды
+          const avatarUrl = teamMember.image_upload_path 
+            ? `/uploads/team/${teamMember.image_upload_path}`
+            : teamMember.image_url || '';
+          
+          authorData = {
+            author: teamMember.name,
+            author_avatar: avatarUrl,
+            author_avatar_upload_path: teamMember.image_upload_path || '',
+            author_bio: teamMember.bio || '',
+          };
+        }
+      }
+      
+      // Если есть author_id, всегда используем аватар из команды
+      const isAuthorFromTeam = !!post.author_id && teamMembers.length > 0;
+      const isAuthorAvatarUploaded = authorData.author_avatar_upload_path && !isAuthorFromTeam;
+      
       setFormData({
         slug: post.slug,
         title: post.title,
@@ -130,10 +171,11 @@ export default function AdminBlog() {
         content: contentText,
         image_url: isUploaded ? '' : (post.image_url || ''),
         image_upload_path: post.image_upload_path || '',
-        author: post.author,
-        author_avatar: isAuthorAvatarUploaded ? '' : (post.author_avatar || ''),
-        author_avatar_upload_path: post.author_avatar_upload_path || '',
-        author_bio: post.author_bio || '',
+        author: authorData.author,
+        author_id: post.author_id || null,
+        author_avatar: isAuthorFromTeam ? authorData.author_avatar : (isAuthorAvatarUploaded ? '' : authorData.author_avatar),
+        author_avatar_upload_path: isAuthorFromTeam ? authorData.author_avatar_upload_path : authorData.author_avatar_upload_path,
+        author_bio: authorData.author_bio,
         date: post.date.split('T')[0],
         read_time: post.read_time,
         category: post.category,
@@ -152,11 +194,17 @@ export default function AdminBlog() {
         setImagePreview('');
         setUseUpload(false);
       }
-      if (isAuthorAvatarUploaded) {
-        setAuthorAvatarPreview(`/uploads/avatars/${post.author_avatar_upload_path}`);
+      
+      // Устанавливаем preview аватара
+      if (isAuthorFromTeam && authorData.author_avatar) {
+        // Аватар из команды
+        setAuthorAvatarPreview(authorData.author_avatar);
+        setUseAuthorAvatarUpload(!!authorData.author_avatar_upload_path);
+      } else if (isAuthorAvatarUploaded) {
+        setAuthorAvatarPreview(`/uploads/avatars/${authorData.author_avatar_upload_path}`);
         setUseAuthorAvatarUpload(true);
-      } else if (post.author_avatar) {
-        setAuthorAvatarPreview(post.author_avatar);
+      } else if (authorData.author_avatar) {
+        setAuthorAvatarPreview(authorData.author_avatar);
         setUseAuthorAvatarUpload(false);
       } else {
         setAuthorAvatarPreview('');
@@ -172,6 +220,7 @@ export default function AdminBlog() {
         image_url: '',
         image_upload_path: '',
         author: '',
+        author_id: null,
         author_avatar: '',
         author_avatar_upload_path: '',
         author_bio: '',
@@ -294,6 +343,7 @@ export default function AdminBlog() {
         excerpt: formData.excerpt,
         content: contentJson,
         author: formData.author,
+        author_id: formData.author_id,
         author_bio: formData.author_bio || null,
         date: formData.date,
         read_time: formData.read_time,
@@ -496,12 +546,28 @@ export default function AdminBlog() {
                     )}
 
                     {useUpload && (
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileChange}
-                        className="cursor-pointer"
-                      />
+                      <div className="space-y-2">
+                        <input
+                          id="blog_image_file"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            document.getElementById('blog_image_file')?.click();
+                          }}
+                          className="w-full"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {imageFile ? imageFile.name : 'Выберите файл'}
+                        </Button>
+                      </div>
                     )}
 
                     {imagePreview && (
@@ -527,17 +593,68 @@ export default function AdminBlog() {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="author">Автор *</Label>
-                    <Input
-                      id="author"
-                      value={formData.author}
-                      onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                      required
-                      placeholder="Анна Петрова"
-                    />
+                    <Label htmlFor="author_id">Автор *</Label>
+                    <Select
+                      value={formData.author_id?.toString() || 'none'}
+                      onValueChange={(value) => {
+                        const selectedId = value === 'none' ? null : parseInt(value);
+                        const selectedMember = teamMembers.find(m => m.id === selectedId);
+                        
+                        if (selectedMember) {
+                          // Автоматически заполняем данные из команды
+                          const avatarUrl = selectedMember.image_upload_path 
+                            ? `/uploads/team/${selectedMember.image_upload_path}`
+                            : selectedMember.image_url || '';
+                          
+                          setFormData({
+                            ...formData,
+                            author_id: selectedId,
+                            author: selectedMember.name,
+                            author_avatar: avatarUrl,
+                            author_avatar_upload_path: selectedMember.image_upload_path || '',
+                            author_bio: selectedMember.bio || '',
+                          });
+                          
+                          // Обновляем preview аватара
+                          if (avatarUrl) {
+                            setAuthorAvatarPreview(avatarUrl);
+                            setUseAuthorAvatarUpload(!!selectedMember.image_upload_path);
+                          }
+                        } else {
+                          // Сбрасываем данные если автор не выбран
+                          setFormData({
+                            ...formData,
+                            author_id: null,
+                            author: '',
+                            author_avatar: '',
+                            author_avatar_upload_path: '',
+                            author_bio: '',
+                          });
+                          setAuthorAvatarPreview('');
+                          setUseAuthorAvatarUpload(false);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите автора" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Без автора</SelectItem>
+                        {teamMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id.toString()}>
+                            {member.name} - {member.role}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>Аватар автора</Label>
+                    {formData.author_id && (
+                      <p className="text-xs text-muted-foreground">
+                        Автоматически из команды
+                      </p>
+                    )}
                     <div className="space-y-3">
                       <div className="flex gap-4">
                         <Button
@@ -550,6 +667,7 @@ export default function AdminBlog() {
                             setAuthorAvatarPreview(formData.author_avatar || '');
                             setFormData({ ...formData, author_avatar_upload_path: '' });
                           }}
+                          disabled={!!formData.author_id}
                         >
                           URL
                         </Button>
@@ -561,6 +679,7 @@ export default function AdminBlog() {
                             setUseAuthorAvatarUpload(true);
                             setFormData({ ...formData, author_avatar: '' });
                           }}
+                          disabled={!!formData.author_id}
                         >
                           <Upload className="mr-2 h-4 w-4" />
                           Загрузить файл
@@ -576,16 +695,37 @@ export default function AdminBlog() {
                             setAuthorAvatarPreview(e.target.value);
                           }}
                           placeholder="https://example.com/avatar.jpg"
+                          disabled={!!formData.author_id}
                         />
                       )}
 
                       {useAuthorAvatarUpload && (
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAuthorAvatarFileChange}
-                          className="cursor-pointer"
-                        />
+                        <div className="space-y-2">
+                          <input
+                            id="author_avatar_file"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAuthorAvatarFileChange}
+                            className="hidden"
+                            disabled={!!formData.author_id}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!formData.author_id) {
+                                document.getElementById('author_avatar_file')?.click();
+                              }
+                            }}
+                            className="w-full"
+                            disabled={!!formData.author_id}
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            {authorAvatarFile ? authorAvatarFile.name : 'Выберите файл'}
+                          </Button>
+                        </div>
                       )}
 
                       {authorAvatarPreview && (
@@ -622,12 +762,18 @@ export default function AdminBlog() {
 
                 <div className="space-y-2">
                   <Label htmlFor="author_bio">Биография автора</Label>
+                  {formData.author_id && (
+                    <p className="text-xs text-muted-foreground">
+                      Автоматически из команды
+                    </p>
+                  )}
                   <Textarea
                     id="author_bio"
                     value={formData.author_bio}
                     onChange={(e) => setFormData({ ...formData, author_bio: e.target.value })}
                     rows={2}
                     placeholder="Краткая биография автора..."
+                    disabled={!!formData.author_id}
                   />
                 </div>
 

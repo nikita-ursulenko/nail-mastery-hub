@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
+import { getAvatarUrl } from '../middleware/upload';
 
 const pool = new Pool(getDatabaseConfig());
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -147,5 +148,147 @@ export const verifyToken = asyncHandler(async (req: Request, res: Response) => {
     valid: true,
     user: result.rows[0],
   });
+});
+
+// Обновление профиля пользователя
+export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    throw new AppError('Пользователь не аутентифицирован', 401);
+  }
+
+  const { name, email, phone, avatar_url, avatar_upload_path } = req.body;
+
+  // Проверка существования пользователя
+  const existingUser = await pool.query('SELECT id, email FROM users WHERE id = $1', [userId]);
+  if (existingUser.rows.length === 0) {
+    throw new AppError('Пользователь не найден', 404);
+  }
+
+  // Проверка уникальности email (если изменился)
+  if (email && email !== existingUser.rows[0].email) {
+    const emailCheck = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [email, userId]
+    );
+    if (emailCheck.rows.length > 0) {
+      throw new AppError('Пользователь с таким email уже существует', 409);
+    }
+  }
+
+  // Формируем запрос на обновление
+  const updates: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
+
+  if (name) {
+    updates.push(`name = $${paramIndex++}`);
+    values.push(name);
+  }
+  if (email) {
+    updates.push(`email = $${paramIndex++}`);
+    values.push(email);
+  }
+  if (phone !== undefined) {
+    updates.push(`phone = $${paramIndex++}`);
+    values.push(phone);
+  }
+  if (avatar_url !== undefined) {
+    updates.push(`avatar_url = $${paramIndex++}`);
+    values.push(avatar_url);
+  }
+  if (avatar_upload_path !== undefined) {
+    updates.push(`avatar_upload_path = $${paramIndex++}`);
+    values.push(avatar_upload_path);
+  }
+
+  if (updates.length === 0) {
+    throw new AppError('Нет данных для обновления', 400);
+  }
+
+  updates.push(`updated_at = CURRENT_TIMESTAMP`);
+  values.push(userId);
+
+  const result = await pool.query(
+    `UPDATE users 
+     SET ${updates.join(', ')}
+     WHERE id = $${paramIndex}
+     RETURNING id, email, name, phone, avatar_url, avatar_upload_path, created_at, updated_at`,
+    values
+  );
+
+  res.json({ user: result.rows[0] });
+});
+
+// Смена пароля пользователя
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    throw new AppError('Пользователь не аутентифицирован', 401);
+  }
+
+  const { oldPassword, newPassword } = req.body;
+
+  if (!oldPassword || !newPassword) {
+    throw new AppError('Старый и новый пароль обязательны', 400);
+  }
+
+  if (newPassword.length < 6) {
+    throw new AppError('Новый пароль должен быть не менее 6 символов', 400);
+  }
+
+  // Получаем текущий пароль
+  const result = await pool.query(
+    'SELECT password_hash FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    throw new AppError('Пользователь не найден', 404);
+  }
+
+  // Проверяем старый пароль
+  const isPasswordValid = await bcrypt.compare(oldPassword, result.rows[0].password_hash);
+  if (!isPasswordValid) {
+    throw new AppError('Неверный старый пароль', 401);
+  }
+
+  // Хешируем новый пароль
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+  // Обновляем пароль
+  await pool.query(
+    `UPDATE users 
+     SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2`,
+    [newPasswordHash, userId]
+  );
+
+  res.json({ message: 'Пароль успешно изменен' });
+});
+
+// Загрузка аватара пользователя
+export const uploadUserAvatar = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) {
+    throw new AppError('Пользователь не аутентифицирован', 401);
+  }
+
+  if (!req.file) {
+    throw new AppError('Файл не был загружен', 400);
+  }
+
+  const filename = req.file.filename;
+  const avatarUrl = getAvatarUrl(filename);
+
+  // Обновляем путь к аватару в БД
+  await pool.query(
+    `UPDATE users 
+     SET avatar_upload_path = $1, avatar_url = NULL, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $2`,
+    [filename, userId]
+  );
+
+  res.json({ filename, url: avatarUrl });
 });
 

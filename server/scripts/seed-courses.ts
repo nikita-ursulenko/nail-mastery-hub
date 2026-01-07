@@ -63,9 +63,17 @@ async function createCourse(courseData: CourseData, instructorId: number | null)
     // Создаем уроки в модуле
     for (const lessonData of moduleData.lessons) {
       await pool.query(
-        `INSERT INTO course_lessons (module_id, title, order_index, duration)
-         VALUES ($1, $2, $3, $4)`,
-        [moduleId, lessonData.title, lessonData.order_index, lessonData.duration]
+        `INSERT INTO course_lessons (module_id, title, description, video_url, order_index, duration, is_preview)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          moduleId,
+          lessonData.title,
+          lessonData.description || null,
+          lessonData.video_url || null,
+          lessonData.order_index,
+          lessonData.duration,
+          lessonData.is_preview || false,
+        ]
       );
     }
     console.log(`    ✅ Создано уроков: ${moduleData.lessons.length}`);
@@ -134,8 +142,11 @@ interface CourseData {
     order_index: number;
     lessons: Array<{
       title: string;
+      description?: string;
+      video_url?: string;
       order_index: number;
       duration: number;
+      is_preview?: boolean;
     }>;
   }>;
   tariffs: Array<{
@@ -185,40 +196,138 @@ const basicManicureCourse: CourseData = {
       title: 'Модуль 1. Введение в профессию',
       order_index: 1,
       lessons: [
-        { title: 'Обзор профессии nail-мастера', order_index: 1, duration: 1200 },
-        { title: 'Организация рабочего места', order_index: 2, duration: 900 },
-        { title: 'Инструменты и материалы', order_index: 3, duration: 1500 },
-        { title: 'Санитарные нормы и стерилизация', order_index: 4, duration: 1800 },
+        {
+          title: 'Обзор профессии nail-мастера',
+          description: 'В этом уроке вы узнаете о профессии nail-мастера, её перспективах и возможностях заработка. Разберем основные направления в ногтевом сервисе.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 1200,
+          is_preview: true,
+        },
+        {
+          title: 'Организация рабочего места',
+          description: 'Узнайте, как правильно организовать рабочее место nail-мастера для максимального комфорта и эффективности работы.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 900,
+          is_preview: true,
+        },
+        {
+          title: 'Инструменты и материалы',
+          description: 'Подробный обзор всех необходимых инструментов и материалов для работы nail-мастера. Как выбрать качественные материалы.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 1500,
+        },
+        {
+          title: 'Санитарные нормы и стерилизация',
+          description: 'Изучите правила санитарии и стерилизации инструментов. Требования СЭС к работе nail-мастера.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 1800,
+        },
       ],
     },
     {
       title: 'Модуль 2. Классический маникюр',
       order_index: 2,
       lessons: [
-        { title: 'Строение ногтя', order_index: 1, duration: 1000 },
-        { title: 'Опил ногтевой пластины', order_index: 2, duration: 2000 },
-        { title: 'Техника обрезного маникюра', order_index: 3, duration: 2400 },
-        { title: 'Работа с кутикулой', order_index: 4, duration: 1800 },
+        {
+          title: 'Строение ногтя',
+          description: 'Анатомия ногтя: строение, зоны роста, функции. Понимание структуры ногтя — основа качественной работы мастера.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 1000,
+        },
+        {
+          title: 'Опил ногтевой пластины',
+          description: 'Техники опила ногтей различной формы. Правильный выбор пилки и направления движения для идеального результата.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 2000,
+        },
+        {
+          title: 'Техника обрезного маникюра',
+          description: 'Пошаговая техника выполнения обрезного маникюра. Работа с инструментами, безопасность, идеальный результат.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 2400,
+        },
+        {
+          title: 'Работа с кутикулой',
+          description: 'Техники удаления кутикулы: обрезная и европейская. Работа с проблемной кутикулой.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 1800,
+        },
       ],
     },
     {
       title: 'Модуль 3. Аппаратный маникюр',
       order_index: 3,
       lessons: [
-        { title: 'Выбор аппарата и фрез', order_index: 1, duration: 1500 },
-        { title: 'Техники работы с аппаратом', order_index: 2, duration: 3000 },
-        { title: 'Комбинированная техника', order_index: 3, duration: 2500 },
-        { title: 'Работа с проблемными ногтями', order_index: 4, duration: 2200 },
+        {
+          title: 'Выбор аппарата и фрез',
+          description: 'Как выбрать аппарат для маникюра. Виды фрез, их назначение и правила использования.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 1500,
+        },
+        {
+          title: 'Техники работы с аппаратом',
+          description: 'Основные техники работы с аппаратом: скорость, давление, угол наклона. Практические упражнения.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 3000,
+        },
+        {
+          title: 'Комбинированная техника',
+          description: 'Сочетание классического и аппаратного маникюра для достижения идеального результата.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 2500,
+        },
+        {
+          title: 'Работа с проблемными ногтями',
+          description: 'Особенности работы с тонкими, ломкими ногтями и другими проблемами ногтевой пластины.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 2200,
+        },
       ],
     },
     {
       title: 'Модуль 4. Покрытие гель-лаком',
       order_index: 4,
       lessons: [
-        { title: 'Подготовка ногтя к покрытию', order_index: 1, duration: 1200 },
-        { title: 'Нанесение базы и цвета', order_index: 2, duration: 2800 },
-        { title: 'Идеальные торцы и блики', order_index: 3, duration: 2000 },
-        { title: 'Снятие покрытия', order_index: 4, duration: 1500 },
+        {
+          title: 'Подготовка ногтя к покрытию',
+          description: 'Правильная подготовка ногтевой пластины — залог долгоносимости покрытия. Все этапы подготовки.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 1200,
+        },
+        {
+          title: 'Нанесение базы и цвета',
+          description: 'Техника нанесения базового и цветного покрытия. Выравнивание ногтевой пластины, работа с пигментированными гель-лаками.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 2800,
+        },
+        {
+          title: 'Идеальные торцы и блики',
+          description: 'Запечатывание торцов для долгоносимости покрытия. Создание идеальных бликов на топе.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 2000,
+        },
+        {
+          title: 'Снятие покрытия',
+          description: 'Безопасное снятие гель-лакового покрытия без повреждения ногтевой пластины.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 1500,
+        },
       ],
     },
   ],
@@ -311,30 +420,102 @@ const hardwareManicureCourse: CourseData = {
       title: 'Модуль 1. Основы аппаратного маникюра',
       order_index: 1,
       lessons: [
-        { title: 'Введение в аппаратный маникюр', order_index: 1, duration: 1000 },
-        { title: 'Выбор аппарата и фрез', order_index: 2, duration: 2000 },
-        { title: 'Настройка аппарата', order_index: 3, duration: 1500 },
-        { title: 'Безопасность и санитария', order_index: 4, duration: 1200 },
+        {
+          title: 'Введение в аппаратный маникюр',
+          description: 'История аппаратного маникюра, его преимущества и особенности. Когда применять аппаратную технику.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 1000,
+        },
+        {
+          title: 'Выбор аппарата и фрез',
+          description: 'Критерии выбора аппарата для маникюра. Обзор популярных моделей. Виды фрез и их назначение.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 2000,
+        },
+        {
+          title: 'Настройка аппарата',
+          description: 'Правильная настройка аппарата: мощность, скорость вращения. Регулировка под разные задачи.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 1500,
+        },
+        {
+          title: 'Безопасность и санитария',
+          description: 'Правила безопасной работы с аппаратом. Стерилизация фрез и насадок. Профилактика травм.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 1200,
+        },
       ],
     },
     {
       title: 'Модуль 2. Техники работы с фрезами',
       order_index: 2,
       lessons: [
-        { title: 'Виды фрез и их применение', order_index: 1, duration: 1800 },
-        { title: 'Техника опила ногтевой пластины', order_index: 2, duration: 2500 },
-        { title: 'Работа с кутикулой аппаратом', order_index: 3, duration: 2200 },
-        { title: 'Обработка боковых валиков', order_index: 4, duration: 2000 },
+        {
+          title: 'Виды фрез и их применение',
+          description: 'Подробный обзор всех видов фрез: алмазные, керамические, твердосплавные. Когда какую фрезу использовать.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 1800,
+        },
+        {
+          title: 'Техника опила ногтевой пластины',
+          description: 'Аппаратный опил ногтевой пластины: выбор фрезы, скорость, техника движения. Создание идеальной формы.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 2500,
+        },
+        {
+          title: 'Работа с кутикулой аппаратом',
+          description: 'Поднятие и удаление кутикулы аппаратом. Выбор правильной фрезы и техника безопасной работы.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 2200,
+        },
+        {
+          title: 'Обработка боковых валиков',
+          description: 'Техника обработки боковых валиков аппаратом. Работа в труднодоступных местах.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 2000,
+        },
       ],
     },
     {
       title: 'Модуль 3. Работа с проблемными ногтями',
       order_index: 3,
       lessons: [
-        { title: 'Тонкие и ломкие ногти', order_index: 1, duration: 2000 },
-        { title: 'Вросшие ногти', order_index: 2, duration: 2400 },
-        { title: 'Грибковые поражения', order_index: 3, duration: 1800 },
-        { title: 'Травмированные ногти', order_index: 4, duration: 2000 },
+        {
+          title: 'Тонкие и ломкие ногти',
+          description: 'Особенности работы аппаратом с тонкими и ломкими ногтями. Выбор фрез и техника безопасной обработки.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 1,
+          duration: 2000,
+        },
+        {
+          title: 'Вросшие ногти',
+          description: 'Работа с вросшими ногтями: диагностика, техника коррекции аппаратом, профилактика.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 2,
+          duration: 2400,
+        },
+        {
+          title: 'Грибковые поражения',
+          description: 'Определение грибковых поражений. Правила работы с такими ногтями, санитария и стерилизация.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 3,
+          duration: 1800,
+        },
+        {
+          title: 'Травмированные ногти',
+          description: 'Работа с травмированными ногтями аппаратом. Восстановление ногтевой пластины.',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          order_index: 4,
+          duration: 2000,
+        },
       ],
     },
   ],

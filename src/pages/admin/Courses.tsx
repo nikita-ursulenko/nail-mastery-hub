@@ -26,7 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -196,6 +196,10 @@ export default function AdminCourses() {
     is_active: true,
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [useImageUpload, setUseImageUpload] = useState(false);
+
   useEffect(() => {
     loadCourses();
     loadTeamMembers();
@@ -244,12 +248,13 @@ export default function AdminCourses() {
   const handleOpenDialog = (course?: Course) => {
     if (course) {
       setEditingCourse(course);
+      const isUploaded = course.image_upload_path;
       setFormData({
         slug: course.slug,
         title: course.title,
         subtitle: course.subtitle || '',
         description: course.description,
-        image_url: course.image_url || '',
+        image_url: isUploaded ? '' : (course.image_url || ''),
         image_upload_path: course.image_upload_path || '',
         video_preview_url: course.video_preview_url || '',
         level: course.level,
@@ -263,6 +268,16 @@ export default function AdminCourses() {
         includeInput: '',
         is_active: course.is_active,
       });
+      if (isUploaded) {
+        setImagePreview(course.image_upload_path);
+        setUseImageUpload(true);
+      } else if (course.image_url) {
+        setImagePreview(course.image_url);
+        setUseImageUpload(false);
+      } else {
+        setImagePreview('');
+        setUseImageUpload(false);
+      }
     } else {
       setEditingCourse(null);
       setFormData({
@@ -284,8 +299,42 @@ export default function AdminCourses() {
         includeInput: '',
         is_active: true,
       });
+      setImagePreview('');
+      setUseImageUpload(false);
     }
+    setImageFile(null);
     setIsDialogOpen(true);
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Проверка типа файла
+      if (!file.type.startsWith('image/')) {
+        toast.error('Пожалуйста, выберите изображение');
+        return;
+      }
+      // Проверка размера (макс 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Размер файла не должен превышать 5MB');
+        return;
+      }
+      setImageFile(file);
+      // Создаем preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setUseImageUpload(true);
+    }
+  };
+
+  const handleRemoveImageFile = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setUseImageUpload(false);
+    setFormData({ ...formData, image_upload_path: '', image_url: '' });
   };
 
   const handleCloseDialog = () => {
@@ -329,10 +378,46 @@ export default function AdminCourses() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const submitData = {
+      let submitData: any = {
         ...formData,
         includes: formData.includes,
       };
+
+      // Если есть файл изображения, загружаем его
+      if (imageFile) {
+        const imageFormData = new FormData();
+        imageFormData.append('image', imageFile);
+        
+        try {
+          const uploadResponse = await fetch('/api/admin/upload/course-image', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
+            },
+            body: imageFormData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Ошибка при загрузке изображения');
+          }
+
+          const uploadData = await uploadResponse.json();
+          submitData.image_upload_path = uploadData.path;
+          submitData.image_url = null;
+        } catch (uploadError: any) {
+          toast.error(uploadError.message || 'Ошибка при загрузке изображения');
+          return;
+        }
+      } else if (!useImageUpload && formData.image_url) {
+        submitData.image_url = formData.image_url;
+        submitData.image_upload_path = null;
+      } else if (formData.image_upload_path) {
+        submitData.image_upload_path = formData.image_upload_path;
+        submitData.image_url = null;
+      } else {
+        submitData.image_url = null;
+        submitData.image_upload_path = null;
+      }
 
       if (editingCourse) {
         await api.updateCourse(editingCourse.id, submitData);
@@ -828,16 +913,96 @@ export default function AdminCourses() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="image_url">Изображение (URL)</Label>
-                      <Input
-                        id="image_url"
-                        value={formData.image_url}
-                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                        placeholder="https://example.com/image.jpg"
-                      />
+                      <Label>Изображение курса</Label>
+                      <div className="space-y-3">
+                        <div className="flex gap-4">
+                          <Button
+                            type="button"
+                            variant={!useImageUpload ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => {
+                              setUseImageUpload(false);
+                              setImageFile(null);
+                              setImagePreview(formData.image_url || '');
+                              setFormData({ ...formData, image_upload_path: '' });
+                            }}
+                          >
+                            URL
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={useImageUpload ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => {
+                              setUseImageUpload(true);
+                              setFormData({ ...formData, image_url: '' });
+                            }}
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            Загрузить файл
+                          </Button>
+                        </div>
+
+                        {!useImageUpload && (
+                          <Input
+                            id="image_url"
+                            value={formData.image_url}
+                            onChange={(e) => {
+                              setFormData({ ...formData, image_url: e.target.value });
+                              setImagePreview(e.target.value);
+                            }}
+                            placeholder="https://example.com/image.jpg"
+                          />
+                        )}
+
+                        {useImageUpload && (
+                          <div className="space-y-2">
+                            <input
+                              id="course_image_file"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageFileChange}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                document.getElementById('course_image_file')?.click();
+                              }}
+                              className="w-full"
+                            >
+                              <Upload className="mr-2 h-4 w-4" />
+                              {imageFile ? imageFile.name : 'Выберите файл'}
+                            </Button>
+                          </div>
+                        )}
+
+                        {imagePreview && (
+                          <div className="relative inline-block">
+                            <img
+                              src={imagePreview}
+                              alt="Course Preview"
+                              className="h-48 w-full rounded-lg object-cover border"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                              onClick={handleRemoveImageFile}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    
                     <div className="space-y-2">
                       <Label htmlFor="video_preview_url">Превью видео (URL)</Label>
                       <Input

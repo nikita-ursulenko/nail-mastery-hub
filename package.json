@@ -22,6 +22,8 @@
     "seed-team": "tsx server/scripts/seed-team.ts",
     "seed-blog": "tsx server/scripts/seed-blog.ts",
     "seed-courses": "tsx server/scripts/seed-courses.ts",
+    "reset-courses": "tsx server/scripts/reset-courses-with-videos.ts",
+    "grant-course-access": "tsx server/scripts/grant-course-access.ts",
     "seo:auto-blog": "tsx server/scripts/auto-create-seo-for-blog.ts",
     "seo:seed-pages": "tsx server/scripts/seed-seo-pages.ts",
     "seo:seed-admin": "tsx server/scripts/seed-admin-seo.ts",

@@ -16,6 +16,10 @@ const Index = lazy(() => import("./pages/Index"));
 const Courses = lazy(() => import("./pages/Courses"));
 const CourseDetail = lazy(() => import("./pages/CourseDetail"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DashboardCourses = lazy(() => import("./pages/DashboardCourses"));
+const DashboardCourseDetail = lazy(() => import("./pages/DashboardCourseDetail"));
+const DashboardLesson = lazy(() => import("./pages/DashboardLesson"));
+const DashboardSettings = lazy(() => import("./pages/DashboardSettings"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
@@ -33,6 +37,8 @@ const AdminTeam = lazy(() => import("./pages/admin/Team"));
 const AdminBlog = lazy(() => import("./pages/admin/Blog"));
 const AdminSEO = lazy(() => import("./pages/admin/SEO"));
 const AdminCourses = lazy(() => import("./pages/admin/Courses"));
+const AdminUsers = lazy(() => import("./pages/admin/Users"));
+const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading component
@@ -75,6 +81,38 @@ const App = () => (
                 element={
                   <ProtectedUserRoute>
                     <Dashboard />
+                  </ProtectedUserRoute>
+                }
+              />
+              <Route
+                path="/dashboard/courses"
+                element={
+                  <ProtectedUserRoute>
+                    <DashboardCourses />
+                  </ProtectedUserRoute>
+                }
+              />
+              <Route
+                path="/dashboard/courses/:id"
+                element={
+                  <ProtectedUserRoute>
+                    <DashboardCourseDetail />
+                  </ProtectedUserRoute>
+                }
+              />
+              <Route
+                path="/dashboard/courses/:courseId/lessons/:lessonId"
+                element={
+                  <ProtectedUserRoute>
+                    <DashboardLesson />
+                  </ProtectedUserRoute>
+                }
+              />
+              <Route
+                path="/dashboard/settings"
+                element={
+                  <ProtectedUserRoute>
+                    <DashboardSettings />
                   </ProtectedUserRoute>
                 }
               />
@@ -143,6 +181,22 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <AdminCourses />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute>
+                    <AdminUsers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/settings"
+                element={
+                  <ProtectedRoute>
+                    <AdminSettings />
                   </ProtectedRoute>
                 }
               />

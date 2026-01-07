@@ -291,12 +291,26 @@ export default function Testimonials() {
                       {/* Загрузка файла */}
                       {useUpload && (
                         <div className="space-y-2">
-                          <Input
+                          <input
+                            id="testimonial_avatar_file"
                             type="file"
                             accept="image/*"
                             onChange={handleFileChange}
-                            className="cursor-pointer"
+                            className="hidden"
                           />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              document.getElementById('testimonial_avatar_file')?.click();
+                            }}
+                            className="w-full"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            {avatarFile ? avatarFile.name : 'Выберите файл'}
+                          </Button>
                           {avatarPreview && (
                             <div className="relative inline-block">
                               <img

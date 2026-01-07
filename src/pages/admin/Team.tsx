@@ -343,12 +343,26 @@ export default function AdminTeam() {
                     {/* Загрузка файла */}
                     {useUpload && (
                       <div className="space-y-2">
-                        <Input
+                        <input
+                          id="team_image_file"
                           type="file"
                           accept="image/*"
                           onChange={handleFileChange}
-                          className="cursor-pointer"
+                          className="hidden"
                         />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            document.getElementById('team_image_file')?.click();
+                          }}
+                          className="w-full"
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          {imageFile ? imageFile.name : 'Выберите файл'}
+                        </Button>
                       </div>
                     )}
 

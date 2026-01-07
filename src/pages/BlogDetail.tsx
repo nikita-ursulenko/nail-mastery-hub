@@ -163,13 +163,15 @@ export default function BlogDetail() {
       </section>
 
       {/* Featured Image */}
-      {post.image_url && (
+      {(post.image_upload_path || post.image_url) && (
         <section className="py-8">
           <div className="container">
             <div className="mx-auto max-w-4xl">
               <div className="overflow-hidden rounded-2xl shadow-elevated">
                 <img
-                  src={post.image_url}
+                  src={post.image_upload_path 
+                    ? `/uploads/blog/${post.image_upload_path}`
+                    : post.image_url || ""}
                   alt={post.title}
                   loading="lazy"
                   decoding="async"
@@ -234,9 +236,11 @@ export default function BlogDetail() {
             <Card variant="elevated">
               <CardContent className="p-6 lg:p-8">
                   <div className="flex flex-col gap-6 sm:flex-row">
-                  {post.author_avatar && (
+                  {(post.author_avatar || post.author_avatar_upload_path) && (
                     <img
-                      src={post.author_avatar}
+                      src={post.author_avatar || (post.author_avatar_upload_path
+                        ? `/uploads/avatars/${post.author_avatar_upload_path}`
+                        : "")}
                       alt={post.author}
                       loading="lazy"
                       decoding="async"

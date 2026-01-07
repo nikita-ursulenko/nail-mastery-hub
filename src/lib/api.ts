@@ -275,6 +275,69 @@ class ApiClient {
     return this.request<any[]>('/admin/team');
   }
 
+  // Admin Users API
+  async getUsers(params?: { search?: string; limit?: number; offset?: number }): Promise<{ users: any[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    const query = queryParams.toString();
+    return this.request<{ users: any[]; total: number }>(`/admin/users${query ? `?${query}` : ''}`);
+  }
+
+  async getUserById(id: number): Promise<{ user: any }> {
+    return this.request<{ user: any }>(`/admin/users/${id}`);
+  }
+
+  async createUser(data: any): Promise<{ user: any }> {
+    return this.request<{ user: any }>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id: number, data: any): Promise<{ user: any }> {
+    return this.request<{ user: any }>(`/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    return this.request<void>(`/admin/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleUserActive(id: number): Promise<{ user: any }> {
+    return this.request<{ user: any }>(`/admin/users/${id}/toggle-active`, {
+      method: 'PATCH',
+    });
+  }
+
+  // Admin Settings API
+  async getSettings(): Promise<{ settings: { [key: string]: any } }> {
+    return this.request<{ settings: { [key: string]: any } }>('/admin/settings');
+  }
+
+  async getSettingByKey(key: string): Promise<any> {
+    return this.request<any>(`/admin/settings/${key}`);
+  }
+
+  async updateSetting(key: string, value: any, type?: string): Promise<any> {
+    return this.request<any>(`/admin/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value, type }),
+    });
+  }
+
+  async updateSettings(settings: { [key: string]: any }): Promise<{ settings: { [key: string]: any } }> {
+    return this.request<{ settings: { [key: string]: any } }>('/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ settings }),
+    });
+  }
+
   async getTeamMemberById(id: number): Promise<any> {
     return this.request<any>(`/admin/team/${id}`);
   }
@@ -687,6 +750,98 @@ class ApiClient {
     return this.request<void>(`/admin/courses/materials/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // User Courses API (требуют user_token)
+  private async userRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = this.getUserToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Ошибка запроса';
+      try {
+        const error: ApiError = await response.json();
+        errorMessage = error.error || errorMessage;
+      } catch (e) {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  }
+
+  async getUserCourses(): Promise<any> {
+    return this.userRequest<any>('/user/courses');
+  }
+
+  async getUserCourseDetails(id: number): Promise<any> {
+    return this.userRequest<any>(`/user/courses/${id}`);
+  }
+
+  async getUserLesson(lessonId: number): Promise<any> {
+    return this.userRequest<any>(`/user/lessons/${lessonId}`);
+  }
+
+  async updateLessonProgress(
+    lessonId: number,
+    data: { watched_duration: number; is_completed: boolean }
+  ): Promise<any> {
+    return this.userRequest<any>(`/user/lessons/${lessonId}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // User Profile API
+  async updateUserProfile(data: { name?: string; email?: string; phone?: string; avatar_url?: string; avatar_upload_path?: string }): Promise<{ user: any }> {
+    return this.userRequest<{ user: any }>('/user/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changeUserPassword(oldPassword: string, newPassword: string): Promise<{ message: string }> {
+    return this.userRequest<{ message: string }>('/user/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({ oldPassword, newPassword }),
+    });
+  }
+
+  async uploadUserAvatar(file: File): Promise<{ filename: string; url: string }> {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const token = this.getUserToken();
+    const response = await fetch(`${API_BASE_URL}/user/auth/upload-avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Ошибка при загрузке аватара');
+    }
+
+    return response.json();
   }
 }
 

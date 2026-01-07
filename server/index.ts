@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import authRoutes from './routes/auth';
 import userAuthRoutes from './routes/userAuth';
+import userCoursesRoutes from './routes/userCourses';
 import adminRoutes from './routes/admin';
 import testimonialsRoutes from './routes/testimonials';
 import contactsRoutes from './routes/contacts';
@@ -12,6 +13,9 @@ import teamRoutes from './routes/team';
 import blogRoutes from './routes/blog';
 import seoRoutes from './routes/seo';
 import adminCoursesRoutes from './routes/adminCourses';
+import adminUsersRoutes from './routes/adminUsers';
+import adminSettingsRoutes from './routes/adminSettings';
+import uploadRoutes from './routes/upload';
 import publicRoutes from './routes/public';
 import { securityHeaders, preventNoSqlInjection } from './middleware/security';
 import { sanitize } from './middleware/validation';
@@ -60,6 +64,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 // Routes
 app.use('/api/auth', authRoutes); // Админская авторизация
 app.use('/api/user/auth', userAuthRoutes); // Пользовательская авторизация
+app.use('/api/user', userCoursesRoutes); // Пользовательские курсы
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/testimonials', testimonialsRoutes);
 app.use('/api/admin/contacts', contactsRoutes);
@@ -68,6 +73,9 @@ app.use('/api/admin/team', teamRoutes);
 app.use('/api/admin/blog', blogRoutes);
 app.use('/api/admin/seo', seoRoutes);
 app.use('/api/admin', adminCoursesRoutes);
+app.use('/api/admin/users', adminUsersRoutes);
+app.use('/api/admin/settings', adminSettingsRoutes);
+app.use('/api/admin/upload', uploadRoutes);
 app.use('/api/public', publicRoutes);
 
 // Health check
