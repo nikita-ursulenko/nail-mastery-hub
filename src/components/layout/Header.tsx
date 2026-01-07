@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/schedule", label: "Расписание" },
   { href: "/blog", label: "Блог" },
   { href: "/about", label: "О нас" },
+  { href: "/contacts", label: "Контакты" },
 ];
 
 export function Header() {
@@ -63,49 +64,79 @@ export function Header() {
 
         {/* Mobile Menu Button */}
         <button
-          className="inline-flex items-center justify-center rounded-md p-2 text-foreground lg:hidden"
+          className="relative inline-flex items-center justify-center rounded-md p-2 text-foreground transition-colors hover:bg-muted lg:hidden"
           onClick={() => setIsOpen(!isOpen)}
+          aria-label="Toggle menu"
+          aria-expanded={isOpen}
         >
-          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          <Menu
+            className={`h-6 w-6 transition-all duration-300 ${
+              isOpen ? "rotate-90 opacity-0 scale-0" : "rotate-0 opacity-100 scale-100"
+            }`}
+          />
+          <X
+            className={`absolute h-6 w-6 transition-all duration-300 ${
+              isOpen ? "rotate-0 opacity-100 scale-100" : "rotate-90 opacity-0 scale-0"
+            }`}
+          />
         </button>
       </div>
 
       {/* Mobile Navigation */}
-      {isOpen && (
-        <div className="border-t lg:hidden">
-          <nav className="container flex flex-col gap-4 py-6">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={cn(
-                  "text-base font-medium transition-colors hover:text-primary",
-                  location.pathname === link.href
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                )}
-                onClick={() => setIsOpen(false)}
-              >
-                {link.label}
+      <div
+        className={cn(
+          "overflow-hidden border-t transition-all duration-300 ease-in-out lg:hidden",
+          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
+        <nav className="container flex flex-col gap-4 py-6">
+          {navLinks.map((link, index) => (
+            <Link
+              key={link.href}
+              to={link.href}
+              className={cn(
+                "text-base font-medium transition-all duration-300 hover:text-primary",
+                location.pathname === link.href
+                  ? "text-primary"
+                  : "text-muted-foreground",
+                isOpen
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-4 opacity-0"
+              )}
+              style={{
+                transitionDelay: isOpen ? `${index * 50}ms` : "0ms",
+              }}
+              onClick={() => setIsOpen(false)}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <div
+            className={cn(
+              "flex flex-col gap-3 pt-4 transition-all duration-300",
+              isOpen
+                ? "translate-x-0 opacity-100"
+                : "-translate-x-4 opacity-0"
+            )}
+            style={{
+              transitionDelay: isOpen ? `${navLinks.length * 50}ms` : "0ms",
+            }}
+          >
+            <Button variant="outline" asChild>
+              <Link to="/login" onClick={() => setIsOpen(false)}>
+                <LogIn className="mr-2 h-4 w-4" />
+                Войти
               </Link>
-            ))}
-            <div className="flex flex-col gap-3 pt-4">
-              <Button variant="outline" asChild>
-                <Link to="/login" onClick={() => setIsOpen(false)}>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Войти
-                </Link>
-              </Button>
-              <Button asChild>
-                <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                  <User className="mr-2 h-4 w-4" />
-                  Личный кабинет
-                </Link>
-              </Button>
-            </div>
-          </nav>
-        </div>
-      )}
+            </Button>
+            <Button asChild>
+              <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                <User className="mr-2 h-4 w-4" />
+                Личный кабинет
+              </Link>
+            </Button>
+          </div>
+        </nav>
+      </div>
     </header>
   );
 }

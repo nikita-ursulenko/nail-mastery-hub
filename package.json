@@ -17,6 +17,7 @@
     "migrate:status": "tsx database/migrate.ts status",
     "create-admin": "tsx server/scripts/create-admin.ts",
     "seed-testimonials": "tsx server/scripts/seed-testimonials.ts",
+    "seed-contacts": "tsx server/scripts/seed-contacts.ts",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f postgres"

@@ -1,7 +1,43 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Instagram, Send, Mail, Phone } from "lucide-react";
+import { api } from "@/lib/api";
+
+const iconMap: Record<string, any> = {
+  Phone,
+  Mail,
+  Instagram,
+};
+
+interface Contact {
+  id: number;
+  type: string;
+  title: string;
+  content: string;
+  href?: string | null;
+  icon: string;
+}
 
 export function Footer() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
+
+  useEffect(() => {
+    loadContacts();
+  }, []);
+
+  const loadContacts = async () => {
+    try {
+      const data = await api.getPublicContacts();
+      // Показываем только телефон и email в футере
+      const footerContacts = data.filter(
+        (contact: Contact) => contact.type === 'phone' || contact.type === 'email'
+      );
+      setContacts(footerContacts);
+    } catch (error) {
+      console.error('Failed to load contacts:', error);
+    }
+  };
+
   return (
     <footer className="border-t bg-secondary/30">
       <div className="container py-12 lg:py-16">
@@ -21,18 +57,22 @@ export function Footer() {
               2018 года.
             </p>
             <div className="flex gap-4">
-              <a
-                href="#"
-                className="text-muted-foreground transition-colors hover:text-primary"
-              >
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a
-                href="#"
-                className="text-muted-foreground transition-colors hover:text-primary"
-              >
-                <Send className="h-5 w-5" />
-              </a>
+              {contacts
+                .filter((contact) => contact.type === 'social')
+                .map((contact) => {
+                  const Icon = iconMap[contact.icon] || Instagram;
+                  return (
+                    <a
+                      key={contact.id}
+                      href={contact.href || '#'}
+                      target={contact.href?.startsWith('http') ? '_blank' : undefined}
+                      rel={contact.href?.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      className="text-muted-foreground transition-colors hover:text-primary"
+                    >
+                      <Icon className="h-5 w-5" />
+                    </a>
+                  );
+                })}
             </div>
           </div>
 
@@ -93,20 +133,32 @@ export function Footer() {
           {/* Contacts */}
           <div className="space-y-4">
             <h4 className="font-display text-lg font-semibold">Контакты</h4>
-            <ul className="space-y-3 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <a href="mailto:info@nailart.academy" className="hover:text-primary">
-                  info@nailart.academy
-                </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <a href="tel:+79001234567" className="hover:text-primary">
-                  +7 900 123-45-67
-                </a>
-              </li>
-            </ul>
+            {contacts.length > 0 ? (
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                {contacts.map((contact) => {
+                  const Icon = iconMap[contact.icon] || Mail;
+                  return (
+                    <li key={contact.id} className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      {contact.href ? (
+                        <a href={contact.href} className="hover:text-primary">
+                          {contact.content}
+                        </a>
+                      ) : (
+                        <span>{contact.content}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  <span>Загрузка...</span>
+                </li>
+              </ul>
+            )}
           </div>
         </div>
 

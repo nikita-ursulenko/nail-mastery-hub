@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import testimonialsRoutes from './routes/testimonials';
+import contactsRoutes from './routes/contacts';
 import publicRoutes from './routes/public';
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/testimonials', testimonialsRoutes);
+app.use('/api/admin/contacts', contactsRoutes);
 app.use('/api/public', publicRoutes);
 
 // Health check

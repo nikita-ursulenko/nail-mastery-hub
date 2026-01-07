@@ -8,16 +8,13 @@ import {
   Sparkles,
   CheckCircle,
   ArrowRight,
-  Instagram,
-  Mail,
-  Phone,
-  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
+import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
 
 import instructorImage from "@/assets/instructor.jpg";
 
@@ -303,67 +300,7 @@ export default function About() {
       <TestimonialsSection />
 
       {/* Contact Section */}
-      <section className="bg-secondary/30 py-16 lg:py-24">
-        <div className="container">
-          <div className="mx-auto max-w-4xl">
-            <div className="mb-12 text-center">
-              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                Свяжитесь с нами
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                У вас есть вопросы? Мы всегда рады помочь!
-              </p>
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-3">
-              <Card variant="elevated">
-                <CardContent className="p-6 text-center">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                    <Mail className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Email</h3>
-                  <a
-                    href="mailto:info@nailart.academy"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    info@nailart.academy
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated">
-                <CardContent className="p-6 text-center">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                    <Phone className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Телефон</h3>
-                  <a
-                    href="tel:+79001234567"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    +7 900 123-45-67
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card variant="elevated">
-                <CardContent className="p-6 text-center">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                    <Instagram className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="mb-2 font-semibold">Социальные сети</h3>
-                  <a
-                    href="#"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    @nailart_academy
-                  </a>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ContactInfoSection className="bg-secondary/30" />
 
       {/* CTA Section */}
       <section className="py-16 lg:py-24">

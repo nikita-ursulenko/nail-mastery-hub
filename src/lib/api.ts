@@ -130,6 +130,44 @@ class ApiClient {
     }
     return response.json();
   }
+
+  // Contacts API
+  async getContacts(): Promise<any[]> {
+    return this.request<any[]>('/admin/contacts');
+  }
+
+  async getContactById(id: number): Promise<any> {
+    return this.request<any>(`/admin/contacts/${id}`);
+  }
+
+  async createContact(data: any): Promise<any> {
+    return this.request<any>('/admin/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateContact(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteContact(id: number): Promise<void> {
+    return this.request<void>(`/admin/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Public Contacts API (без авторизации)
+  async getPublicContacts(): Promise<any[]> {
+    const response = await fetch(`${API_BASE_URL}/public/contacts`);
+    if (!response.ok) {
+      throw new Error('Ошибка при получении контактов');
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();
