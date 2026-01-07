@@ -53,3 +53,35 @@ export const getAvatarUrl = (filename: string): string => {
   return `/uploads/avatars/${filename}`;
 };
 
+// Создаем папку для загрузок основателя, если её нет
+const founderUploadsDir = path.join(process.cwd(), 'public', 'uploads', 'founder');
+if (!fs.existsSync(founderUploadsDir)) {
+  fs.mkdirSync(founderUploadsDir, { recursive: true });
+}
+
+// Настройка хранилища для изображений основателя
+const founderStorage = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb) => {
+    cb(null, founderUploadsDir);
+  },
+  filename: (req: Request, file: Express.Multer.File, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `founder-${uniqueSuffix}${ext}`);
+  },
+});
+
+// Настройка multer для изображений основателя
+export const uploadFounderImage = multer({
+  storage: founderStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: fileFilter,
+});
+
+// Функция для получения URL загруженного изображения основателя
+export const getFounderImageUrl = (filename: string): string => {
+  return `/uploads/founder/${filename}`;
+};
+

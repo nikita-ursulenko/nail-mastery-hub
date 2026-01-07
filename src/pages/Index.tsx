@@ -14,12 +14,12 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
+import { FounderSection } from "@/components/founder/FounderSection";
 
 import heroImage from "@/assets/hero-nails.jpg";
 import courseBasic from "@/assets/course-basic.jpg";
 import courseGel from "@/assets/course-gel.jpg";
 import courseArt from "@/assets/course-art.jpg";
-import instructorImage from "@/assets/instructor.jpg";
 
 const featuredCourses = [
   {
@@ -242,54 +242,8 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Instructor Section */}
-      <section className="py-16 lg:py-24">
-        <div className="container">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className="relative">
-              <div className="overflow-hidden rounded-2xl shadow-elevated">
-                <img
-                  src={instructorImage}
-                  alt="Анна Петрова — основатель школы"
-                  className="aspect-square w-full object-cover lg:aspect-[3/4]"
-                />
-              </div>
-              <div className="absolute -right-4 bottom-8 rounded-xl bg-card p-4 shadow-card lg:-right-8">
-                <p className="font-display text-3xl font-bold text-primary">
-                  12 лет
-                </p>
-                <p className="text-sm text-muted-foreground">опыта работы</p>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <h2 className="font-display text-3xl font-bold lg:text-4xl">
-                Привет! Я Анна Петрова
-              </h2>
-              <p className="text-lg text-muted-foreground">
-                Основатель NailArt Academy, международный судья и призёр
-                чемпионатов по nail-art.
-              </p>
-              <ul className="space-y-4">
-                {[
-                  "Обучила более 15 000 мастеров по всему миру",
-                  "Автор уникальных техник, признанных международным сообществом",
-                  "Постоянный эксперт beauty-изданий",
-                  "Амбассадор ведущих брендов nail-индустрии",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button variant="hero" size="lg" asChild>
-                <Link to="/about">Узнать больше</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Founder Section */}
+      <FounderSection />
 
       {/* Testimonials */}
       <TestimonialsSection variant="secondary" />

@@ -16,10 +16,12 @@ import BlogDetail from "./pages/BlogDetail";
 import Schedule from "./pages/Schedule";
 import Contacts from "./pages/Contacts";
 import FAQ from "./pages/FAQ";
+import Terms from "./pages/Terms";
 import AdminLogin from "./pages/admin/Login";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminTestimonials from "./pages/admin/Testimonials";
 import AdminContacts from "./pages/admin/Contacts";
+import AdminFounder from "./pages/admin/Founder";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +46,7 @@ const App = () => (
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/faq" element={<FAQ />} />
+            <Route path="/terms" element={<Terms />} />
             
             {/* Admin routes */}
             <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
@@ -69,6 +72,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminContacts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/founder"
+              element={
+                <ProtectedRoute>
+                  <AdminFounder />
                 </ProtectedRoute>
               }
             />

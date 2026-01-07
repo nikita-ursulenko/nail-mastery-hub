@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Carousel,
   CarouselContent,
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi,
 } from "@/components/ui/carousel";
 import { TestimonialCard } from "./TestimonialCard";
 import { api } from "@/lib/api";
@@ -35,12 +36,15 @@ export function TestimonialsSection({
 }: TestimonialsSectionProps) {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const autoplayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pauseTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isUserInteractingRef = useRef<boolean>(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
   const backgroundClass =
     variant === "secondary" ? "bg-secondary/30" : "";
-
-  useEffect(() => {
-    loadTestimonials();
-  }, []);
 
   const loadTestimonials = async () => {
     try {
@@ -48,10 +52,131 @@ export function TestimonialsSection({
       setTestimonials(data);
     } catch (error) {
       console.error("Failed to load testimonials:", error);
+      setTestimonials([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadTestimonials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Очистка таймеров
+  const clearTimers = useCallback(() => {
+    if (autoplayTimerRef.current) {
+      clearInterval(autoplayTimerRef.current);
+      autoplayTimerRef.current = null;
+    }
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+  }, []);
+
+  // Запуск автослайда
+  const startAutoplay = useCallback(() => {
+    clearTimers();
+    
+    if (!carouselApi || isHovered || isPaused) {
+      return;
+    }
+
+    autoplayTimerRef.current = setInterval(() => {
+      if (!isHovered && !isPaused && carouselApi) {
+        carouselApi.scrollNext();
+      }
+    }, 3000); // 3 секунды
+  }, [carouselApi, isHovered, isPaused, clearTimers]);
+
+  // Обработчик ручного переключения
+  const handleUserScroll = useCallback(() => {
+    isUserInteractingRef.current = true;
+    
+    // Ставим на паузу на 6 секунд
+    setIsPaused(true);
+    clearTimers();
+    
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current);
+    }
+    
+    pauseTimerRef.current = setTimeout(() => {
+      setIsPaused(false);
+      isUserInteractingRef.current = false;
+      // Запускаем автослайд снова, если не наведена мышь
+      if (!isHovered) {
+        startAutoplay();
+      }
+    }, 6000); // 6 секунд
+  }, [clearTimers, isHovered, startAutoplay]);
+
+  // Отслеживание свайпов и перетаскиваний
+  useEffect(() => {
+    if (!carouselApi || !carouselRef.current) {
+      return;
+    }
+
+    const carouselElement = carouselRef.current;
+    let pointerDownTime = 0;
+    let hasMoved = false;
+
+    const handlePointerDown = () => {
+      pointerDownTime = Date.now();
+      hasMoved = false;
+    };
+
+    const handlePointerMove = () => {
+      hasMoved = true;
+    };
+
+    const handlePointerUp = () => {
+      // Если был свайп (движение), считаем это ручным взаимодействием
+      if (hasMoved) {
+        handleUserScroll();
+      }
+    };
+
+    // Отслеживаем события pointer для определения свайпов
+    carouselElement.addEventListener("pointerdown", handlePointerDown);
+    carouselElement.addEventListener("pointermove", handlePointerMove);
+    carouselElement.addEventListener("pointerup", handlePointerUp);
+    carouselElement.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      carouselElement.removeEventListener("pointerdown", handlePointerDown);
+      carouselElement.removeEventListener("pointermove", handlePointerMove);
+      carouselElement.removeEventListener("pointerup", handlePointerUp);
+      carouselElement.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [carouselApi, handleUserScroll]);
+
+  // Управление автослайдом при изменении состояния
+  useEffect(() => {
+    if (carouselApi && !isHovered && !isPaused) {
+      startAutoplay();
+    } else {
+      clearTimers();
+    }
+    return () => {
+      clearTimers();
+    };
+  }, [carouselApi, isHovered, isPaused, startAutoplay, clearTimers]);
+
+  // Обработчики наведения мыши
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+    clearTimers();
+  }, [clearTimers]);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+    // Запускаем автослайд снова, если не на паузе
+    if (!isPaused) {
+      startAutoplay();
+    }
+  }, [isPaused, startAutoplay]);
 
   return (
     <section className={`${backgroundClass} py-16 lg:py-24 ${className}`}>
@@ -75,8 +200,14 @@ export function TestimonialsSection({
             <p className="text-muted-foreground">Отзывов пока нет</p>
           </div>
         ) : (
-          <div className="relative px-8 lg:px-16">
+          <div 
+            ref={carouselRef}
+            className="relative px-8 lg:px-16"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
             <Carousel
+              setApi={setCarouselApi}
               opts={{
                 align: "start",
                 loop: true,
@@ -101,8 +232,14 @@ export function TestimonialsSection({
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="hidden lg:flex" />
-              <CarouselNext className="hidden lg:flex" />
+              <CarouselPrevious 
+                className="hidden lg:flex"
+                onClick={handleUserScroll}
+              />
+              <CarouselNext 
+                className="hidden lg:flex"
+                onClick={handleUserScroll}
+              />
             </Carousel>
           </div>
         )}

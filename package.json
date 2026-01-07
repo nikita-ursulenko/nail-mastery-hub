@@ -18,6 +18,7 @@
     "create-admin": "tsx server/scripts/create-admin.ts",
     "seed-testimonials": "tsx server/scripts/seed-testimonials.ts",
     "seed-contacts": "tsx server/scripts/seed-contacts.ts",
+    "seed-founder": "tsx server/scripts/seed-founder.ts",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f postgres"

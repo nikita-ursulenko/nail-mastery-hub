@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Phone,
+  UserCircle,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -24,6 +25,7 @@ const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: 'Главная', path: '/admin/dashboard' },
   { icon: MessageSquare, label: 'Отзывы', path: '/admin/testimonials' },
   { icon: Phone, label: 'Контакты', path: '/admin/contacts' },
+  { icon: UserCircle, label: 'Основатель', path: '/admin/founder' },
   { icon: BookOpen, label: 'Курсы', path: '/admin/courses' },
   { icon: Users, label: 'Пользователи', path: '/admin/users' },
   { icon: ShoppingCart, label: 'Заказы', path: '/admin/orders' },

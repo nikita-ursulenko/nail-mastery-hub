@@ -168,6 +168,65 @@ class ApiClient {
     }
     return response.json();
   }
+
+  // Founder Info API (admin)
+  async getFounderInfo(): Promise<any[]> {
+    return this.request<any[]>('/admin/founder');
+  }
+
+  async getFounderInfoById(id: number): Promise<any> {
+    return this.request<any>(`/admin/founder/${id}`);
+  }
+
+  async createFounderInfo(data: any): Promise<any> {
+    return this.request<any>('/admin/founder', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateFounderInfo(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/founder/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteFounderInfo(id: number): Promise<void> {
+    return this.request<void>(`/admin/founder/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async uploadFounderImage(file: File): Promise<{ filename: string; url: string }> {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const token = localStorage.getItem('admin_token');
+    const response = await fetch(`${API_BASE_URL}/admin/founder/upload-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Ошибка при загрузке изображения');
+    }
+
+    return response.json();
+  }
+
+  // Public Founder Info API (без авторизации)
+  async getPublicFounderInfo(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/public/founder`);
+    if (!response.ok) {
+      throw new Error('Ошибка при получении информации об основателе');
+    }
+    return response.json();
+  }
 }
 
 export const api = new ApiClient();
