@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { getDatabaseConfig } from '../../database/config';
 import { Pool } from 'pg';
 import { getBlogImageUrl, getAvatarUrl } from '../middleware/upload';
+import { AppError } from '../middleware/errorHandler';
 
 const pool = new Pool(getDatabaseConfig());
 
@@ -86,8 +87,10 @@ export const getBlogPosts = async (req: Request, res: Response) => {
       hasMore: pageOffset + posts.length < total,
     });
   } catch (error) {
-    console.error('Error fetching blog posts:', error);
-    res.status(500).json({ error: 'Ошибка при получении статей блога' });
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError('Ошибка при получении статей блога', 500);
   }
 };
 

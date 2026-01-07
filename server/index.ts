@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import testimonialsRoutes from './routes/testimonials';
@@ -9,22 +10,41 @@ import founderRoutes from './routes/founder';
 import teamRoutes from './routes/team';
 import blogRoutes from './routes/blog';
 import publicRoutes from './routes/public';
+import { securityHeaders, preventNoSqlInjection } from './middleware/security';
+import { sanitize } from './middleware/validation';
+import { apiRateLimit, loginRateLimit, uploadRateLimit } from './middleware/rateLimit';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.SERVER_PORT || 3001;
 
-// Middleware
+// Security middleware (должен быть первым)
+app.use(securityHeaders);
+app.use(preventNoSqlInjection);
+
+// CORS
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:8080',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Body parsing с ограничением размера
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Санитизация входных данных
+app.use(sanitize);
+
+// Rate limiting
+app.use('/api/auth/login', loginRateLimit);
+app.use('/api/admin', apiRateLimit);
+app.use('/api/public', apiRateLimit);
 
 // Статические файлы (для загруженных изображений)
-import path from 'path';
 app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')));
 
 // Routes
@@ -41,6 +61,12 @@ app.use('/api/public', publicRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
+
+// Обработчик для несуществующих роутов (должен быть после всех роутов)
+app.use(notFoundHandler);
+
+// Обработчик ошибок (должен быть последним)
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);

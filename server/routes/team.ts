@@ -1,6 +1,8 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { uploadTeamImage as uploadMiddleware } from '../middleware/upload';
+import { validateUploadedFile } from '../middleware/fileValidation';
+import { uploadRateLimit } from '../middleware/rateLimit';
 import {
   getAllTeamMembers,
   getTeamMemberById,
@@ -17,7 +19,7 @@ router.use(authenticateToken);
 
 router.get('/', getAllTeamMembers);
 router.get('/:id', getTeamMemberById);
-router.post('/upload-image', uploadMiddleware.single('image'), uploadTeamImage);
+router.post('/upload-image', uploadRateLimit, uploadMiddleware.single('image'), validateUploadedFile, uploadTeamImage);
 router.post('/', createTeamMember);
 router.put('/:id', updateTeamMember);
 router.delete('/:id', deleteTeamMember);

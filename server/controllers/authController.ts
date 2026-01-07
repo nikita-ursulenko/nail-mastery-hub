@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { getDatabaseConfig } from '../../database/config';
 import { Pool } from 'pg';
+import { AppError } from '../middleware/errorHandler';
 
 const pool = new Pool(getDatabaseConfig());
 
@@ -18,6 +19,7 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password }: LoginRequest = req.body;
 
+    // Валидация уже выполнена в middleware, но оставляем проверку для безопасности
     if (!email || !password) {
       return res.status(400).json({ error: 'Email и пароль обязательны' });
     }
@@ -47,7 +49,8 @@ export const login = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Неверный email или пароль' });
+      // Используем одинаковое сообщение для предотвращения перебора email
+      throw new AppError('Неверный email или пароль', 401);
     }
 
     const admin = result.rows[0];
@@ -56,7 +59,8 @@ export const login = async (req: Request, res: Response) => {
     const isValidPassword = await bcrypt.compare(password, admin.password_hash);
 
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Неверный email или пароль' });
+      // Используем одинаковое сообщение для предотвращения перебора паролей
+      throw new AppError('Неверный email или пароль', 401);
     }
 
     // Генерируем JWT токен
@@ -79,7 +83,11 @@ export const login = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ error: 'Ошибка при входе в систему' });
+    if (error instanceof AppError) {
+      throw error;
+    }
+    console.error('Login error:', error);
+    throw new AppError('Ошибка при входе в систему', 500);
   }
 };
 
