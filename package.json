@@ -23,6 +23,7 @@
     "seed-blog": "tsx server/scripts/seed-blog.ts",
     "seo:auto-blog": "tsx server/scripts/auto-create-seo-for-blog.ts",
     "seo:seed-pages": "tsx server/scripts/seed-seo-pages.ts",
+    "seo:seed-admin": "tsx server/scripts/seed-admin-seo.ts",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f postgres"
