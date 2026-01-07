@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CourseCard } from "@/components/courses/CourseCard";
-import { TestimonialCard } from "@/components/testimonials/TestimonialCard";
+import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
 
 import heroImage from "@/assets/hero-nails.jpg";
 import courseBasic from "@/assets/course-basic.jpg";
@@ -90,29 +90,6 @@ const benefits = [
   },
 ];
 
-const testimonials = [
-  {
-    name: "Анна Козлова",
-    role: "Выпускница базового курса",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    text: "Благодаря курсу я смогла уволиться с нелюбимой работы и открыть свой кабинет. Уже через 3 месяца полностью окупила обучение!",
-    rating: 5,
-  },
-  {
-    name: "Мария Соколова",
-    role: "Мастер маникюра",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    text: "Курс по дизайну полностью изменил мой подход к работе. Клиенты в восторге, записываются за месяц вперёд!",
-    rating: 5,
-  },
-  {
-    name: "Елена Новикова",
-    role: "Начинающий мастер",
-    avatar: "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=100&h=100&fit=crop",
-    text: "Очень понравился формат обучения. Куратор всегда на связи, материалы понятные даже для новичка.",
-    rating: 5,
-  },
-];
 
 const stats = [
   { value: "15 000+", label: "Учеников" },
@@ -315,24 +292,7 @@ export default function Index() {
       </section>
 
       {/* Testimonials */}
-      <section className="bg-secondary/30 py-16 lg:py-24">
-        <div className="container">
-          <div className="mb-12 text-center">
-            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-              Отзывы наших учениц
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              Реальные истории успеха от выпускниц нашей школы
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {testimonials.map((testimonial) => (
-              <TestimonialCard key={testimonial.name} {...testimonial} />
-            ))}
-          </div>
-        </div>
-      </section>
+      <TestimonialsSection variant="secondary" />
 
       {/* CTA Section */}
       <section className="py-16 lg:py-24">

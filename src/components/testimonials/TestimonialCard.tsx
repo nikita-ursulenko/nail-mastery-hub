@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 interface TestimonialCardProps {
   name: string;
   role: string;
-  avatar: string;
+  avatar?: string | null;
   text: string;
   rating: number;
   beforeImage?: string;
@@ -68,11 +68,19 @@ export function TestimonialCard({
 
         {/* Author */}
         <div className="flex items-center gap-3">
-          <img
-            src={avatar}
-            alt={name}
-            className="h-12 w-12 rounded-full object-cover"
-          />
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={name}
+              className="h-12 w-12 rounded-full object-cover"
+            />
+          ) : (
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <span className="text-lg font-medium text-muted-foreground">
+                {name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
           <div>
             <p className="font-medium">{name}</p>
             <p className="text-sm text-muted-foreground">{role}</p>
