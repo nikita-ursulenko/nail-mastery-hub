@@ -124,6 +124,34 @@ const seoPages = [
     twitter_image: 'https://lovable.dev/opengraph-image-p98pqg.png',
     robots: 'index, follow',
   },
+  {
+    path: '/login',
+    title: 'Вход в личный кабинет | NailArt Academy',
+    description: 'Войдите в личный кабинет NailArt Academy для доступа к вашим курсам, урокам, домашним заданиям и сертификатам. Регистрация новых пользователей.',
+    keywords: 'вход в личный кабинет, регистрация, авторизация, личный кабинет студента, доступ к курсам',
+    og_title: 'Вход в личный кабинет | NailArt Academy',
+    og_description: 'Войдите в личный кабинет NailArt Academy для доступа к вашим курсам, урокам и сертификатам.',
+    og_image: 'https://lovable.dev/opengraph-image-p98pqg.png',
+    og_type: 'website',
+    twitter_title: 'Вход в личный кабинет | NailArt Academy',
+    twitter_description: 'Войдите в личный кабинет NailArt Academy для доступа к вашим курсам и урокам.',
+    twitter_image: 'https://lovable.dev/opengraph-image-p98pqg.png',
+    robots: 'noindex, nofollow', // Личный кабинет не индексируем
+  },
+  {
+    path: '/dashboard',
+    title: 'Личный кабинет | NailArt Academy',
+    description: 'Личный кабинет студента NailArt Academy. Доступ к вашим курсам, прогресс обучения, домашние задания, сертификаты и статистика.',
+    keywords: 'личный кабинет, мои курсы, прогресс обучения, домашние задания, сертификаты, статистика студента',
+    og_title: 'Личный кабинет | NailArt Academy',
+    og_description: 'Личный кабинет студента NailArt Academy. Доступ к вашим курсам, прогресс обучения и сертификаты.',
+    og_image: 'https://lovable.dev/opengraph-image-p98pqg.png',
+    og_type: 'website',
+    twitter_title: 'Личный кабинет | NailArt Academy',
+    twitter_description: 'Личный кабинет студента NailArt Academy. Доступ к вашим курсам и прогресс обучения.',
+    twitter_image: 'https://lovable.dev/opengraph-image-p98pqg.png',
+    robots: 'noindex, nofollow', // Личный кабинет не индексируем
+  },
 ];
 
 async function seedSEOPages() {

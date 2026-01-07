@@ -11,6 +11,30 @@ export interface LoginResponse {
   };
 }
 
+export interface UserLoginResponse {
+  token: string;
+  user: {
+    id: number;
+    email: string;
+    name: string;
+    phone?: string;
+    avatar_url?: string;
+    avatar_upload_path?: string;
+  };
+}
+
+export interface RegisterResponse {
+  token: string;
+  user: {
+    id: number;
+    email: string;
+    name: string;
+    phone?: string;
+    avatar_url?: string;
+    avatar_upload_path?: string;
+  };
+}
+
 export interface ApiError {
   error: string;
 }
@@ -438,6 +462,61 @@ class ApiClient {
     return this.request<void>(`/admin/seo/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  // User Auth API (для обычных пользователей)
+  private getUserToken(): string | null {
+    return localStorage.getItem('user_token');
+  }
+
+  private async userRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token = this.getUserToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      throw new Error(error.error || 'Ошибка запроса');
+    }
+
+    return response.json();
+  }
+
+  async userRegister(data: {
+    email: string;
+    password: string;
+    name: string;
+    phone?: string;
+  }): Promise<RegisterResponse> {
+    return this.userRequest<RegisterResponse>('/user/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async userLogin(email: string, password: string): Promise<UserLoginResponse> {
+    return this.userRequest<UserLoginResponse>('/user/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  async userVerifyToken(): Promise<{ valid: boolean; user: any }> {
+    return this.userRequest<{ valid: boolean; user: any }>('/user/auth/verify');
   }
 }
 

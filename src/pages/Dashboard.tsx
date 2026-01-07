@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useUserAuth } from "@/contexts/UserAuthContext";
 
 import courseBasic from "@/assets/course-basic.jpg";
 import courseGel from "@/assets/course-gel.jpg";
@@ -78,6 +79,13 @@ const notifications = [
 
 export default function Dashboard() {
   const location = useLocation();
+  const { user, logout } = useUserAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -117,7 +125,11 @@ export default function Dashboard() {
 
           {/* Footer */}
           <div className="border-t p-4">
-            <Button variant="ghost" className="w-full justify-start gap-3">
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start gap-3"
+              onClick={handleLogout}
+            >
               <LogOut className="h-5 w-5" />
               Выйти
             </Button>
@@ -132,7 +144,7 @@ export default function Dashboard() {
           <div>
             <h1 className="font-display text-xl font-bold">Личный кабинет</h1>
             <p className="text-sm text-muted-foreground">
-              Добро пожаловать, Мария!
+              Добро пожаловать, {user?.name || 'Пользователь'}!
             </p>
           </div>
           <div className="flex items-center gap-4">

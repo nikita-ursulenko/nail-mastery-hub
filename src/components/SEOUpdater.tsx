@@ -9,17 +9,21 @@ export function SEOUpdater() {
   const location = useLocation();
 
   useEffect(() => {
-    // Небольшая задержка, чтобы не блокировать первый рендер
+    // Увеличиваем задержку, чтобы дать серверу время запуститься
     const timeoutId = setTimeout(() => {
-      const updateSEO = async () => {
+      const updateSEO = async (retryCount = 0) => {
         try {
           // Получаем SEO данные для текущего пути
           const path = location.pathname;
           const response = await fetch(`/api/public/seo${path}`, {
-            signal: AbortSignal.timeout(2000), // Таймаут 2 секунды
+            signal: AbortSignal.timeout(3000), // Таймаут 3 секунды
           });
           
           if (!response.ok) {
+            // Если сервер еще не готов, пробуем еще раз (максимум 2 попытки)
+            if (retryCount < 2 && response.status >= 500) {
+              setTimeout(() => updateSEO(retryCount + 1), 1000);
+            }
             return;
           }
 
@@ -70,13 +74,18 @@ export function SEOUpdater() {
           }
           canonical.setAttribute('href', seo.canonical_url || window.location.href);
 
-        } catch (error) {
-          // Игнорируем ошибки - не критично для работы сайта
+        } catch (error: any) {
+          // Если это ошибка подключения и еще есть попытки, пробуем еще раз
+          if (retryCount < 2 && (error.name === 'AbortError' || error.message?.includes('ECONNREFUSED'))) {
+            setTimeout(() => updateSEO(retryCount + 1), 1000);
+            return;
+          }
+          // Игнорируем остальные ошибки - не критично для работы сайта
         }
       };
 
       updateSEO();
-    }, 100); // Задержка 100мс, чтобы не блокировать первый рендер
+    }, 500); // Задержка 500мс, чтобы дать серверу время запуститься
 
     return () => clearTimeout(timeoutId);
   }, [location.pathname]);

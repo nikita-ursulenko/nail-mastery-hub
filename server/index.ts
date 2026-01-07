@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import authRoutes from './routes/auth';
+import userAuthRoutes from './routes/userAuth';
 import adminRoutes from './routes/admin';
 import testimonialsRoutes from './routes/testimonials';
 import contactsRoutes from './routes/contacts';
@@ -42,7 +43,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(sanitize);
 
 // Rate limiting
-app.use('/api/auth/login', loginRateLimit);
+app.use('/api/auth/login', loginRateLimit); // Админский логин
+app.use('/api/user/auth/login', loginRateLimit); // Пользовательский логин
+app.use('/api/user/auth/register', loginRateLimit); // Регистрация
 app.use('/api/admin', apiRateLimit);
 app.use('/api/public', apiRateLimit);
 
@@ -54,7 +57,8 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'public', 'uploads')
 }));
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRoutes); // Админская авторизация
+app.use('/api/user/auth', userAuthRoutes); // Пользовательская авторизация
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/testimonials', testimonialsRoutes);
 app.use('/api/admin/contacts', contactsRoutes);

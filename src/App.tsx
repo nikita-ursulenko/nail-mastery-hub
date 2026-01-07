@@ -5,7 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { UserAuthProvider } from "@/contexts/UserAuthContext";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
+import { ProtectedUserRoute } from "@/components/user/ProtectedUserRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SEOUpdater } from "@/components/SEOUpdater";
 
@@ -21,6 +23,7 @@ const Schedule = lazy(() => import("./pages/Schedule"));
 const Contacts = lazy(() => import("./pages/Contacts"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Terms = lazy(() => import("./pages/Terms"));
+const Login = lazy(() => import("./pages/Login"));
 const AdminLogin = lazy(() => import("./pages/admin/Login"));
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
 const AdminTestimonials = lazy(() => import("./pages/admin/Testimonials"));
@@ -44,9 +47,10 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+        <UserAuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           <ScrollToTop />
           <SEOUpdater />
           <Suspense fallback={<PageLoader />}>
@@ -55,7 +59,6 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/courses" element={<Courses />} />
               <Route path="/courses/:id" element={<CourseDetail />} />
-              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/about" element={<About />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/:id" element={<BlogDetail />} />
@@ -63,6 +66,17 @@ const App = () => (
               <Route path="/contacts" element={<Contacts />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/login" element={<Login />} />
+              
+              {/* User routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedUserRoute>
+                    <Dashboard />
+                  </ProtectedUserRoute>
+                }
+              />
               
               {/* Admin routes */}
               <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
@@ -129,6 +143,7 @@ const App = () => (
             </Routes>
           </Suspense>
         </BrowserRouter>
+        </UserAuthProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

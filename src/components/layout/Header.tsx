@@ -3,6 +3,7 @@ import { Menu, X, User, LogIn } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useUserAuth } from "@/contexts/UserAuthContext";
 
 const navLinks = [
   { href: "/", label: "Главная" },
@@ -16,6 +17,7 @@ const navLinks = [
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { isAuthenticated, isLoading } = useUserAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -48,18 +50,25 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/login">
-              <LogIn className="mr-2 h-4 w-4" />
-              Войти
-            </Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link to="/dashboard">
-              <User className="mr-2 h-4 w-4" />
-              Личный кабинет
-            </Link>
-          </Button>
+          {!isLoading && (
+            <>
+              {isAuthenticated ? (
+                <Button size="sm" asChild>
+                  <Link to="/dashboard">
+                    <User className="mr-2 h-4 w-4" />
+                    Личный кабинет
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/login">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Войти
+                  </Link>
+                </Button>
+              )}
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -111,30 +120,35 @@ export function Header() {
               {link.label}
             </Link>
           ))}
-          <div
-            className={cn(
-              "flex flex-col gap-3 pt-4 transition-all duration-300",
-              isOpen
-                ? "translate-x-0 opacity-100"
-                : "-translate-x-4 opacity-0"
-            )}
-            style={{
-              transitionDelay: isOpen ? `${navLinks.length * 50}ms` : "0ms",
-            }}
-          >
-            <Button variant="outline" asChild>
-              <Link to="/login" onClick={() => setIsOpen(false)}>
-                <LogIn className="mr-2 h-4 w-4" />
-                Войти
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to="/dashboard" onClick={() => setIsOpen(false)}>
-                <User className="mr-2 h-4 w-4" />
-                Личный кабинет
-              </Link>
-            </Button>
-          </div>
+          {!isLoading && (
+            <div
+              className={cn(
+                "flex flex-col gap-3 pt-4 transition-all duration-300",
+                isOpen
+                  ? "translate-x-0 opacity-100"
+                  : "-translate-x-4 opacity-0"
+              )}
+              style={{
+                transitionDelay: isOpen ? `${navLinks.length * 50}ms` : "0ms",
+              }}
+            >
+              {isAuthenticated ? (
+                <Button asChild>
+                  <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                    <User className="mr-2 h-4 w-4" />
+                    Личный кабинет
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" asChild>
+                  <Link to="/login" onClick={() => setIsOpen(false)}>
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Войти
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
         </nav>
       </div>
     </header>
