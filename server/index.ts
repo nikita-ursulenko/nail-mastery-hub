@@ -11,6 +11,7 @@ import founderRoutes from './routes/founder';
 import teamRoutes from './routes/team';
 import blogRoutes from './routes/blog';
 import seoRoutes from './routes/seo';
+import adminCoursesRoutes from './routes/adminCourses';
 import publicRoutes from './routes/public';
 import { securityHeaders, preventNoSqlInjection } from './middleware/security';
 import { sanitize } from './middleware/validation';
@@ -66,6 +67,7 @@ app.use('/api/admin/founder', founderRoutes);
 app.use('/api/admin/team', teamRoutes);
 app.use('/api/admin/blog', blogRoutes);
 app.use('/api/admin/seo', seoRoutes);
+app.use('/api/admin', adminCoursesRoutes);
 app.use('/api/public', publicRoutes);
 
 // Health check

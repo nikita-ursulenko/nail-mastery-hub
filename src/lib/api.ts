@@ -72,8 +72,14 @@ class ApiClient {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, cacheOptions);
 
     if (!response.ok) {
-      const error: ApiError = await response.json();
-      throw new Error(error.error || 'Ошибка запроса');
+      let errorMessage = 'Ошибка запроса';
+      try {
+        const error: ApiError = await response.json();
+        errorMessage = error.error || errorMessage;
+      } catch (e) {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -517,6 +523,170 @@ class ApiClient {
 
   async userVerifyToken(): Promise<{ valid: boolean; user: any }> {
     return this.userRequest<{ valid: boolean; user: any }>('/user/auth/verify');
+  }
+
+  // Public Courses API (без авторизации)
+  async getPublicCourses(params?: {
+    category?: string;
+    level?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ courses: any[]; total: number; hasMore: boolean }> {
+    const queryParams = new URLSearchParams();
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.level) queryParams.append('level', params.level);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+    const url = `${API_BASE_URL}/public/courses${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    const response = await fetch(url, {
+      cache: 'default', // Используем браузерное кэширование
+    });
+    if (!response.ok) {
+      throw new Error('Ошибка при получении курсов');
+    }
+    return response.json();
+  }
+
+  async getPublicCourseBySlug(slug: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/public/courses/${slug}`, {
+      cache: 'default', // Используем браузерное кэширование
+    });
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Курс не найден');
+      }
+      const error = await response.json().catch(() => ({ error: 'Ошибка при получении курса' }));
+      throw new Error(error.error || 'Ошибка при получении курса');
+    }
+    return response.json();
+  }
+
+  // Admin Courses API
+  async getAllCourses(params?: {
+    search?: string;
+    category?: string;
+    level?: string;
+    is_active?: boolean;
+  }): Promise<{ courses: any[] }> {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.level) queryParams.append('level', params.level);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+
+    const endpoint = `/admin/courses${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+    return this.request<{ courses: any[] }>(endpoint);
+  }
+
+  async getCourseById(id: number): Promise<any> {
+    return this.request<any>(`/admin/courses/${id}`);
+  }
+
+  async createCourse(data: any): Promise<any> {
+    return this.request<any>('/admin/courses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCourse(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/courses/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCourse(id: number): Promise<void> {
+    return this.request<void>(`/admin/courses/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Modules
+  async createModule(data: any): Promise<any> {
+    return this.request<any>('/admin/courses/modules', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateModule(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/courses/modules/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteModule(id: number): Promise<void> {
+    return this.request<void>(`/admin/courses/modules/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Lessons
+  async createLesson(data: any): Promise<any> {
+    return this.request<any>('/admin/courses/lessons', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLesson(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/courses/lessons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLesson(id: number): Promise<void> {
+    return this.request<void>(`/admin/courses/lessons/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Tariffs
+  async createTariff(data: any): Promise<any> {
+    return this.request<any>('/admin/courses/tariffs', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateTariff(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/courses/tariffs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTariff(id: number): Promise<void> {
+    return this.request<void>(`/admin/courses/tariffs/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Materials
+  async createMaterial(data: any): Promise<any> {
+    return this.request<any>('/admin/courses/materials', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateMaterial(id: number, data: any): Promise<any> {
+    return this.request<any>(`/admin/courses/materials/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteMaterial(id: number): Promise<void> {
+    return this.request<void>(`/admin/courses/materials/${id}`, {
+      method: 'DELETE',
+    });
   }
 }
 

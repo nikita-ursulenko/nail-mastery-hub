@@ -44,15 +44,22 @@ export function CourseCard({
   level,
   isNew,
 }: CourseCardProps) {
+  // Fallback изображение, если нет загруженного
+  const imageSrc = image || "https://via.placeholder.com/400x300?text=Course";
+
   return (
     <Card variant="course" className="group">
-      <div className="relative aspect-[4/3] overflow-hidden">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
-          src={image}
+          src={imageSrc}
           alt={title}
           loading="lazy"
           decoding="async"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+          onError={(e) => {
+            // Если изображение не загрузилось, используем placeholder
+            (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x300?text=Course";
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
         <div className="absolute bottom-4 left-4 flex gap-2">

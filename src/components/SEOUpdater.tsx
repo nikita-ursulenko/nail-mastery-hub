@@ -9,6 +9,11 @@ export function SEOUpdater() {
   const location = useLocation();
 
   useEffect(() => {
+    // Пропускаем SEO обновление для админских страниц
+    if (location.pathname.startsWith('/admin')) {
+      return;
+    }
+
     // Увеличиваем задержку, чтобы дать серверу время запуститься
     const timeoutId = setTimeout(() => {
       const updateSEO = async (retryCount = 0) => {

@@ -4,6 +4,7 @@ import { getContacts } from '../controllers/contactsController';
 import { getFounderInfo } from '../controllers/founderController';
 import { getTeamMembers } from '../controllers/teamController';
 import { getBlogPosts, getBlogPostBySlug } from '../controllers/blogController';
+import { getPublicCourses, getPublicCourseBySlug } from '../controllers/coursesController';
 import { cacheMiddleware } from '../middleware/cache';
 import { getDatabaseConfig } from '../../database/config';
 import { Pool } from 'pg';
@@ -19,6 +20,8 @@ router.get('/founder', cacheMiddleware(10 * 60 * 1000), getFounderInfo);
 router.get('/team', cacheMiddleware(10 * 60 * 1000), getTeamMembers);
 router.get('/blog', cacheMiddleware(2 * 60 * 1000), getBlogPosts); // Блог обновляется чаще
 router.get('/blog/:slug', cacheMiddleware(5 * 60 * 1000), getBlogPostBySlug);
+router.get('/courses', cacheMiddleware(2 * 60 * 1000), getPublicCourses); // Курсы обновляются чаще
+router.get('/courses/:slug', cacheMiddleware(5 * 60 * 1000), getPublicCourseBySlug);
 
 // SEO route для получения SEO данных по пути (для SEOUpdater компонента)
 router.get('/seo/*', async (req, res) => {

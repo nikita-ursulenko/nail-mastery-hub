@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
   FileText,
   Award,
   MessageCircle,
+  Loader2,
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -21,127 +23,111 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { api } from "@/lib/api";
 
-import courseBasic from "@/assets/course-basic.jpg";
-import instructorImage from "@/assets/instructor.jpg";
-
-const courseData = {
-  id: "basic-manicure",
-  title: "Базовый курс маникюра",
-  subtitle: "От новичка до профессионала за 4 недели",
-  description:
-    "Комплексная программа обучения для тех, кто хочет освоить профессию nail-мастера с нуля. Вы научитесь выполнять классический и аппаратный маникюр, работать с гель-лаком и создавать идеальное покрытие.",
-  image: courseBasic,
-  duration: "4 недели",
-  lessons: 32,
-  students: 2847,
-  rating: 4.9,
-  reviews: 456,
-  level: "Для начинающих",
-  includes: [
-    "32 видеоурока в HD качестве",
-    "Проверка домашних заданий куратором",
-    "Сертификат о прохождении курса",
-    "Бессрочный доступ к материалам",
-    "Закрытый чат с участниками",
-    "Список материалов для работы",
-  ],
-  modules: [
-    {
-      title: "Модуль 1. Введение в профессию",
-      lessons: [
-        "Обзор профессии nail-мастера",
-        "Организация рабочего места",
-        "Инструменты и материалы",
-        "Санитарные нормы и стерилизация",
-      ],
-    },
-    {
-      title: "Модуль 2. Классический маникюр",
-      lessons: [
-        "Строение ногтя",
-        "Опил ногтевой пластины",
-        "Техника обрезного маникюра",
-        "Работа с кутикулой",
-      ],
-    },
-    {
-      title: "Модуль 3. Аппаратный маникюр",
-      lessons: [
-        "Выбор аппарата и фрез",
-        "Техники работы с аппаратом",
-        "Комбинированная техника",
-        "Работа с проблемными ногтями",
-      ],
-    },
-    {
-      title: "Модуль 4. Покрытие гель-лаком",
-      lessons: [
-        "Подготовка ногтя к покрытию",
-        "Нанесение базы и цвета",
-        "Идеальные торцы и блики",
-        "Снятие покрытия",
-      ],
-    },
-  ],
-  tariffs: [
-    {
-      id: "self",
-      name: "Самостоятельный",
-      price: 129,
-      oldPrice: 199,
-      features: [
-        "Доступ ко всем урокам",
-        "Бессрочный доступ",
-        "Закрытый чат",
-        "Сертификат",
-      ],
-      notIncluded: ["Проверка ДЗ", "Обратная связь"],
-    },
-    {
-      id: "curator",
-      name: "С куратором",
-      price: 199,
-      oldPrice: 299,
-      popular: true,
-      features: [
-        "Всё из тарифа 'Самостоятельный'",
-        "Проверка 16 домашних заданий",
-        "Обратная связь в течение 24 часов",
-        "2 месяца поддержки куратора",
-      ],
-    },
-    {
-      id: "vip",
-      name: "VIP",
-      price: 349,
-      oldPrice: 499,
-      features: [
-        "Всё из тарифа 'С куратором'",
-        "Индивидуальные созвоны с экспертом",
-        "Помощь в поиске первых клиентов",
-        "Пожизненная поддержка",
-        "Бонусные мастер-классы",
-      ],
-    },
-  ],
-  instructor: {
-    name: "Анна Петрова",
-    role: "Основатель школы, международный судья",
-    image: instructorImage,
-    experience: "12 лет опыта",
-  },
-  materials: [
-    "Аппарат для маникюра (от 100 €)",
-    "Набор фрез (от 20 €)",
-    "Лампа для сушки (от 30 €)",
-    "База, топ, гель-лаки (от 50 €)",
-    "Инструменты (от 30 €)",
-  ],
+const levelLabels: Record<string, string> = {
+  beginner: "Для начинающих",
+  intermediate: "Средний",
+  advanced: "Продвинутый",
 };
 
 export default function CourseDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const [courseData, setCourseData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (id) {
+      loadCourse();
+    }
+  }, [id]);
+
+  const loadCourse = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await api.getPublicCourseBySlug(id!);
+      setCourseData(data);
+    } catch (err: any) {
+      setError(err.message || "Ошибка при загрузке курса");
+      console.error("Error loading course:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+            <p className="mt-4 text-muted-foreground">Загрузка курса...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !courseData) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <p className="mb-4 text-xl font-medium text-destructive">
+              {error || "Курс не найден"}
+            </p>
+            <Button variant="outline" asChild>
+              <Link to="/courses">Вернуться к курсам</Link>
+            </Button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
+  // Формируем URL изображения
+  const courseImage = courseData.image_upload_path
+    ? `/uploads/courses/${courseData.image_upload_path}`
+    : courseData.image_url || "";
+
+  // Формируем URL изображения преподавателя
+  const instructorImage = courseData.instructor?.image_upload_path
+    ? `/uploads/team/${courseData.instructor.image_upload_path}`
+    : courseData.instructor?.image_url || "";
+
+  const courseDataFormatted = {
+    id: courseData.slug,
+    title: courseData.title,
+    subtitle: courseData.subtitle,
+    description: courseData.description,
+    image: courseImage,
+    duration: courseData.duration,
+    lessons: courseData.modules.reduce(
+      (sum: number, m: any) => sum + (m.lessons_count || m.lessons?.length || 0),
+      0
+    ),
+    students: courseData.students,
+    rating: courseData.rating,
+    reviews: courseData.reviews,
+    level: levelLabels[courseData.level] || courseData.level,
+    includes: courseData.includes || [],
+    modules: courseData.modules || [],
+    tariffs: courseData.tariffs || [],
+    instructor: courseData.instructor
+      ? {
+          name: courseData.instructor.name,
+          role: courseData.instructor.role,
+          image: instructorImage,
+        }
+      : null,
+    materials: courseData.materials || [],
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -166,77 +152,82 @@ export default function CourseDetail() {
           <div className="grid gap-12 lg:grid-cols-2">
             <div className="space-y-6">
               <Badge variant="secondary" className="px-4 py-1.5">
-                {courseData.level}
+                {courseDataFormatted.level}
               </Badge>
 
               <h1 className="font-display text-4xl font-bold lg:text-5xl">
-                {courseData.title}
+                {courseDataFormatted.title}
               </h1>
 
               <p className="text-xl text-muted-foreground">
-                {courseData.subtitle}
+                {courseDataFormatted.subtitle}
               </p>
 
-              <p className="text-muted-foreground">{courseData.description}</p>
+              <p className="text-muted-foreground">{courseDataFormatted.description}</p>
 
               <div className="flex flex-wrap items-center gap-6 text-sm">
                 <div className="flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
-                  <span>{courseData.duration}</span>
+                  <span>{courseDataFormatted.duration}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <PlayCircle className="h-5 w-5 text-primary" />
-                  <span>{courseData.lessons} уроков</span>
+                  <span>{courseDataFormatted.lessons} уроков</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
-                  <span>{courseData.students.toLocaleString("ru-RU")} учеников</span>
+                  <span>{courseDataFormatted.students.toLocaleString("ru-RU")} учеников</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Star className="h-5 w-5 fill-highlight text-highlight" />
                   <span>
-                    {courseData.rating} ({courseData.reviews} отзывов)
+                    {courseDataFormatted.rating} ({courseDataFormatted.reviews} отзывов)
                   </span>
                 </div>
               </div>
 
               {/* Instructor */}
-              <div className="flex items-center gap-4 rounded-xl bg-card/50 p-4 backdrop-blur">
-                <img
-                  src={courseData.instructor.image}
-                  alt={courseData.instructor.name}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-                <div>
-                  <p className="font-medium">{courseData.instructor.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {courseData.instructor.role}
-                  </p>
+              {courseDataFormatted.instructor && (
+                <div className="flex items-center gap-4 rounded-xl bg-card/50 p-4 backdrop-blur">
+                  <img
+                    src={courseDataFormatted.instructor.image}
+                    alt={courseDataFormatted.instructor.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-medium">{courseDataFormatted.instructor.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {courseDataFormatted.instructor.role}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="relative">
               <div className="overflow-hidden rounded-2xl shadow-elevated">
                 <img
-                  src={courseData.image}
-                  alt={courseData.title}
+                  src={courseDataFormatted.image}
+                  alt={courseDataFormatted.title}
                   loading="lazy"
                   decoding="async"
                   className="aspect-video w-full object-cover"
                 />
-                <div className="absolute inset-0 flex items-center justify-center bg-foreground/20">
-                  <Button
-                    variant="gold"
-                    size="xl"
-                    className="rounded-full"
-                  >
-                    <PlayCircle className="mr-2 h-6 w-6" />
-                    Смотреть превью
-                  </Button>
-                </div>
+                {courseData.video_preview_url && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-foreground/20">
+                    <Button
+                      variant="gold"
+                      size="xl"
+                      className="rounded-full"
+                      onClick={() => window.open(courseData.video_preview_url, '_blank')}
+                    >
+                      <PlayCircle className="mr-2 h-6 w-6" />
+                      Смотреть превью
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -250,7 +241,7 @@ export default function CourseDetail() {
             Что входит в курс
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {courseData.includes.map((item, index) => (
+            {courseDataFormatted.includes.map((item: string, index: number) => (
               <div
                 key={index}
                 className="flex items-start gap-3 rounded-lg bg-secondary/50 p-4"
@@ -270,10 +261,10 @@ export default function CourseDetail() {
             Программа курса
           </h2>
           <Accordion type="single" collapsible className="space-y-4">
-            {courseData.modules.map((module, index) => (
+            {courseDataFormatted.modules.map((module: any, index: number) => (
               <AccordionItem
-                key={index}
-                value={`module-${index}`}
+                key={module.id || index}
+                value={`module-${module.id || index}`}
                 className="overflow-hidden rounded-xl border bg-card"
               >
                 <AccordionTrigger className="px-6 py-4 hover:no-underline">
@@ -288,13 +279,13 @@ export default function CourseDetail() {
                 </AccordionTrigger>
                 <AccordionContent className="px-6 pb-4">
                   <ul className="ml-14 space-y-2">
-                    {module.lessons.map((lesson, lessonIndex) => (
+                    {module.lessons?.map((lesson: any, lessonIndex: number) => (
                       <li
-                        key={lessonIndex}
+                        key={lesson.id || lessonIndex}
                         className="flex items-center gap-3 text-muted-foreground"
                       >
                         <PlayCircle className="h-4 w-4 shrink-0" />
-                        <span>{lesson}</span>
+                        <span>{lesson.title}</span>
                       </li>
                     ))}
                   </ul>
@@ -316,7 +307,7 @@ export default function CourseDetail() {
           </p>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {courseData.tariffs.map((tariff) => (
+            {courseDataFormatted.tariffs.map((tariff: any) => (
               <Card
                 key={tariff.id}
                 variant={tariff.popular ? "elevated" : "default"}
@@ -346,13 +337,13 @@ export default function CourseDetail() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <ul className="space-y-3">
-                    {tariff.features.map((feature, index) => (
+                    {tariff.features?.map((feature: string, index: number) => (
                       <li key={index} className="flex items-start gap-3">
                         <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                         <span className="text-sm">{feature}</span>
                       </li>
                     ))}
-                    {tariff.notIncluded?.map((feature, index) => (
+                    {tariff.notIncluded?.map((feature: string, index: number) => (
                       <li
                         key={`not-${index}`}
                         className="flex items-start gap-3 text-muted-foreground"
@@ -391,14 +382,17 @@ export default function CourseDetail() {
                 инструменты:
               </p>
               <ul className="grid gap-3 md:grid-cols-2">
-                {courseData.materials.map((material, index) => (
+                {courseDataFormatted.materials.map((material: any, index: number) => (
                   <li key={index} className="flex items-center gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
                       <span className="text-sm font-medium text-primary">
                         {index + 1}
                       </span>
                     </div>
-                    <span>{material}</span>
+                    <span>
+                      {material.name}
+                      {material.price_info && ` ${material.price_info}`}
+                    </span>
                   </li>
                 ))}
               </ul>

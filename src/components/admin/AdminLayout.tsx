@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Устанавливаем title для всех админских страниц
+  useEffect(() => {
+    document.title = 'Admin panel';
+  }, []);
 
   const handleLogout = () => {
     logout();

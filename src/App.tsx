@@ -32,6 +32,7 @@ const AdminFounder = lazy(() => import("./pages/admin/Founder"));
 const AdminTeam = lazy(() => import("./pages/admin/Team"));
 const AdminBlog = lazy(() => import("./pages/admin/Blog"));
 const AdminSEO = lazy(() => import("./pages/admin/SEO"));
+const AdminCourses = lazy(() => import("./pages/admin/Courses"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading component
@@ -134,6 +135,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <AdminSEO />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/courses"
+                element={
+                  <ProtectedRoute>
+                    <AdminCourses />
                   </ProtectedRoute>
                 }
               />

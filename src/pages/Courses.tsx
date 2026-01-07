@@ -1,102 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-
-import courseBasic from "@/assets/course-basic.jpg";
-import courseGel from "@/assets/course-gel.jpg";
-import courseArt from "@/assets/course-art.jpg";
-
-const allCourses = [
-  {
-    id: "basic-manicure",
-    title: "Базовый курс маникюра",
-    description:
-      "Освойте профессию nail-мастера с нуля. Классический и аппаратный маникюр, покрытие гель-лаком.",
-    image: courseBasic,
-    price: 129,
-    oldPrice: 199,
-    duration: "4 недели",
-    students: 2847,
-    rating: 4.9,
-    level: "beginner" as const,
-    isNew: true,
-    category: "basics",
-  },
-  {
-    id: "gel-extension",
-    title: "Наращивание гелем",
-    description:
-      "Научитесь создавать идеальные ногти любой формы. Работа с формами, апексом и архитектурой.",
-    image: courseGel,
-    price: 159,
-    oldPrice: 229,
-    duration: "6 недель",
-    students: 1523,
-    rating: 4.8,
-    level: "intermediate" as const,
-    category: "extension",
-  },
-  {
-    id: "nail-art",
-    title: "Мастер nail-дизайна",
-    description:
-      "Авторские техники дизайна: акварель, инкрустация, объёмный декор. Станьте востребованным художником.",
-    image: courseArt,
-    price: 189,
-    duration: "8 недель",
-    students: 892,
-    rating: 4.9,
-    level: "advanced" as const,
-    category: "design",
-  },
-  {
-    id: "hardware-manicure",
-    title: "Аппаратный маникюр",
-    description:
-      "Профессиональное владение аппаратом. Фрезы, техники, работа с проблемными ногтями.",
-    image: courseBasic,
-    price: 99,
-    oldPrice: 149,
-    duration: "3 недели",
-    students: 1892,
-    rating: 4.7,
-    level: "beginner" as const,
-    category: "hardware",
-  },
-  {
-    id: "gel-polish",
-    title: "Идеальное покрытие гель-лаком",
-    description:
-      "Секреты стойкого покрытия без сколов. Работа с базами, выравнивание, тонкие ногти.",
-    image: courseGel,
-    price: 79,
-    duration: "2 недели",
-    students: 3241,
-    rating: 4.9,
-    level: "beginner" as const,
-    isNew: true,
-    category: "basics",
-  },
-  {
-    id: "acrylic-extension",
-    title: "Наращивание акрилом",
-    description:
-      "Классическая техника наращивания. Идеальный C-изгиб, работа с проблемными ногтями.",
-    image: courseGel,
-    price: 169,
-    duration: "6 недель",
-    students: 734,
-    rating: 4.6,
-    level: "intermediate" as const,
-    category: "extension",
-  },
-];
+import { api } from "@/lib/api";
 
 const categories = [
   { id: "all", label: "Все курсы" },
@@ -114,21 +25,46 @@ const levels = [
 ];
 
 export default function Courses() {
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredCourses = allCourses.filter((course) => {
-    const matchesSearch =
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || course.category === selectedCategory;
-    const matchesLevel =
-      selectedLevel === "all" || course.level === selectedLevel;
+  useEffect(() => {
+    loadCourses();
+  }, [selectedCategory, selectedLevel, searchQuery]);
 
-    return matchesSearch && matchesCategory && matchesLevel;
+  const loadCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.getPublicCourses({
+        category: selectedCategory !== "all" ? selectedCategory : undefined,
+        level: selectedLevel !== "all" ? selectedLevel : undefined,
+        search: searchQuery || undefined,
+        limit: 50,
+      });
+      setCourses(response.courses);
+    } catch (err: any) {
+      setError(err.message || "Ошибка при загрузке курсов");
+      console.error("Error loading courses:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredCourses = courses.filter((course) => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        course.title.toLowerCase().includes(query) ||
+        course.description.toLowerCase().includes(query)
+      );
+    }
+    return true;
   });
 
   const clearFilters = () => {
@@ -282,15 +218,55 @@ export default function Courses() {
       {/* Course Grid */}
       <section className="flex-1 py-12 lg:py-16">
         <div className="container">
-          {filteredCourses.length > 0 ? (
+          {loading ? (
+            <div className="flex min-h-[400px] items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Загрузка курсов...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="py-16 text-center">
+              <p className="mb-4 text-xl font-medium text-destructive">{error}</p>
+              <Button variant="outline" onClick={loadCourses}>
+                Попробовать снова
+              </Button>
+            </div>
+          ) : filteredCourses.length > 0 ? (
             <>
               <p className="mb-8 text-muted-foreground">
                 Найдено курсов: {filteredCourses.length}
               </p>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredCourses.map((course) => (
-                  <CourseCard key={course.id} {...course} />
-                ))}
+                {filteredCourses.map((course) => {
+                  // Формируем URL изображения с fallback
+                  let imageUrl = "";
+                  if (course.image_upload_path) {
+                    imageUrl = `/uploads/courses/${course.image_upload_path}`;
+                  } else if (course.image_url) {
+                    imageUrl = course.image_url;
+                  } else {
+                    // Fallback изображение (можно использовать placeholder)
+                    imageUrl = "https://via.placeholder.com/400x300?text=Course";
+                  }
+
+                  return (
+                    <CourseCard
+                      key={course.id || course.slug}
+                      id={course.slug}
+                      title={course.title || "Без названия"}
+                      description={course.description || ""}
+                      image={imageUrl}
+                      price={course.price || 0}
+                      oldPrice={course.oldPrice}
+                      duration={course.duration || ""}
+                      students={course.students || 0}
+                      rating={course.rating || 0}
+                      level={course.level || "beginner"}
+                      isNew={course.isNew}
+                    />
+                  );
+                })}
               </div>
             </>
           ) : (
