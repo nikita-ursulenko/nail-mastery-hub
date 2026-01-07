@@ -315,6 +315,59 @@ class ApiClient {
     });
   }
 
+  // User Enrollments Management
+  async getUserEnrollments(userId: number): Promise<{ enrollments: any[] }> {
+    return this.request<{ enrollments: any[] }>(`/admin/users/${userId}/enrollments`);
+  }
+
+  async addUserEnrollment(userId: number, courseId: number, tariffId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/admin/users/${userId}/enrollments`, {
+      method: 'POST',
+      body: JSON.stringify({ courseId, tariffId }),
+    });
+  }
+
+  async removeUserEnrollment(userId: number, enrollmentId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/admin/users/${userId}/enrollments/${enrollmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async updateUserEnrollmentTariff(userId: number, enrollmentId: number, tariffId: number): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/admin/users/${userId}/enrollments/${enrollmentId}/tariff`, {
+      method: 'PATCH',
+      body: JSON.stringify({ tariffId }),
+    });
+  }
+
+  // Admin Orders API
+  async getOrders(params?: {
+    search?: string;
+    status?: string;
+    payment_status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ orders: any[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.payment_status) queryParams.append('payment_status', params.payment_status);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+    const query = queryParams.toString();
+    return this.request<{ orders: any[]; total: number }>(`/admin/orders${query ? `?${query}` : ''}`);
+  }
+
+  async getOrdersStats(): Promise<{
+    totalRevenue: number;
+    totalOrders: number;
+    today: { orders: number; revenue: number };
+    week: { orders: number; revenue: number };
+    month: { orders: number; revenue: number };
+  }> {
+    return this.request('/admin/orders/stats');
+  }
+
   // Admin Settings API
   async getSettings(): Promise<{ settings: { [key: string]: any } }> {
     return this.request<{ settings: { [key: string]: any } }>('/admin/settings');
@@ -806,6 +859,18 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  // Payment API
+  async createCheckoutSession(data: { courseId: number; tariffId: number }): Promise<{ sessionId: string; url: string }> {
+    return this.userRequest<{ sessionId: string; url: string }>('/payments/create-checkout', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPaymentStatus(sessionId: string): Promise<{ status: string; sessionId: string; customerEmail?: string; enrollmentActivated?: boolean }> {
+    return this.userRequest<{ status: string; sessionId: string; customerEmail?: string; enrollmentActivated?: boolean }>(`/payments/status/${sessionId}`);
   }
 
   // User Profile API

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Clock,
@@ -24,6 +24,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { api } from "@/lib/api";
+import { useUserAuth } from "@/contexts/UserAuthContext";
+import { toast } from "sonner";
 
 const levelLabels: Record<string, string> = {
   beginner: "Для начинающих",
@@ -33,9 +35,12 @@ const levelLabels: Record<string, string> = {
 
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useUserAuth();
+  const navigate = useNavigate();
   const [courseData, setCourseData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [purchasing, setPurchasing] = useState<number | null>(null); // ID тарифа, который покупается
 
   useEffect(() => {
     if (id) {
@@ -54,6 +59,37 @@ export default function CourseDetail() {
       console.error("Error loading course:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePurchase = async (tariff: any) => {
+    if (!user) {
+      toast.error("Необходимо войти в систему");
+      navigate("/login");
+      return;
+    }
+
+    if (!courseData) {
+      return;
+    }
+
+    try {
+      setPurchasing(tariff.id);
+      const response = await api.createCheckoutSession({
+        courseId: courseData.id,
+        tariffId: tariff.id,
+      });
+
+      if (response.url) {
+        // Перенаправляем на Stripe Checkout
+        window.location.href = response.url;
+      } else {
+        throw new Error("Не получен URL для оплаты");
+      }
+    } catch (err: any) {
+      console.error("Error creating checkout session:", err);
+      toast.error(err.message || "Ошибка при создании платежа");
+      setPurchasing(null);
     }
   };
 
@@ -93,7 +129,9 @@ export default function CourseDetail() {
 
   // Формируем URL изображения
   const courseImage = courseData.image_upload_path
-    ? `/uploads/courses/${courseData.image_upload_path}`
+    ? (courseData.image_upload_path.startsWith('/uploads/')
+        ? courseData.image_upload_path
+        : `/uploads/courses/${courseData.image_upload_path}`)
     : courseData.image_url || "";
 
   // Формируем URL изображения преподавателя
@@ -359,8 +397,17 @@ export default function CourseDetail() {
                     variant={tariff.popular ? "hero" : "outline"}
                     size="lg"
                     className="w-full"
+                    onClick={() => handlePurchase(tariff)}
+                    disabled={purchasing === tariff.id}
                   >
-                    Выбрать тариф
+                    {purchasing === tariff.id ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Обработка...
+                      </>
+                    ) : (
+                      "Выбрать тариф"
+                    )}
                   </Button>
                 </CardContent>
               </Card>

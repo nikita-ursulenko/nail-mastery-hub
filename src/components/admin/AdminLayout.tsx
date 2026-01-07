@@ -8,7 +8,6 @@ import {
   MessageSquare,
   BookOpen,
   Users,
-  ShoppingCart,
   Settings,
   LogOut,
   Phone,
@@ -16,6 +15,7 @@ import {
   UserCog,
   FileText,
   Search,
+  ShoppingCart,
 } from 'lucide-react';
 
 interface MenuItem {

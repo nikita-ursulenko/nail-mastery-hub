@@ -20,6 +20,8 @@ const DashboardCourses = lazy(() => import("./pages/DashboardCourses"));
 const DashboardCourseDetail = lazy(() => import("./pages/DashboardCourseDetail"));
 const DashboardLesson = lazy(() => import("./pages/DashboardLesson"));
 const DashboardSettings = lazy(() => import("./pages/DashboardSettings"));
+const DashboardCertificates = lazy(() => import("./pages/DashboardCertificates"));
+const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
 const About = lazy(() => import("./pages/About"));
 const Blog = lazy(() => import("./pages/Blog"));
 const BlogDetail = lazy(() => import("./pages/BlogDetail"));
@@ -38,6 +40,7 @@ const AdminBlog = lazy(() => import("./pages/admin/Blog"));
 const AdminSEO = lazy(() => import("./pages/admin/SEO"));
 const AdminCourses = lazy(() => import("./pages/admin/Courses"));
 const AdminUsers = lazy(() => import("./pages/admin/Users"));
+const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -74,6 +77,7 @@ const App = () => (
               <Route path="/faq" element={<FAQ />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
               
               {/* User routes */}
               <Route
@@ -113,6 +117,14 @@ const App = () => (
                 element={
                   <ProtectedUserRoute>
                     <DashboardSettings />
+                  </ProtectedUserRoute>
+                }
+              />
+              <Route
+                path="/dashboard/certificates"
+                element={
+                  <ProtectedUserRoute>
+                    <DashboardCertificates />
                   </ProtectedUserRoute>
                 }
               />
@@ -189,6 +201,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <AdminUsers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/orders"
+                element={
+                  <ProtectedRoute>
+                    <AdminOrders />
                   </ProtectedRoute>
                 }
               />

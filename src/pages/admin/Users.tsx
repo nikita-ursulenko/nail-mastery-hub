@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Plus, Pencil, Trash2, Upload, X, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Upload, X, Search, BookOpen, Edit } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -61,6 +62,16 @@ export default function AdminUsers() {
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [useAvatarUpload, setUseAvatarUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Управление курсами
+  const [isCoursesDialogOpen, setIsCoursesDialogOpen] = useState(false);
+  const [selectedUserForCourses, setSelectedUserForCourses] = useState<User | null>(null);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+  const [newEnrollmentCourseId, setNewEnrollmentCourseId] = useState<number | null>(null);
+  const [newEnrollmentTariffId, setNewEnrollmentTariffId] = useState<number | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -252,6 +263,120 @@ export default function AdminUsers() {
       month: 'short',
       year: 'numeric',
     });
+  };
+
+  // Управление курсами пользователя
+  const handleOpenCoursesDialog = async (user: User) => {
+    setSelectedUserForCourses(user);
+    setIsCoursesDialogOpen(true);
+    setCourseTariffsMap({}); // Очищаем кэш тарифов
+    await loadUserEnrollments(user.id);
+    await loadAllCourses();
+    
+    // Предзагружаем тарифы для существующих курсов
+    const enrollmentsResponse = await api.getUserEnrollments(user.id);
+    for (const enrollment of enrollmentsResponse.enrollments) {
+      await loadCourseTariffs(enrollment.course.id);
+    }
+  };
+
+  const loadUserEnrollments = async (userId: number) => {
+    try {
+      setIsLoadingEnrollments(true);
+      const response = await api.getUserEnrollments(userId);
+      setEnrollments(response.enrollments);
+    } catch (error: any) {
+      console.error('Failed to load enrollments:', error);
+      toast.error('Ошибка при загрузке курсов пользователя');
+    } finally {
+      setIsLoadingEnrollments(false);
+    }
+  };
+
+  const loadAllCourses = async () => {
+    try {
+      setIsLoadingCourses(true);
+      const response = await api.getAllCourses();
+      setCourses(response.courses);
+    } catch (error: any) {
+      console.error('Failed to load courses:', error);
+      toast.error('Ошибка при загрузке курсов');
+    } finally {
+      setIsLoadingCourses(false);
+    }
+  };
+
+  const handleAddEnrollment = async () => {
+    if (!selectedUserForCourses || !newEnrollmentCourseId || !newEnrollmentTariffId) {
+      toast.error('Выберите курс и тариф');
+      return;
+    }
+
+    try {
+      await api.addUserEnrollment(selectedUserForCourses.id, newEnrollmentCourseId, newEnrollmentTariffId);
+      toast.success('Курс успешно добавлен');
+      await loadUserEnrollments(selectedUserForCourses.id);
+      setNewEnrollmentCourseId(null);
+      setNewEnrollmentTariffId(null);
+    } catch (error: any) {
+      console.error('Failed to add enrollment:', error);
+      toast.error(error.message || 'Ошибка при добавлении курса');
+    }
+  };
+
+  const handleRemoveEnrollment = async (enrollmentId: number) => {
+    if (!selectedUserForCourses) return;
+    
+    if (!window.confirm('Вы уверены, что хотите удалить этот курс у пользователя?')) {
+      return;
+    }
+
+    try {
+      await api.removeUserEnrollment(selectedUserForCourses.id, enrollmentId);
+      toast.success('Курс успешно удален');
+      await loadUserEnrollments(selectedUserForCourses.id);
+    } catch (error: any) {
+      console.error('Failed to remove enrollment:', error);
+      toast.error(error.message || 'Ошибка при удалении курса');
+    }
+  };
+
+  const handleChangeTariff = async (enrollmentId: number, courseId: number, newTariffId: number) => {
+    if (!selectedUserForCourses) return;
+
+    try {
+      await api.updateUserEnrollmentTariff(selectedUserForCourses.id, enrollmentId, newTariffId);
+      toast.success('Тариф успешно изменен');
+      await loadUserEnrollments(selectedUserForCourses.id);
+    } catch (error: any) {
+      console.error('Failed to update tariff:', error);
+      toast.error(error.message || 'Ошибка при изменении тарифа');
+    }
+  };
+
+  const [courseTariffsMap, setCourseTariffsMap] = useState<{ [key: number]: any[] }>({});
+
+  const loadCourseTariffs = async (courseId: number) => {
+    if (courseTariffsMap[courseId]) {
+      return courseTariffsMap[courseId];
+    }
+
+    try {
+      const course = await api.getCourseById(courseId);
+      const tariffs = course.tariffs || [];
+      setCourseTariffsMap(prev => ({ ...prev, [courseId]: tariffs }));
+      return tariffs;
+    } catch (error) {
+      console.error('Failed to load course tariffs:', error);
+      return [];
+    }
+  };
+
+  const getCourseTariffs = async (courseId: number) => {
+    if (courseTariffsMap[courseId]) {
+      return courseTariffsMap[courseId];
+    }
+    return await loadCourseTariffs(courseId);
   };
 
   return (
@@ -541,6 +666,14 @@ export default function AdminUsers() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => handleOpenCoursesDialog(user)}
+                            title="Управление курсами"
+                          >
+                            <BookOpen className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => handleOpenDialog(user)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -561,6 +694,199 @@ export default function AdminUsers() {
             )}
           </CardContent>
         </Card>
+
+        {/* Диалог управления курсами */}
+        <Dialog open={isCoursesDialogOpen} onOpenChange={setIsCoursesDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Управление курсами: {selectedUserForCourses?.name}
+              </DialogTitle>
+              <DialogDescription>
+                Просмотр, добавление и управление курсами пользователя
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Добавление нового курса */}
+            <div className="space-y-4 border-b pb-4">
+              <h3 className="font-semibold">Добавить курс</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Курс</Label>
+                  <Select
+                    value={newEnrollmentCourseId?.toString() || ''}
+                    onValueChange={async (value) => {
+                      const courseId = parseInt(value);
+                      setNewEnrollmentCourseId(courseId);
+                      setNewEnrollmentTariffId(null);
+                      await loadCourseTariffs(courseId);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите курс" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {courses.map((course) => (
+                        <SelectItem key={course.id} value={course.id.toString()}>
+                          {course.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Тариф</Label>
+                  <Select
+                    value={newEnrollmentTariffId?.toString() || ''}
+                    onValueChange={(value) => setNewEnrollmentTariffId(parseInt(value))}
+                    disabled={!newEnrollmentCourseId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите тариф" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {newEnrollmentCourseId && courseTariffsMap[newEnrollmentCourseId]?.map((tariff: any) => (
+                        <SelectItem key={tariff.id} value={tariff.id.toString()}>
+                          {tariff.name} - {tariff.price} €
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button onClick={handleAddEnrollment} disabled={!newEnrollmentCourseId || !newEnrollmentTariffId}>
+                <Plus className="mr-2 h-4 w-4" />
+                Добавить курс
+              </Button>
+            </div>
+
+            {/* Список курсов пользователя */}
+            <div className="space-y-4">
+              <h3 className="font-semibold">Курсы пользователя</h3>
+              {isLoadingEnrollments ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : enrollments.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  У пользователя нет курсов
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Курс</TableHead>
+                      <TableHead>Тариф</TableHead>
+                      <TableHead>Прогресс</TableHead>
+                      <TableHead>Статус</TableHead>
+                      <TableHead>Дата покупки</TableHead>
+                      <TableHead className="text-right">Действия</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {enrollments.map((enrollment) => {
+                      const courseTariffs = courseTariffsMap[enrollment.course.id] || [];
+                      
+                      // Загружаем тарифы, если их еще нет
+                      if (!courseTariffs.length && enrollment.course.id) {
+                        loadCourseTariffs(enrollment.course.id);
+                      }
+                      
+                      return (
+                        <TableRow key={enrollment.enrollment_id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              {enrollment.course.image_url ? (
+                                <img
+                                  src={enrollment.course.image_url}
+                                  alt={enrollment.course.title}
+                                  className="h-12 w-12 rounded object-cover"
+                                  onError={(e) => {
+                                    // Если изображение не загрузилось, скрываем его
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="h-12 w-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                                  Нет фото
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-medium">{enrollment.course.title}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {enrollment.course.subtitle}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={enrollment.tariff.id.toString()}
+                              onValueChange={(value) =>
+                                handleChangeTariff(
+                                  enrollment.enrollment_id,
+                                  enrollment.course.id,
+                                  parseInt(value)
+                                )
+                              }
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {courseTariffs.map((tariff: any) => (
+                                  <SelectItem key={tariff.id} value={tariff.id.toString()}>
+                                    {tariff.name} - {tariff.price} €
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="text-sm">
+                                {enrollment.lessons_completed} / {enrollment.total_lessons} уроков
+                              </div>
+                              <div className="w-24">
+                                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary transition-all"
+                                    style={{ width: `${enrollment.progress_percent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={enrollment.status === 'active' ? 'default' : 'secondary'}>
+                              {enrollment.status === 'active' ? 'Активен' : enrollment.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{formatDate(enrollment.purchased_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveEnrollment(enrollment.enrollment_id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCoursesDialogOpen(false)}>
+                Закрыть
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

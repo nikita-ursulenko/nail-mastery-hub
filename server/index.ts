@@ -1,6 +1,9 @@
+// dotenv.config() должен быть ПЕРВЫМ, до всех импортов, которые используют переменные окружения
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import authRoutes from './routes/auth';
 import userAuthRoutes from './routes/userAuth';
@@ -15,15 +18,17 @@ import seoRoutes from './routes/seo';
 import adminCoursesRoutes from './routes/adminCourses';
 import adminUsersRoutes from './routes/adminUsers';
 import adminSettingsRoutes from './routes/adminSettings';
+import adminOrdersRoutes from './routes/adminOrders';
 import uploadRoutes from './routes/upload';
 import publicRoutes from './routes/public';
+import paymentsRoutes from './routes/payments';
 import { securityHeaders, preventNoSqlInjection } from './middleware/security';
 import { sanitize } from './middleware/validation';
 import { apiRateLimit, loginRateLimit, uploadRateLimit } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { injectSeoMiddleware } from './middleware/seoInjector';
-
-dotenv.config();
+import { handleWebhook } from './controllers/paymentController';
+import { asyncHandler } from './middleware/asyncHandler';
 
 const app = express();
 const PORT = process.env.SERVER_PORT || 3001;
@@ -39,6 +44,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Webhook для Stripe должен быть ДО express.json() (нужен raw body)
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asyncHandler(handleWebhook));
 
 // Body parsing с ограничением размера
 app.use(express.json({ limit: '10mb' }));
@@ -75,8 +83,10 @@ app.use('/api/admin/seo', seoRoutes);
 app.use('/api/admin', adminCoursesRoutes);
 app.use('/api/admin/users', adminUsersRoutes);
 app.use('/api/admin/settings', adminSettingsRoutes);
+app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/upload', uploadRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/payments', paymentsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
