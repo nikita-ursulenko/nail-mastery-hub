@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Award,
@@ -7,6 +8,7 @@ import {
   CheckCircle,
   ArrowRight,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,53 +17,9 @@ import { Footer } from "@/components/layout/Footer";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
 import { FounderSection } from "@/components/founder/FounderSection";
+import { api } from "@/lib/api";
 
 import heroImage from "@/assets/hero-nails.jpg";
-import courseBasic from "@/assets/course-basic.jpg";
-import courseGel from "@/assets/course-gel.jpg";
-import courseArt from "@/assets/course-art.jpg";
-
-const featuredCourses = [
-  {
-    id: "basic-manicure",
-    title: "Базовый курс маникюра",
-    description:
-      "Освойте профессию nail-мастера с нуля. Классический и аппаратный маникюр, покрытие гель-лаком.",
-    image: courseBasic,
-    price: 129,
-    oldPrice: 199,
-    duration: "4 недели",
-    students: 2847,
-    rating: 4.9,
-    level: "beginner" as const,
-    isNew: true,
-  },
-  {
-    id: "gel-extension",
-    title: "Наращивание гелем",
-    description:
-      "Научитесь создавать идеальные ногти любой формы. Работа с формами, апексом и архитектурой.",
-    image: courseGel,
-    price: 159,
-    oldPrice: 229,
-    duration: "6 недель",
-    students: 1523,
-    rating: 4.8,
-    level: "intermediate" as const,
-  },
-  {
-    id: "nail-art",
-    title: "Мастер nail-дизайна",
-    description:
-      "Авторские техники дизайна: акварель, инкрустация, объёмный декор. Станьте востребованным художником.",
-    image: courseArt,
-    price: 189,
-    duration: "8 недель",
-    students: 892,
-    rating: 4.9,
-    level: "advanced" as const,
-  },
-];
 
 const benefits = [
   {
@@ -99,6 +57,30 @@ const stats = [
 ];
 
 export default function Index() {
+  const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadFeaturedCourses();
+  }, []);
+
+  const loadFeaturedCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.getPublicCourses({
+        limit: 6, // Показываем 6 популярных курсов
+      });
+      setFeaturedCourses(response.courses);
+    } catch (err: any) {
+      setError(err.message || "Ошибка при загрузке курсов");
+      console.error("Error loading featured courses:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -236,11 +218,63 @@ export default function Index() {
             </Button>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {featuredCourses.map((course) => (
-              <CourseCard key={course.id} {...course} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex min-h-[400px] items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">Загрузка курсов...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="py-16 text-center">
+              <p className="mb-4 text-xl font-medium text-destructive">{error}</p>
+              <Button variant="outline" onClick={loadFeaturedCourses}>
+                Попробовать снова
+              </Button>
+            </div>
+          ) : featuredCourses.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {featuredCourses.map((course) => {
+                // Формируем URL изображения с fallback
+                let imageUrl = "";
+                if (course.image_upload_path) {
+                  // Если путь уже начинается с /uploads/, используем как есть, иначе добавляем префикс
+                  imageUrl = course.image_upload_path.startsWith('/uploads/')
+                    ? course.image_upload_path
+                    : `/uploads/courses/${course.image_upload_path}`;
+                } else if (course.image_url) {
+                  imageUrl = course.image_url;
+                } else {
+                  // Fallback изображение
+                  imageUrl = "https://via.placeholder.com/400x300?text=Course";
+                }
+
+                return (
+                  <CourseCard
+                    key={course.id || course.slug}
+                    id={course.slug}
+                    title={course.title || "Без названия"}
+                    description={course.description || ""}
+                    image={imageUrl}
+                    price={course.price || 0}
+                    oldPrice={course.oldPrice}
+                    duration={course.duration || ""}
+                    students={course.students || 0}
+                    rating={course.rating || 0}
+                    level={course.level || "beginner"}
+                    isNew={course.isNew}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-16 text-center">
+              <p className="mb-4 text-xl font-medium">Курсы не найдены</p>
+              <p className="text-muted-foreground">
+                Попробуйте позже или перейдите в каталог курсов
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

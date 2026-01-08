@@ -181,3 +181,4 @@ cd deploy
 2. Логи БД: `docker-compose logs postgres`
 3. Статус контейнеров: `docker ps`
 4. Подключение к БД: `docker exec -it nail-mastery-db psql -U nailmastery -d nail_mastery_hub`
+
