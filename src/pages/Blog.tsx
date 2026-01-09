@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, X, ArrowRight, Sparkles } from "lucide-react
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { BlogCard } from "@/components/blog/BlogCard";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -187,19 +188,21 @@ export default function Blog() {
       {selectedCategory === "all" && !searchQuery && (
         <section className="py-16 lg:py-24">
           <div className="container">
-            <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                  Рекомендуем к прочтению
-                </h2>
-                <p className="max-w-2xl text-muted-foreground">
-                  Самые популярные и актуальные статьи от наших экспертов
-                </p>
+            <FadeInOnScroll>
+              <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                    Рекомендуем к прочтению
+                  </h2>
+                  <p className="max-w-2xl text-muted-foreground">
+                    Самые популярные и актуальные статьи от наших экспертов
+                  </p>
+                </div>
               </div>
-            </div>
+            </FadeInOnScroll>
 
             <div className="grid gap-6 md:grid-cols-2">
-              {featuredPosts.map((post) => {
+              {featuredPosts.map((post, index) => {
                 const imageUrl = post.image_upload_path
                   ? `/uploads/blog/${post.image_upload_path}`
                   : post.image_url || "";
@@ -209,19 +212,20 @@ export default function Blog() {
                   year: 'numeric'
                 });
                 return (
-                  <BlogCard
-                    key={post.id}
-                    id={post.slug}
-                    title={post.title}
-                    excerpt={post.excerpt}
-                    image={imageUrl}
-                    author={post.author}
-                    authorAvatar={post.author_avatar || undefined}
-                    date={formattedDate}
-                    readTime={post.read_time}
-                    category={post.category}
-                    featured={post.featured}
-                  />
+                  <FadeInOnScroll key={post.id} delay={index * 150} className="h-full">
+                    <BlogCard
+                      id={post.slug}
+                      title={post.title}
+                      excerpt={post.excerpt}
+                      image={imageUrl}
+                      author={post.author}
+                      authorAvatar={post.author_avatar || undefined}
+                      date={formattedDate}
+                      readTime={post.read_time}
+                      category={post.category}
+                      featured={post.featured}
+                    />
+                  </FadeInOnScroll>
                 );
               })}
             </div>
@@ -327,13 +331,15 @@ export default function Blog() {
             </div>
           ) : filteredPosts.length > 0 || featuredPosts.length > 0 ? (
               <>
-                <div className="mb-8 flex items-center justify-between">
-                  <p className="text-muted-foreground">
-                    Найдено статей: {total} {filteredPosts.length < total && `(показано ${filteredPosts.length + featuredPosts.length})`}
-                  </p>
-                </div>
+                <FadeInOnScroll>
+                  <div className="mb-8 flex items-center justify-between">
+                    <p className="text-muted-foreground">
+                      Найдено статей: {total} {filteredPosts.length < total && `(показано ${filteredPosts.length + featuredPosts.length})`}
+                    </p>
+                  </div>
+                </FadeInOnScroll>
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredPosts.map((post) => {
+                  {filteredPosts.map((post, index) => {
                     const imageUrl = post.image_upload_path
                       ? `/uploads/blog/${post.image_upload_path}`
                       : post.image_url || "";
@@ -343,19 +349,20 @@ export default function Blog() {
                       year: 'numeric'
                     });
                     return (
-                      <BlogCard
-                        key={post.id}
-                        id={post.slug}
-                        title={post.title}
-                        excerpt={post.excerpt}
-                        image={imageUrl}
-                        author={post.author}
-                        authorAvatar={post.author_avatar || undefined}
-                        date={formattedDate}
-                        readTime={post.read_time}
-                        category={post.category}
-                        featured={post.featured}
-                      />
+                      <FadeInOnScroll key={post.id} delay={index * 50} className="h-full">
+                        <BlogCard
+                          id={post.slug}
+                          title={post.title}
+                          excerpt={post.excerpt}
+                          image={imageUrl}
+                          author={post.author}
+                          authorAvatar={post.author_avatar || undefined}
+                          date={formattedDate}
+                          readTime={post.read_time}
+                          category={post.category}
+                          featured={post.featured}
+                        />
+                      </FadeInOnScroll>
                     );
                   })}
                 </div>
@@ -384,29 +391,31 @@ export default function Blog() {
       {/* Newsletter Section */}
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
-          <Card variant="elevated" className="overflow-hidden">
-            <CardContent className="p-8 lg:p-12">
-              <div className="mx-auto max-w-2xl text-center">
-                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                  Подпишитесь на рассылку
-                </h2>
-                <p className="mb-8 text-muted-foreground">
-                  Получайте новые статьи и полезные советы прямо на почту
-                </p>
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <Input
-                    type="email"
-                    placeholder="Ваш email"
-                    className="flex-1"
-                  />
-                  <Button size="lg" className="whitespace-nowrap">
-                    Подписаться
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+          <FadeInOnScroll>
+            <Card variant="elevated" className="overflow-hidden">
+              <CardContent className="p-8 lg:p-12">
+                <div className="mx-auto max-w-2xl text-center">
+                  <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                    Подпишитесь на рассылку
+                  </h2>
+                  <p className="mb-8 text-muted-foreground">
+                    Получайте новые статьи и полезные советы прямо на почту
+                  </p>
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    <Input
+                      type="email"
+                      placeholder="Ваш email"
+                      className="flex-1"
+                    />
+                    <Button size="lg" className="whitespace-nowrap">
+                      Подписаться
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </FadeInOnScroll>
         </div>
       </section>
 

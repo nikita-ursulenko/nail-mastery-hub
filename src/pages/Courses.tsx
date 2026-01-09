@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, X, Loader2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { CourseCard } from "@/components/courses/CourseCard";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -234,11 +235,13 @@ export default function Courses() {
             </div>
           ) : filteredCourses.length > 0 ? (
             <>
-              <p className="mb-8 text-muted-foreground">
-                Найдено курсов: {filteredCourses.length}
-              </p>
+              <FadeInOnScroll>
+                <p className="mb-8 text-muted-foreground">
+                  Найдено курсов: {filteredCourses.length}
+                </p>
+              </FadeInOnScroll>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {filteredCourses.map((course) => {
+                {filteredCourses.map((course, index) => {
                   // Формируем URL изображения с fallback
                   let imageUrl = "";
                   if (course.image_upload_path) {
@@ -254,20 +257,21 @@ export default function Courses() {
                   }
 
                   return (
-                    <CourseCard
-                      key={course.id || course.slug}
-                      id={course.slug}
-                      title={course.title || "Без названия"}
-                      description={course.description || ""}
-                      image={imageUrl}
-                      price={course.price || 0}
-                      oldPrice={course.oldPrice}
-                      duration={course.duration || ""}
-                      students={course.students || 0}
-                      rating={course.rating || 0}
-                      level={course.level || "beginner"}
-                      isNew={course.isNew}
-                    />
+                    <FadeInOnScroll key={course.id || course.slug} delay={index * 50} className="h-full">
+                      <CourseCard
+                        id={course.slug}
+                        title={course.title || "Без названия"}
+                        description={course.description || ""}
+                        image={imageUrl}
+                        price={course.price || 0}
+                        oldPrice={course.oldPrice}
+                        duration={course.duration || ""}
+                        students={course.students || 0}
+                        rating={course.rating || 0}
+                        level={course.level || "beginner"}
+                        isNew={course.isNew}
+                      />
+                    </FadeInOnScroll>
                   );
                 })}
               </div>

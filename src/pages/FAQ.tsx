@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { FAQSection } from "@/components/faq/FAQSection";
 import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 
 type FAQCategory = "general" | "learning" | "payment" | "career" | "support";
 
@@ -200,14 +201,16 @@ export default function FAQ() {
       {/* Categories and FAQ Section */}
       <section className="py-16 lg:py-24">
         <div className="container">
-          <div className="mb-8 text-center lg:mb-12">
-            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-              Категории вопросов
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              Выберите интересующую категорию для быстрого поиска
-            </p>
-          </div>
+          <FadeInOnScroll>
+            <div className="mb-8 text-center lg:mb-12">
+              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                Категории вопросов
+              </h2>
+              <p className="mx-auto max-w-2xl text-muted-foreground">
+                Выберите интересующую категорию для быстрого поиска
+              </p>
+            </div>
+          </FadeInOnScroll>
 
           {/* Mobile: Horizontal Scrollable Categories */}
           <div className="mb-8 lg:hidden">
@@ -252,21 +255,21 @@ export default function FAQ() {
 
           {/* Desktop: Full Category Cards */}
           <div className="mb-16 hidden grid-cols-2 gap-6 lg:grid lg:grid-cols-5">
-            {categories.map((category) => {
+            {categories.map((category, index) => {
               const Icon = category.icon;
               const itemsCount = getCategoryItems(category.id).length;
               return (
-                <Card 
-                  key={category.id} 
-                  variant="elevated" 
-                  className={`group transition-all cursor-pointer border-2 ${
-                    activeCategory === category.id 
-                      ? "ring-2 ring-primary shadow-lg border-primary" 
-                      : "border-border hover:border-primary/50 hover:shadow-lg"
-                  }`}
-                  onClick={() => setActiveCategory(category.id)}
-                >
-                  <CardContent className="p-6 text-center">
+                <FadeInOnScroll key={category.id} delay={index * 100} className="h-full">
+                  <Card 
+                    variant="elevated" 
+                    className={`group transition-all cursor-pointer border-2 h-full flex flex-col ${
+                      activeCategory === category.id 
+                        ? "ring-2 ring-primary shadow-lg border-primary" 
+                        : "border-border hover:border-primary/50 hover:shadow-lg"
+                    }`}
+                    onClick={() => setActiveCategory(category.id)}
+                  >
+                  <CardContent className="p-6 text-center flex flex-col flex-1">
                     <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl transition-colors ${
                       activeCategory === category.id 
                         ? "bg-primary text-primary-foreground" 
@@ -291,6 +294,7 @@ export default function FAQ() {
                     </p>
                   </CardContent>
                 </Card>
+                </FadeInOnScroll>
               );
             })}
           </div>
@@ -317,31 +321,33 @@ export default function FAQ() {
       {/* CTA Section */}
       <section className="py-16 lg:py-24">
         <div className="container">
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-              Готовы начать обучение?
-            </h2>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-              Присоединяйтесь к тысячам мастеров, которые уже изменили свою
-              жизнь благодаря нашим курсам
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="xl" asChild>
-                <Link to="/courses">
-                  Выбрать курс
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="xl"
-                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                asChild
-              >
-                <Link to="/schedule">Бесплатный вебинар</Link>
-              </Button>
+          <FadeInOnScroll>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+                Готовы начать обучение?
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+                Присоединяйтесь к тысячам мастеров, которые уже изменили свою
+                жизнь благодаря нашим курсам
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="xl" asChild>
+                  <Link to="/courses">
+                    Выбрать курс
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xl"
+                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  asChild
+                >
+                  <Link to="/schedule">Бесплатный вебинар</Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          </FadeInOnScroll>
         </div>
       </section>
 

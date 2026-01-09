@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -217,30 +218,22 @@ export default function Schedule() {
       <section className="border-b bg-card py-8">
         <div className="container">
           <div className="grid gap-6 md:grid-cols-3">
-            <div className="text-center">
-              <p className="mb-2 font-display text-3xl font-bold text-primary">
-                {upcomingEvents.length}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Предстоящих событий
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="mb-2 font-display text-3xl font-bold text-primary">
-                {recordedEvents.length}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Доступных записей
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="mb-2 font-display text-3xl font-bold text-primary">
-                {events.reduce((sum, e) => sum + e.registered, 0).toLocaleString("ru-RU")}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Участников всего
-              </p>
-            </div>
+            {[
+              { value: upcomingEvents.length, label: "Предстоящих событий" },
+              { value: recordedEvents.length, label: "Доступных записей" },
+              { value: events.reduce((sum, e) => sum + e.registered, 0).toLocaleString("ru-RU"), label: "Участников всего" },
+            ].map((stat, index) => (
+              <FadeInOnScroll key={index} delay={index * 100}>
+                <div className="text-center">
+                  <p className="mb-2 font-display text-3xl font-bold text-primary">
+                    {stat.value}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {stat.label}
+                  </p>
+                </div>
+              </FadeInOnScroll>
+            ))}
           </div>
         </div>
       </section>
@@ -297,12 +290,12 @@ export default function Schedule() {
         <div className="container">
           {filteredEvents.length > 0 ? (
             <div className="space-y-6">
-              {filteredEvents.map((event) => (
-                <Card
-                  key={event.id}
-                  variant="elevated"
-                  className="group overflow-hidden transition-all duration-300 hover:shadow-elevated"
-                >
+              {filteredEvents.map((event, index) => (
+                <FadeInOnScroll key={event.id} delay={index * 100}>
+                  <Card
+                    variant="elevated"
+                    className="group overflow-hidden transition-all duration-300 hover:shadow-elevated"
+                  >
                   <div className="grid gap-6 lg:grid-cols-3">
                     {/* Image */}
                     {event.image && (
@@ -448,6 +441,7 @@ export default function Schedule() {
                     </div>
                   </div>
                 </Card>
+                </FadeInOnScroll>
               ))}
             </div>
           ) : (

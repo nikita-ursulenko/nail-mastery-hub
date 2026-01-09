@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Calendar, Clock, User, Share2, Heart } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -166,19 +167,21 @@ export default function BlogDetail() {
       {(post.image_upload_path || post.image_url) && (
         <section className="py-8">
           <div className="container">
-            <div className="mx-auto max-w-4xl">
-              <div className="overflow-hidden rounded-2xl shadow-elevated">
-                <img
-                  src={post.image_upload_path 
-                    ? `/uploads/blog/${post.image_upload_path}`
-                    : post.image_url || ""}
-                  alt={post.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="aspect-video w-full object-cover"
-                />
+            <FadeInOnScroll>
+              <div className="mx-auto max-w-4xl">
+                <div className="overflow-hidden rounded-2xl shadow-elevated">
+                  <img
+                    src={post.image_upload_path 
+                      ? `/uploads/blog/${post.image_upload_path}`
+                      : post.image_url || ""}
+                    alt={post.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-video w-full object-cover"
+                  />
+                </div>
               </div>
-            </div>
+            </FadeInOnScroll>
           </div>
         </section>
       )}
@@ -186,7 +189,8 @@ export default function BlogDetail() {
       {/* Article Content */}
       <section className="py-12 lg:py-16">
         <div className="container">
-          <div className="mx-auto max-w-3xl">
+          <FadeInOnScroll>
+            <div className="mx-auto max-w-3xl">
             <article className="prose prose-lg max-w-none">
               {(() => {
                 // Парсим content (JSON массив параграфов)
@@ -225,15 +229,17 @@ export default function BlogDetail() {
                 ))}
               </div>
             )}
-          </div>
+            </div>
+          </FadeInOnScroll>
         </div>
       </section>
 
       {/* Author Section */}
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
-          <div className="mx-auto max-w-3xl">
-            <Card variant="elevated">
+          <FadeInOnScroll>
+            <div className="mx-auto max-w-3xl">
+              <Card variant="elevated">
               <CardContent className="p-6 lg:p-8">
                   <div className="flex flex-col gap-6 sm:flex-row">
                   {(post.author_avatar || post.author_avatar_upload_path) && (
@@ -263,7 +269,8 @@ export default function BlogDetail() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          </FadeInOnScroll>
         </div>
       </section>
 
@@ -271,17 +278,19 @@ export default function BlogDetail() {
       {relatedPosts.length > 0 && (
         <section className="py-12 lg:py-16">
           <div className="container">
-            <div className="mb-12">
-              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                Похожие статьи
-              </h2>
-              <p className="text-muted-foreground">
-                Рекомендуем к прочтению
-              </p>
-            </div>
+            <FadeInOnScroll>
+              <div className="mb-12">
+                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                  Похожие статьи
+                </h2>
+                <p className="text-muted-foreground">
+                  Рекомендуем к прочтению
+                </p>
+              </div>
+            </FadeInOnScroll>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {relatedPosts.map((relatedPost) => {
+              {relatedPosts.map((relatedPost, index) => {
                 const imageUrl = relatedPost.image_upload_path
                   ? `/uploads/blog/${relatedPost.image_upload_path}`
                   : relatedPost.image_url || "";
@@ -291,23 +300,24 @@ export default function BlogDetail() {
                   year: 'numeric'
                 });
                 return (
-                  <BlogCard
-                    key={relatedPost.id}
-                    id={relatedPost.slug}
-                    title={relatedPost.title}
-                    excerpt={relatedPost.excerpt}
-                    image={imageUrl}
-                    author={relatedPost.author}
-                    authorAvatar={
-                      relatedPost.author_avatar_upload_path
-                        ? `/uploads/avatars/${relatedPost.author_avatar_upload_path}`
-                        : relatedPost.author_avatar || undefined
-                    }
-                    date={formattedDate}
-                    readTime={relatedPost.read_time}
-                    category={relatedPost.category}
-                    featured={relatedPost.featured}
-                  />
+                  <FadeInOnScroll key={relatedPost.id} delay={index * 100} className="h-full">
+                    <BlogCard
+                      id={relatedPost.slug}
+                      title={relatedPost.title}
+                      excerpt={relatedPost.excerpt}
+                      image={imageUrl}
+                      author={relatedPost.author}
+                      authorAvatar={
+                        relatedPost.author_avatar_upload_path
+                          ? `/uploads/avatars/${relatedPost.author_avatar_upload_path}`
+                          : relatedPost.author_avatar || undefined
+                      }
+                      date={formattedDate}
+                      readTime={relatedPost.read_time}
+                      category={relatedPost.category}
+                      featured={relatedPost.featured}
+                    />
+                  </FadeInOnScroll>
                 );
               })}
             </div>
@@ -318,29 +328,31 @@ export default function BlogDetail() {
       {/* CTA Section */}
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
-              Хотите узнать больше?
-            </h2>
-            <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
-              Присоединяйтесь к нашим курсам и станьте профессиональным мастером маникюра
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="lg" asChild>
-                <Link to="/courses">
-                  Посмотреть курсы
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                asChild
-              >
-                <Link to="/blog">Больше статей</Link>
-              </Button>
+          <FadeInOnScroll>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
+                Хотите узнать больше?
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
+                Присоединяйтесь к нашим курсам и станьте профессиональным мастером маникюра
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="lg" asChild>
+                  <Link to="/courses">
+                    Посмотреть курсы
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  asChild
+                >
+                  <Link to="/blog">Больше статей</Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          </FadeInOnScroll>
         </div>
       </section>
 

@@ -48,7 +48,7 @@ export function CourseCard({
   const imageSrc = image || "https://via.placeholder.com/400x300?text=Course";
 
   return (
-    <Card variant="course" className="group">
+    <Card variant="course" className="group flex h-full flex-col">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={imageSrc}

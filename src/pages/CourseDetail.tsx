@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -275,18 +276,19 @@ export default function CourseDetail() {
       {/* What's Included */}
       <section className="py-12 lg:py-16">
         <div className="container">
-          <h2 className="mb-8 font-display text-3xl font-bold">
-            Что входит в курс
-          </h2>
+          <FadeInOnScroll>
+            <h2 className="mb-8 font-display text-3xl font-bold">
+              Что входит в курс
+            </h2>
+          </FadeInOnScroll>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {courseDataFormatted.includes.map((item: string, index: number) => (
-              <div
-                key={index}
-                className="flex items-start gap-3 rounded-lg bg-secondary/50 p-4"
-              >
-                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                <span>{item}</span>
-              </div>
+              <FadeInOnScroll key={index} delay={index * 50}>
+                <div className="flex items-start gap-3 rounded-lg bg-secondary/50 p-4">
+                  <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <span>{item}</span>
+                </div>
+              </FadeInOnScroll>
             ))}
           </div>
         </div>
@@ -295,11 +297,14 @@ export default function CourseDetail() {
       {/* Program */}
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
-          <h2 className="mb-8 font-display text-3xl font-bold">
-            Программа курса
-          </h2>
+          <FadeInOnScroll>
+            <h2 className="mb-8 font-display text-3xl font-bold">
+              Программа курса
+            </h2>
+          </FadeInOnScroll>
           <Accordion type="single" collapsible className="space-y-4">
             {courseDataFormatted.modules.map((module: any, index: number) => (
+              <FadeInOnScroll key={module.id || index} delay={index * 100}>
               <AccordionItem
                 key={module.id || index}
                 value={`module-${module.id || index}`}
@@ -329,6 +334,7 @@ export default function CourseDetail() {
                   </ul>
                 </AccordionContent>
               </AccordionItem>
+              </FadeInOnScroll>
             ))}
           </Accordion>
         </div>
@@ -337,15 +343,18 @@ export default function CourseDetail() {
       {/* Tariffs */}
       <section className="py-12 lg:py-16">
         <div className="container">
-          <h2 className="mb-4 text-center font-display text-3xl font-bold">
-            Выберите тариф
-          </h2>
-          <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
-            Все тарифы включают бессрочный доступ к материалам курса
-          </p>
+          <FadeInOnScroll>
+            <h2 className="mb-4 text-center font-display text-3xl font-bold">
+              Выберите тариф
+            </h2>
+            <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
+              Все тарифы включают бессрочный доступ к материалам курса
+            </p>
+          </FadeInOnScroll>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {courseDataFormatted.tariffs.map((tariff: any) => (
+            {courseDataFormatted.tariffs.map((tariff: any, index: number) => (
+              <FadeInOnScroll key={tariff.id} delay={index * 100}>
               <Card
                 key={tariff.id}
                 variant={tariff.popular ? "elevated" : "default"}
@@ -411,6 +420,7 @@ export default function CourseDetail() {
                   </Button>
                 </CardContent>
               </Card>
+              </FadeInOnScroll>
             ))}
           </div>
         </div>
@@ -419,10 +429,13 @@ export default function CourseDetail() {
       {/* Materials */}
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
-          <h2 className="mb-8 font-display text-3xl font-bold">
-            Необходимые материалы
-          </h2>
-          <Card>
+          <FadeInOnScroll>
+            <h2 className="mb-8 font-display text-3xl font-bold">
+              Необходимые материалы
+            </h2>
+          </FadeInOnScroll>
+          <FadeInOnScroll delay={100}>
+            <Card>
             <CardContent className="p-6">
               <p className="mb-6 text-muted-foreground">
                 Для прохождения курса вам понадобятся следующие материалы и
@@ -449,26 +462,29 @@ export default function CourseDetail() {
               </p>
             </CardContent>
           </Card>
+          </FadeInOnScroll>
         </div>
       </section>
 
       {/* CTA */}
       <section className="py-12 lg:py-16">
         <div className="container">
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
-              Остались вопросы?
-            </h2>
-            <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
-              Свяжитесь с нами, и мы поможем выбрать подходящий курс и тариф
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="lg">
-                <MessageCircle className="mr-2 h-5 w-5" />
-                Написать в Telegram
-              </Button>
+          <FadeInOnScroll>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
+                Остались вопросы?
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
+                Свяжитесь с нами, и мы поможем выбрать подходящий курс и тариф
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="lg">
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  Написать в Telegram
+                </Button>
+              </div>
             </div>
-          </div>
+          </FadeInOnScroll>
         </div>
       </section>
 

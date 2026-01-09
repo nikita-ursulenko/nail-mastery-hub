@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
 
 export default function Terms() {
@@ -40,10 +41,11 @@ export default function Terms() {
       {/* Terms Content */}
       <section className="py-16 lg:py-24">
         <div className="container">
-          <div className="mx-auto max-w-4xl">
-            <Card variant="elevated" className="overflow-hidden">
-              <CardContent className="p-6 sm:p-8 lg:p-12">
-                <div className="prose prose-slate max-w-none dark:prose-invert">
+          <FadeInOnScroll>
+            <div className="mx-auto max-w-4xl">
+              <Card variant="elevated" className="overflow-hidden">
+                <CardContent className="p-6 sm:p-8 lg:p-12">
+                  <div className="prose prose-slate max-w-none dark:prose-invert">
                   {/* 1. Общие положения */}
                   <div className="mb-8">
                     <h2 className="mb-4 font-display text-2xl font-bold text-foreground lg:text-3xl">
@@ -301,7 +303,8 @@ export default function Terms() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+            </div>
+          </FadeInOnScroll>
         </div>
       </section>
 
@@ -314,31 +317,33 @@ export default function Terms() {
       {/* CTA Section */}
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-              Готовы начать обучение?
-            </h2>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-              Присоединяйтесь к тысячам мастеров, которые уже изменили свою
-              жизнь благодаря нашим курсам
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="xl" asChild>
-                <Link to="/courses">
-                  Выбрать курс
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="xl"
-                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                asChild
-              >
-                <Link to="/schedule">Бесплатный вебинар</Link>
-              </Button>
+          <FadeInOnScroll>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+                Готовы начать обучение?
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+                Присоединяйтесь к тысячам мастеров, которые уже изменили свою
+                жизнь благодаря нашим курсам
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="xl" asChild>
+                  <Link to="/courses">
+                    Выбрать курс
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xl"
+                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  asChild
+                >
+                  <Link to="/schedule">Бесплатный вебинар</Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          </FadeInOnScroll>
         </div>
       </section>
 
