@@ -42,6 +42,7 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState<{ name?: string; email?: string } | null>(null);
 
   useEffect(() => {
@@ -122,8 +123,11 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
     <div className="flex h-screen bg-background">
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <aside className="hidden md:flex w-64 border-r bg-muted/50 flex-col">
-          <MenuContent />
+        <aside className={cn(
+          "hidden md:flex border-r bg-muted/50 flex-col transition-all duration-300 ease-in-out overflow-hidden",
+          desktopSidebarOpen ? "w-64" : "w-0"
+        )}>
+          {desktopSidebarOpen && <MenuContent />}
         </aside>
       )}
 
@@ -147,21 +151,25 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
         {/* Top Header */}
         <header className="h-16 border-b bg-card shrink-0">
           <div className="flex h-full items-center justify-between px-4 md:px-6">
-            {isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setMobileMenuOpen(true)}
-                className="mr-2"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                if (isMobile) {
+                  setMobileMenuOpen(true);
+                } else {
+                  setDesktopSidebarOpen(!desktopSidebarOpen);
+                }
+              }}
+              className="mr-2"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             <h2 className="text-base md:text-lg font-semibold">
               {menuItems.find((item) => item.path === location.pathname)?.label ||
                 'Партнерская программа'}
             </h2>
-            <div className="w-10" /> {/* Spacer for mobile menu button */}
+            <div className="w-10" /> {/* Spacer for menu button */}
           </div>
         </header>
 

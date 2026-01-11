@@ -141,7 +141,7 @@ export default function Index() {
                   src={heroImage}
                   alt="Профессиональный маникюр"
                   loading="eager"
-                  fetchPriority="high"
+                  fetchpriority="high"
                   className="aspect-[4/3] w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent" />

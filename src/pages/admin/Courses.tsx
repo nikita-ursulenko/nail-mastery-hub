@@ -1139,11 +1139,11 @@ export default function AdminCourses() {
                         }`}
                         onClick={() => setSelectedCourse(course)}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium">{course.title}</p>
-                            <p className="text-sm opacity-80">{course.slug}</p>
-                            <div className="flex gap-1 mt-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{course.title}</p>
+                            <p className="text-sm opacity-80 truncate">{course.slug}</p>
+                            <div className="flex gap-1 mt-1 flex-wrap">
                               {course.is_featured && (
                                 <Badge variant="secondary" className="text-xs">
                                   Рекомендуемый
@@ -1161,10 +1161,11 @@ export default function AdminCourses() {
                               )}
                             </div>
                           </div>
-                          <div className="flex gap-1 ml-2">
+                          <div className="flex gap-1 shrink-0">
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenDialog(course);
@@ -1175,6 +1176,7 @@ export default function AdminCourses() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 w-8 p-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDelete(course.id);
