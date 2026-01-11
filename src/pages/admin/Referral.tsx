@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  BarChart3,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
@@ -415,13 +417,43 @@ export default function AdminReferral() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="stats">Статистика</TabsTrigger>
-            <TabsTrigger value="partners">Партнеры ({partnersTotal})</TabsTrigger>
-            <TabsTrigger value="withdrawals">
-              Запросы на вывод ({withdrawalsPending})
+          <TabsList className="grid w-full grid-cols-4 h-auto p-1 gap-1 md:gap-0">
+            <TabsTrigger 
+              value="stats" 
+              className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
+            >
+              <BarChart3 className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
+              <span className="hidden lg:inline">Статистика</span>
             </TabsTrigger>
-            <TabsTrigger value="history">История</TabsTrigger>
+            <TabsTrigger 
+              value="partners" 
+              className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
+            >
+              <Users className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
+              <span className="hidden lg:inline">Партнеры</span>
+              <span className="font-medium md:font-normal md:ml-1 lg:ml-0 lg:font-normal">
+                <span className="lg:hidden">{partnersTotal}</span>
+                <span className="hidden lg:inline">({partnersTotal})</span>
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="withdrawals" 
+              className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
+            >
+              <Download className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
+              <span className="hidden lg:inline">Запросы</span>
+              <span className="font-medium md:font-normal md:ml-1 lg:ml-0 lg:font-normal">
+                <span className="lg:hidden">{withdrawalsPending}</span>
+                <span className="hidden lg:inline">({withdrawalsPending})</span>
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="history" 
+              className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
+            >
+              <History className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
+              <span className="hidden lg:inline">История</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Статистика */}
@@ -520,20 +552,20 @@ export default function AdminReferral() {
           <TabsContent value="partners" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <CardTitle>Список партнеров</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="relative flex-1 sm:flex-none">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Поиск по имени, email, коду..."
                         value={partnerSearch}
                         onChange={(e) => setPartnerSearch(e.target.value)}
-                        className="pl-8 w-64"
+                        className="pl-8 w-full sm:w-64"
                       />
                     </div>
                     <Select value={partnerStatusFilter} onValueChange={(v: any) => setPartnerStatusFilter(v)}>
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -555,10 +587,10 @@ export default function AdminReferral() {
                     {filteredPartners.map((partner) => (
                       <div
                         key={partner.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
+                        className="flex flex-col gap-4 p-4 border rounded-lg sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="font-medium">{partner.name}</span>
                             {getStatusBadge(partner.is_active ? 'active' : 'inactive')}
                             <Badge variant="outline">{partner.level}</Badge>
@@ -568,10 +600,11 @@ export default function AdminReferral() {
                             Код: {partner.referral_code} | Баланс: {partner.current_balance.toFixed(2)}€
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={async () => {
                               setSelectedPartner(partner);
                               setShowPartnerStats(true);
@@ -593,6 +626,7 @@ export default function AdminReferral() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() => {
                               setSelectedPartner(partner);
                               setShowAddFunds(true);
@@ -604,6 +638,7 @@ export default function AdminReferral() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() => {
                               setSelectedPartner(partner);
                               setShowRemoveFunds(true);
@@ -615,6 +650,7 @@ export default function AdminReferral() {
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 sm:flex-none"
                             onClick={() => handleTogglePartnerStatus(partner)}
                           >
                             {partner.is_active ? 'Заблокировать' : 'Активировать'}
@@ -632,23 +668,23 @@ export default function AdminReferral() {
           <TabsContent value="withdrawals" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <CardTitle>Запросы на вывод</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="relative flex-1 sm:flex-none">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Поиск по партнеру..."
                         value={withdrawalSearch}
                         onChange={(e) => setWithdrawalSearch(e.target.value)}
-                        className="pl-8 w-64"
+                        className="pl-8 w-full sm:w-64"
                       />
                     </div>
                     <Select
                       value={withdrawalStatusFilter}
                       onValueChange={(v: any) => setWithdrawalStatusFilter(v)}
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -709,23 +745,23 @@ export default function AdminReferral() {
           <TabsContent value="history" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <CardTitle>История операций</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="relative flex-1 sm:flex-none">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Поиск по партнеру, описанию..."
                         value={historySearch}
                         onChange={(e) => setHistorySearch(e.target.value)}
-                        className="pl-8 w-64"
+                        className="pl-8 w-full sm:w-64"
                       />
                     </div>
                     <Select
                       value={historyTypeFilter}
                       onValueChange={(v: any) => setHistoryTypeFilter(v)}
                     >
-                      <SelectTrigger className="w-48">
+                      <SelectTrigger className="w-full sm:w-48">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -741,7 +777,7 @@ export default function AdminReferral() {
                       value={historyStatusFilter}
                       onValueChange={(v: any) => setHistoryStatusFilter(v)}
                     >
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />
                       </SelectTrigger>
                         <SelectContent>

@@ -89,7 +89,6 @@ interface Withdrawal {
 export default function ReferralDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [referralLink, setReferralLink] = useState<string>('');
-  const [referralCode, setReferralCode] = useState<string>('');
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
@@ -123,7 +122,6 @@ export default function ReferralDashboard() {
 
       setStats(statsData);
       setReferralLink(linkData.referral_link);
-      setReferralCode(linkData.referral_code);
       setRewards(rewardsData.rewards || []);
       setReferrals(referralsData.referrals || []);
       setWithdrawals(withdrawalsData.withdrawals || []);
@@ -251,45 +249,28 @@ export default function ReferralDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Дашборд партнера</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold">Дашборд партнера</h1>
+          <div className="text-sm md:text-base text-muted-foreground mt-1">
             Уровень: <Badge variant="secondary">{getLevelLabel(stats.partner.level)}</Badge>
-          </p>
+          </div>
         </div>
 
         {/* Реферальная ссылка - краткая версия */}
         <Card>
           <CardHeader>
-            <CardTitle>Реферальная ссылка</CardTitle>
+            <CardTitle className="text-lg md:text-xl">Реферальная ссылка</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Input value={referralLink} readOnly className="flex-1" />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <Input value={referralLink} readOnly className="flex-1 text-sm" />
               <Button
                 variant="outline"
                 size="icon"
+                className="shrink-0"
                 onClick={() => copyToClipboard(referralLink)}
               >
                 <Copy className="h-4 w-4" />
               </Button>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <Label>Реферальный код</Label>
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="px-3 py-2 bg-muted rounded-md font-mono text-lg">
-                    {referralCode}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(referralCode)}
-                  >
-                    <Copy className="h-4 w-4 mr-1" />
-                    Копировать
-                  </Button>
-                </div>
-              </div>
             </div>
             <p className="text-sm text-muted-foreground">
               Полные материалы для продвижения доступны в разделе <strong>Материалы</strong>
@@ -394,22 +375,22 @@ export default function ReferralDashboard() {
                   {rewards.slice(0, 5).map((reward) => (
                     <div
                       key={reward.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-lg"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{getRewardTypeLabel(reward.reward_type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-sm md:text-base">{getRewardTypeLabel(reward.reward_type)}</span>
                           {getStatusBadge(reward.status)}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">
                           {reward.description}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {format(new Date(reward.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <div className={`font-bold text-lg ${
+                      <div className="text-left sm:text-right shrink-0">
+                        <div className={`font-bold text-base md:text-lg ${
                           reward.reward_type === 'manual_remove' ? 'text-destructive' : 'text-green-600'
                         }`}>
                           {reward.reward_type === 'manual_remove' ? '-' : '+'}

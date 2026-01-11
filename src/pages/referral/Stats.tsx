@@ -110,10 +110,10 @@ export default function ReferralStats() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Статистика</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold">Статистика</h1>
+          <div className="text-sm md:text-base text-muted-foreground mt-1">
             Уровень: <Badge variant="secondary">{getLevelLabel(stats.partner.level)}</Badge>
-          </p>
+          </div>
         </div>
 
         {/* Общая статистика */}

@@ -1,49 +1,69 @@
-import { useEffect, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface QRCodeProps {
   value: string;
   size?: number;
   className?: string;
+  level?: 'L' | 'M' | 'Q' | 'H';
+  includeMargin?: boolean;
 }
 
 /**
  * Компонент для генерации QR-кода
- * Использует canvas для отрисовки (простая реализация)
- * Для production можно использовать библиотеку qrcode.react
+ * Использует библиотеку qrcode.react для генерации реального QR-кода
  */
-export function QRCode({ value, size = 200, className = '' }: QRCodeProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !value) return;
-
-    // Простая реализация через canvas
-    // Для production лучше использовать библиотеку qrcode.react
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Очищаем canvas
-    ctx.clearRect(0, 0, size, size);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, size, size);
-
-    // Простая заглушка - показываем текст
-    // В production замените на реальную генерацию QR-кода
-    ctx.fillStyle = '#000000';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('QR Code', size / 2, size / 2 - 10);
-    ctx.fillText(value.substring(0, 20), size / 2, size / 2 + 10);
-  }, [value, size]);
+export function QRCode({ 
+  value, 
+  size = 200, 
+  className = '',
+  level = 'M',
+  includeMargin = true 
+}: QRCodeProps) {
+  if (!value) {
+    return (
+      <div 
+        className={className}
+        style={{ 
+          width: size + 32, 
+          height: size + 32, 
+          border: '1px solid #e5e7eb', 
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#f9fafb'
+        }}
+      >
+        <span className="text-xs text-muted-foreground">Нет ссылки</span>
+      </div>
+    );
+  }
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={size}
-      height={size}
+    <div 
       className={className}
-      style={{ border: '1px solid #e5e7eb', borderRadius: '8px' }}
-    />
+      id="qr-code-container"
+      style={{ 
+        padding: '16px',
+        backgroundColor: '#ffffff',
+        border: '1px solid #e5e7eb',
+        borderRadius: '12px',
+        display: 'inline-block',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+      }}
+    >
+      <QRCodeSVG
+        value={value}
+        size={size}
+        level={level}
+        includeMargin={includeMargin}
+        imageSettings={{
+          src: '',
+          height: 0,
+          width: 0,
+          excavate: false,
+        }}
+      />
+    </div>
   );
 }

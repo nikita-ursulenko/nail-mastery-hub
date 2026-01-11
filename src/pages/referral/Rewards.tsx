@@ -117,8 +117,8 @@ export default function ReferralRewards() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">История начислений</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold">История начислений</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
             Всего начислений: {total}
           </p>
         </div>
@@ -197,16 +197,16 @@ export default function ReferralRewards() {
                   {rewards.map((reward) => (
                     <div
                       key={reward.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-medium">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="font-medium text-sm md:text-base">
                             {getRewardTypeLabel(reward.reward_type)}
                           </span>
                           {getStatusBadge(reward.status)}
                         </div>
-                        <p className="text-sm text-muted-foreground mb-1">
+                        <p className="text-xs md:text-sm text-muted-foreground mb-1 break-words">
                           {reward.description}
                         </p>
                         <p className="text-xs text-muted-foreground">
@@ -214,8 +214,8 @@ export default function ReferralRewards() {
                           {format(new Date(reward.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
                         </p>
                       </div>
-                      <div className="text-right ml-4">
-                        <div className={`font-bold text-lg ${
+                      <div className="text-left sm:text-right ml-0 sm:ml-4 shrink-0">
+                        <div className={`font-bold text-base md:text-lg ${
                           reward.reward_type === 'manual_remove' ? 'text-destructive' : 'text-green-600'
                         }`}>
                           {reward.reward_type === 'manual_remove' ? '-' : '+'}

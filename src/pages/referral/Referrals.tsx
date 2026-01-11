@@ -55,8 +55,8 @@ export default function ReferralReferrals() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Рефералы</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold">Рефералы</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
             Всего зарегистрировано: {referrals.length}
           </p>
         </div>
@@ -64,7 +64,7 @@ export default function ReferralReferrals() {
         {/* Список рефералов */}
         <Card>
           <CardHeader>
-            <CardTitle>Список рефералов</CardTitle>
+            <CardTitle className="text-lg md:text-xl">Список рефералов</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -76,11 +76,11 @@ export default function ReferralReferrals() {
                 referrals.map((referral) => (
                   <div
                     key={referral.user_id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-lg"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{maskEmail(referral.email)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-sm md:text-base break-words">{maskEmail(referral.email)}</span>
                         <Badge variant={referral.status === 'purchased' ? 'default' : 'secondary'}>
                           {referral.status === 'purchased' ? 'Купил' : 'Зарегистрировался'}
                         </Badge>
@@ -89,8 +89,8 @@ export default function ReferralReferrals() {
                         {format(new Date(referral.registered_at), 'dd MMMM yyyy', { locale: ru })}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <div className="font-medium">
+                    <div className="text-left sm:text-right shrink-0">
+                      <div className="font-medium text-sm md:text-base">
                         {referral.total_purchases > 0 ? `${referral.total_purchases.toFixed(2)}€` : '-'}
                       </div>
                     </div>

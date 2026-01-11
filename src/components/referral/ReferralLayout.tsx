@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -11,6 +13,7 @@ import {
   Bell,
   LogOut,
   Coins,
+  Menu,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -37,6 +40,8 @@ interface ReferralLayoutProps {
 export function ReferralLayout({ children }: ReferralLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState<{ name?: string; email?: string } | null>(null);
 
   useEffect(() => {
@@ -61,75 +66,108 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
     navigate('/referral/login');
   };
 
+  const MenuContent = () => (
+    <>
+      {/* Logo/Header */}
+      <div className="flex h-16 items-center border-b px-6">
+        <h1 className="text-lg font-bold text-primary">Партнерская программа</h1>
+      </div>
+
+      {/* Menu */}
+      <nav className="flex-1 space-y-1 p-4">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <Icon className="h-5 w-5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t p-4">
+        {partnerInfo && (
+          <div className="mb-3 px-3">
+            <p className="text-sm font-medium">{partnerInfo.name || partnerInfo.email}</p>
+            <p className="text-xs text-muted-foreground">Партнер</p>
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4" />
+          Выйти
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-muted/50">
-        <div className="flex h-full flex-col">
-          {/* Logo/Header */}
-          <div className="flex h-16 items-center border-b px-6">
-            <h1 className="text-lg font-bold text-primary">Партнерская программа</h1>
-          </div>
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <aside className="hidden md:flex w-64 border-r bg-muted/50 flex-col">
+          <MenuContent />
+        </aside>
+      )}
 
-          {/* Menu */}
-          <nav className="flex-1 space-y-1 p-4">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Footer */}
-          <div className="border-t p-4">
-            {partnerInfo && (
-              <div className="mb-3 px-3">
-                <p className="text-sm font-medium">{partnerInfo.name || partnerInfo.email}</p>
-                <p className="text-xs text-muted-foreground">Партнер</p>
-              </div>
-            )}
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-              Выйти
-            </Button>
-          </div>
-        </div>
-      </aside>
+      {/* Mobile Sidebar Sheet */}
+      {isMobile && (
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Меню партнерской программы</SheetTitle>
+              <SheetDescription>Навигационное меню партнерской программы</SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full flex-col">
+              <MenuContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Top Header */}
-        <header className="h-16 border-b bg-card">
-          <div className="flex h-full items-center justify-between px-6">
-            <h2 className="text-lg font-semibold">
+        <header className="h-16 border-b bg-card shrink-0">
+          <div className="flex h-full items-center justify-between px-4 md:px-6">
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(true)}
+                className="mr-2"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <h2 className="text-base md:text-lg font-semibold">
               {menuItems.find((item) => item.path === location.pathname)?.label ||
                 'Партнерская программа'}
             </h2>
+            <div className="w-10" /> {/* Spacer for mobile menu button */}
           </div>
         </header>
 
         {/* Content */}
         <main className="flex-1 overflow-auto bg-background">
-          <div className="container py-6">{children}</div>
+          <div className="container px-4 md:px-6 py-4 md:py-6">{children}</div>
         </main>
       </div>
     </div>

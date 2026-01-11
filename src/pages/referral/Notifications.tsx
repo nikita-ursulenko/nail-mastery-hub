@@ -78,10 +78,10 @@ export default function ReferralNotifications() {
     <ReferralLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Уведомления</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold">Уведомления</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
               Всего уведомлений: {notifications.length}
               {unreadCount > 0 && (
                 <span className="ml-2">
@@ -91,7 +91,7 @@ export default function ReferralNotifications() {
             </p>
           </div>
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={handleMarkAllAsRead}>
+            <Button variant="outline" onClick={handleMarkAllAsRead} className="w-full sm:w-auto">
               <CheckCheck className="h-4 w-4 mr-2" />
               Отметить все как прочитанные
             </Button>
@@ -121,18 +121,18 @@ export default function ReferralNotifications() {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`flex items-start gap-3 p-3 border rounded-lg ${
+                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-lg ${
                       !notification.is_read ? 'bg-muted/50' : ''
                     }`}
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{notification.title}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-sm md:text-base">{notification.title}</span>
                         {!notification.is_read && (
                           <Badge variant="default" className="h-2 w-2 p-0 rounded-full" />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">
                         {maskEmailInText(notification.message)}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -145,6 +145,7 @@ export default function ReferralNotifications() {
                         size="sm"
                         onClick={() => handleMarkAsRead(notification.id)}
                         title="Отметить как прочитанное"
+                        className="shrink-0"
                       >
                         <Check className="h-4 w-4" />
                       </Button>

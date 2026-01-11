@@ -142,8 +142,8 @@ export default function ReferralWithdrawals() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold">Выплаты</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold">Выплаты</h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-1">
             Доступно к выводу: {stats?.stats.balance.current_balance.toFixed(2) || '0.00'}€
           </p>
         </div>
@@ -157,7 +157,7 @@ export default function ReferralWithdrawals() {
           <TabsContent value="history" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>История запросов на вывод</CardTitle>
+                <CardTitle className="text-lg md:text-xl">История запросов на вывод</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -169,23 +169,23 @@ export default function ReferralWithdrawals() {
                     withdrawals.map((withdrawal) => (
                       <div
                         key={withdrawal.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-lg"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{withdrawal.amount.toFixed(2)}€</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-sm md:text-base">{withdrawal.amount.toFixed(2)}€</span>
                             {getStatusBadge(withdrawal.status)}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-xs md:text-sm text-muted-foreground mt-1 break-words">
                             {withdrawal.payment_details}
                           </p>
                           {withdrawal.telegram_tag && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground mt-1">
                               Telegram: {withdrawal.telegram_tag}
                             </p>
                           )}
                           {withdrawal.admin_notes && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-xs text-muted-foreground mt-1 break-words">
                               Примечание: {withdrawal.admin_notes}
                             </p>
                           )}
@@ -204,7 +204,7 @@ export default function ReferralWithdrawals() {
           <TabsContent value="request" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Запрос на вывод средств</CardTitle>
+                <CardTitle className="text-lg md:text-xl">Запрос на вывод средств</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleWithdrawalSubmit} className="space-y-4">

@@ -1,12 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  BookOpen,
-  Award,
-  Calendar,
-  Settings,
-  LogOut,
   Upload,
   X,
   Moon,
@@ -18,24 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { cn } from "@/lib/utils";
 import { useUserAuth } from "@/contexts/UserAuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-
-const navigation = [
-  { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
-  { href: "/dashboard/courses", label: "Мои курсы", icon: BookOpen },
-  { href: "/dashboard/certificates", label: "Сертификаты", icon: Award },
-  { href: "/dashboard/schedule", label: "Расписание", icon: Calendar },
-  { href: "/dashboard/settings", label: "Настройки", icon: Settings },
-];
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 export default function DashboardSettings() {
-  const location = useLocation();
-  const { user, logout } = useUserAuth();
-  const navigate = useNavigate();
+  const { user } = useUserAuth();
   
   const [formData, setFormData] = useState({
     name: "",
@@ -198,70 +180,9 @@ export default function DashboardSettings() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="hidden w-64 border-r bg-sidebar lg:block">
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center border-b px-6">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="font-display text-xl font-bold text-primary">
-                NailArt
-              </span>
-              <span className="font-display text-sm text-muted-foreground">
-                Academy
-              </span>
-            </Link>
-          </div>
-
-          {/* Nav */}
-          <nav className="flex-1 space-y-1 p-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  location.pathname === item.href
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Footer */}
-          <div className="border-t p-4">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5" />
-              Выйти
-            </Button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <DashboardHeader 
-          title="Настройки"
-          description="Управление настройками аккаунта"
-        />
-
-        <div className="p-6">
-          <div className="space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
             {/* Profile Settings */}
             <Card>
               <CardHeader>
@@ -519,10 +440,8 @@ export default function DashboardSettings() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 

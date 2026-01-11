@@ -11,16 +11,18 @@ import {
   PlayCircle,
   Clock,
   CheckCircle,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useUserAuth } from "@/contexts/UserAuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 
 const navigation = [
   { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
@@ -76,6 +78,8 @@ export default function Dashboard() {
   const location = useLocation();
   const { user, logout } = useUserAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
 
@@ -152,73 +156,118 @@ export default function Dashboard() {
     navigate('/');
   };
 
+  const MenuContent = () => (
+    <>
+      {/* Logo */}
+      <div className="flex h-16 items-center border-b px-6">
+        <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+          <span className="font-display text-xl font-bold text-primary">
+            NailArt
+          </span>
+          <span className="font-display text-sm text-muted-foreground">
+            Academy
+          </span>
+        </Link>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 space-y-1 p-4">
+        {navigation.map((item) => (
+          <Link
+            key={item.href}
+            to={item.href}
+            onClick={() => setMobileMenuOpen(false)}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              location.pathname === item.href
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+            )}
+          >
+            <item.icon className="h-5 w-5" />
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t p-4">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-3"
+          onClick={() => {
+            handleLogout();
+            setMobileMenuOpen(false);
+          }}
+        >
+          <LogOut className="h-5 w-5" />
+          Выйти
+        </Button>
+      </div>
+    </>
+  );
+
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="hidden w-64 border-r bg-sidebar lg:block">
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center border-b px-6">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="font-display text-xl font-bold text-primary">
-                NailArt
-              </span>
-              <span className="font-display text-sm text-muted-foreground">
-                Academy
-              </span>
-            </Link>
-          </div>
+    <div className="flex min-h-screen bg-background">
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <aside className="hidden lg:flex w-64 border-r bg-sidebar flex-col">
+          <MenuContent />
+        </aside>
+      )}
 
-          {/* Nav */}
-          <nav className="flex-1 space-y-1 p-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  location.pathname === item.href
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Footer */}
-          <div className="border-t p-4">
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start gap-3"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5" />
-              Выйти
-            </Button>
-          </div>
-        </div>
-      </aside>
+      {/* Mobile Sidebar Sheet */}
+      {isMobile && (
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Меню личного кабинета</SheetTitle>
+              <SheetDescription>Навигация по разделам личного кабинета.</SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full flex-col">
+              <MenuContent />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <DashboardHeader 
-          title="Личный кабинет"
-          description={`Добро пожаловать, ${user?.name || 'Пользователь'}!`}
-        />
+      <main className="flex-1 flex flex-col overflow-hidden w-full">
+        {/* Top Header */}
+        <header className="h-16 border-b bg-card shrink-0">
+          <div className="flex h-full items-center justify-between px-4 md:px-6">
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(true)}
+                className="mr-2"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            )}
+            <div className="flex-1">
+              <h2 className="text-base md:text-lg font-semibold">Личный кабинет</h2>
+              <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+                Добро пожаловать, {user?.name || 'Пользователь'}!
+              </p>
+            </div>
+            {!isMobile && <div className="w-10" />}
+          </div>
+        </header>
 
-        <div className="p-6">
+        {/* Content */}
+        <div className="flex-1 overflow-auto bg-background">
+          <div className="p-4 md:p-6">
           {/* Welcome Banner */}
           {mostProgressCourse && (
             <Card variant="glass" className="mb-8 overflow-hidden">
               <CardContent className="flex items-center gap-6 p-6">
                 <div className="flex-1">
-                  <h2 className="mb-2 font-display text-2xl font-bold">
+                  <h2 className="mb-2 font-display text-xl md:text-2xl font-bold">
                     Продолжайте обучение! 🎯
                   </h2>
-                  <p className="mb-4 text-muted-foreground">
+                  <p className="mb-4 text-sm md:text-base text-muted-foreground">
                     {remainingLessons > 0 ? (
                       <>
                         Вы на правильном пути. Осталось {remainingLessons} {remainingLessons === 1 ? 'урок' : remainingLessons < 5 ? 'урока' : 'уроков'} до завершения курса
@@ -248,11 +297,11 @@ export default function Dashboard() {
             </Card>
           )}
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
             {/* My Courses */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4 md:space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-bold">Мои курсы</h2>
+                <h2 className="font-display text-lg md:text-xl font-bold">Мои курсы</h2>
                 <Link
                   to="/dashboard/courses"
                   className="flex items-center text-sm text-primary hover:underline"
@@ -280,19 +329,19 @@ export default function Dashboard() {
                   {enrolledCourses.map((course) => (
                     <Card key={course.id} variant="course">
                       <CardContent className="p-0">
-                        <div className="flex gap-4">
+                        <div className="flex flex-col sm:flex-row gap-4">
                           <img
                             src={getCourseImage(course)}
                             alt={course.title}
                             loading="lazy"
                             decoding="async"
-                            className="w-32 shrink-0 rounded-l-xl object-cover self-stretch"
+                            className="w-full sm:w-32 h-48 sm:h-auto shrink-0 rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none object-cover"
                           />
-                          <div className="flex flex-1 flex-col justify-center py-4 pr-4">
-                            <h3 className="mb-1 font-display text-lg font-semibold">
+                          <div className="flex flex-1 flex-col justify-center py-4 px-4 sm:pr-4">
+                            <h3 className="mb-1 font-display text-base md:text-lg font-semibold">
                               {course.title}
                             </h3>
-                            <p className="mb-3 text-sm text-muted-foreground">
+                            <p className="mb-3 text-xs md:text-sm text-muted-foreground">
                               {course.progress_percent > 0 
                                 ? `Продолжайте обучение` 
                                 : `Начните обучение`}
@@ -326,9 +375,9 @@ export default function Dashboard() {
             </div>
 
             {/* Notifications */}
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl font-bold">Уведомления</h2>
+                <h2 className="font-display text-lg md:text-xl font-bold">Уведомления</h2>
                 <Badge variant="secondary">{notifications.length}</Badge>
               </div>
 
@@ -366,9 +415,9 @@ export default function Dashboard() {
               {/* Quick Stats */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Ваша статистика</CardTitle>
+                  <CardTitle className="text-base md:text-lg">Ваша статистика</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 md:space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Пройдено уроков</span>
                     <span className="font-semibold">28</span>
@@ -388,6 +437,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+          </div>
           </div>
         </div>
       </main>

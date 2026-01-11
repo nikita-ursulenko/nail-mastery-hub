@@ -1,29 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  LayoutDashboard,
-  BookOpen,
-  Award,
-  Calendar,
-  Settings,
-  LogOut,
-  Download,
-  Eye,
-} from "lucide-react";
+import { Link } from "react-router-dom";
+import { Award, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { useUserAuth } from "@/contexts/UserAuthContext";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-
-const navigation = [
-  { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
-  { href: "/dashboard/courses", label: "Мои курсы", icon: BookOpen },
-  { href: "/dashboard/certificates", label: "Сертификаты", icon: Award },
-  { href: "/dashboard/schedule", label: "Расписание", icon: Calendar },
-  { href: "/dashboard/settings", label: "Настройки", icon: Settings },
-];
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 interface Certificate {
   id: number;
@@ -37,9 +18,6 @@ interface Certificate {
 }
 
 export default function DashboardCertificates() {
-  const location = useLocation();
-  const { user, logout } = useUserAuth();
-  const navigate = useNavigate();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -65,11 +43,6 @@ export default function DashboardCertificates() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
       day: "numeric",
@@ -79,63 +52,8 @@ export default function DashboardCertificates() {
   };
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="hidden w-64 border-r bg-sidebar lg:block">
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center border-b px-6">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="font-display text-xl font-bold text-primary">
-                NailArt
-              </span>
-              <span className="font-display text-sm text-muted-foreground">
-                Academy
-              </span>
-            </Link>
-          </div>
-
-          {/* Nav */}
-          <nav className="flex-1 space-y-1 p-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  location.pathname === item.href
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Footer */}
-          <div className="border-t p-4">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5" />
-              Выйти
-            </Button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <DashboardHeader
-          title="Сертификаты"
-          description="Ваши достижения и сертификаты об окончании курсов"
-        />
-
-        <div className="p-6">
+    <DashboardLayout>
+      <div>
           {isLoading ? (
             <div className="flex min-h-[400px] items-center justify-center">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -233,9 +151,8 @@ export default function DashboardCertificates() {
               </div>
             </div>
           )}
-        </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 

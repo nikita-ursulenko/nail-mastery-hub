@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  LayoutDashboard,
-  BookOpen,
-  Award,
-  Calendar,
-  Settings,
-  LogOut,
-  Bell,
   PlayCircle,
   Clock,
   CheckCircle2,
@@ -21,17 +14,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useUserAuth } from "@/contexts/UserAuthContext";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-
-const navigation = [
-  { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
-  { href: "/dashboard/courses", label: "Мои курсы", icon: BookOpen },
-  { href: "/dashboard/certificates", label: "Сертификаты", icon: Award },
-  { href: "/dashboard/schedule", label: "Расписание", icon: Calendar },
-  { href: "/dashboard/settings", label: "Настройки", icon: Settings },
-];
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 interface Lesson {
   id: number;
@@ -95,7 +80,6 @@ interface Enrollment {
 
 export default function DashboardCourseDetail() {
   const { id } = useParams();
-  const { user, logout } = useUserAuth();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -124,11 +108,6 @@ export default function DashboardCourseDetail() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
   };
 
   const toggleModule = (moduleId: number) => {
@@ -162,9 +141,11 @@ export default function DashboardCourseDetail() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <DashboardLayout>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -173,72 +154,15 @@ export default function DashboardCourseDetail() {
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="hidden w-64 border-r bg-sidebar lg:block">
-        <div className="flex h-full flex-col">
-          <div className="flex h-16 items-center border-b px-6">
-            <Link to="/" className="flex items-center gap-2">
-              <span className="font-display text-xl font-bold text-primary">
-                NailArt
-              </span>
-              <span className="font-display text-sm text-muted-foreground">
-                Academy
-              </span>
-            </Link>
-          </div>
-
-          <nav className="flex-1 space-y-1 p-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  location.pathname === item.href
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="border-t p-4">
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5" />
-              Выйти
-            </Button>
-          </div>
+    <DashboardLayout title={course.title} description={course.subtitle}>
+      <div>
+        {/* Navigation back to courses */}
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/dashboard/courses">← Назад к курсам</Link>
+          </Button>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto">
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background/95 px-6 backdrop-blur">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/dashboard/courses">← Назад к курсам</Link>
-            </Button>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                3
-              </span>
-            </Button>
-            <div className="h-10 w-10 rounded-full bg-primary/10" />
-          </div>
-        </header>
-
-        <div className="p-6">
           {/* Course Header */}
           <Card className="mb-6 overflow-hidden">
             <div className="flex flex-col gap-6 md:flex-row">
@@ -451,9 +375,8 @@ export default function DashboardCourseDetail() {
               </Card>
             </div>
           </div>
-        </div>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 
