@@ -70,35 +70,35 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-12 lg:items-center">
           {/* Image */}
           <FadeInOnScroll direction="right" delay={0}>
-            <div className="relative">
-              {imageUrl && (
-                <div className="relative aspect-[4/5] overflow-visible rounded-2xl">
-                  <img
-                    src={imageUrl}
-                    alt={founderInfo.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover rounded-2xl"
-                  />
-                </div>
-              )}
-              {/* Experience Badge */}
-              <Card className="absolute bottom-6 -right-4 lg:-right-8 bg-background/95 backdrop-blur-sm shadow-lg">
-                <div className="p-4 text-center">
-                  <p className="text-2xl font-bold text-primary">
-                    {founderInfo.experience_years}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {founderInfo.experience_label}
-                  </p>
-                </div>
-              </Card>
-            </div>
+          <div className="relative">
+            {imageUrl && (
+              <div className="relative aspect-[4/5] overflow-visible rounded-2xl">
+                <img
+                  src={imageUrl}
+                  alt={founderInfo.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover rounded-2xl"
+                />
+              </div>
+            )}
+            {/* Experience Badge */}
+            <Card className="absolute bottom-6 -right-4 lg:-right-8 bg-background/95 backdrop-blur-sm shadow-lg">
+              <div className="p-4 text-center">
+                <p className="text-2xl font-bold text-primary">
+                  {founderInfo.experience_years}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {founderInfo.experience_label}
+                </p>
+              </div>
+            </Card>
+          </div>
           </FadeInOnScroll>
 
           {/* Content */}
           <FadeInOnScroll direction="left" delay={200}>
-            <div className="space-y-6">
+          <div className="space-y-6">
             <div>
               <h2 className="mb-2 font-display text-3xl font-bold lg:text-4xl">
                 {founderInfo.greeting} {founderInfo.name}
@@ -138,7 +138,7 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
                 )}
               </div>
             )}
-            </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </div>

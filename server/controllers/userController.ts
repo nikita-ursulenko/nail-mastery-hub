@@ -15,6 +15,7 @@ interface RegisterBody {
   password: string;
   name: string;
   phone?: string;
+  referral_code?: string;
 }
 
 interface LoginBody {
@@ -53,6 +54,23 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
   );
 
   const user = result.rows[0];
+
+  // Обработка реферального кода (если передан)
+  if (req.body.referral_code) {
+    try {
+      // Импортируем функцию отслеживания регистрации
+      const { trackRegistration } = await import('./referralTrackingController');
+      // Вызываем напрямую логику отслеживания
+      await trackRegistration(
+        { body: { referral_code: req.body.referral_code, user_id: user.id } } as any,
+        { json: () => {}, status: () => ({ json: () => {} }) } as any,
+        () => {}
+      );
+    } catch (error) {
+      // Не прерываем регистрацию, если ошибка с реферальным кодом
+      console.error('Error tracking referral registration:', error);
+    }
+  }
 
   // Генерация JWT токена
   const token = jwt.sign(

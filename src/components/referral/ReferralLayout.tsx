@@ -1,23 +1,18 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  MessageSquare,
-  BookOpen,
+  BarChart,
   Users,
-  Settings,
+  Gift,
+  QrCode,
+  Bell,
   LogOut,
-  Phone,
-  UserCircle,
-  UserCog,
-  FileText,
-  Search,
-  ShoppingCart,
-  UserPlus,
+  Coins,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -26,37 +21,44 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: 'Главная', path: '/admin/dashboard' },
-  { icon: MessageSquare, label: 'Отзывы', path: '/admin/testimonials' },
-  { icon: Phone, label: 'Контакты', path: '/admin/contacts' },
-  { icon: UserCircle, label: 'Основатель', path: '/admin/founder' },
-  { icon: UserCog, label: 'Команда', path: '/admin/team' },
-  { icon: FileText, label: 'Блог', path: '/admin/blog' },
-  { icon: Search, label: 'SEO', path: '/admin/seo' },
-  { icon: BookOpen, label: 'Курсы', path: '/admin/courses' },
-  { icon: Users, label: 'Пользователи', path: '/admin/users' },
-  { icon: ShoppingCart, label: 'Заказы', path: '/admin/orders' },
-  { icon: UserPlus, label: 'Реферал', path: '/admin/referral' },
-  { icon: Settings, label: 'Настройки', path: '/admin/settings' },
+  { icon: LayoutDashboard, label: 'Дашборд', path: '/referral/dashboard' },
+  { icon: BarChart, label: 'Статистика', path: '/referral/dashboard/stats' },
+  { icon: Coins, label: 'Начисления', path: '/referral/dashboard/rewards' },
+  { icon: Users, label: 'Рефералы', path: '/referral/dashboard/referrals' },
+  { icon: Gift, label: 'Выплаты', path: '/referral/dashboard/withdrawals' },
+  { icon: QrCode, label: 'Материалы', path: '/referral/dashboard/materials' },
+  { icon: Bell, label: 'Уведомления', path: '/referral/dashboard/notifications' },
 ];
 
-interface AdminLayoutProps {
+interface ReferralLayoutProps {
   children: ReactNode;
 }
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function ReferralLayout({ children }: ReferralLayoutProps) {
   const location = useLocation();
-  const { admin, logout } = useAuth();
   const navigate = useNavigate();
+  const [partnerInfo, setPartnerInfo] = useState<{ name?: string; email?: string } | null>(null);
 
-  // Устанавливаем title для всех админских страниц
   useEffect(() => {
-    document.title = 'Admin panel';
+    const loadPartnerInfo = async () => {
+      try {
+        const response = await api.referralVerifyToken();
+        if (response.partner) {
+          setPartnerInfo({
+            name: response.partner.name,
+            email: response.partner.email,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load partner info:', error);
+      }
+    };
+    loadPartnerInfo();
   }, []);
 
   const handleLogout = () => {
-    logout();
-    navigate('/admin/login');
+    localStorage.removeItem('referral_token');
+    navigate('/referral/login');
   };
 
   return (
@@ -66,7 +68,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex h-full flex-col">
           {/* Logo/Header */}
           <div className="flex h-16 items-center border-b px-6">
-            <h1 className="text-lg font-bold text-primary">Админ-панель</h1>
+            <h1 className="text-lg font-bold text-primary">Партнерская программа</h1>
           </div>
 
           {/* Menu */}
@@ -95,10 +97,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
           {/* Footer */}
           <div className="border-t p-4">
-            <div className="mb-3 px-3">
-              <p className="text-sm font-medium">{admin?.name || admin?.email}</p>
-              <p className="text-xs text-muted-foreground">Администратор</p>
-            </div>
+            {partnerInfo && (
+              <div className="mb-3 px-3">
+                <p className="text-sm font-medium">{partnerInfo.name || partnerInfo.email}</p>
+                <p className="text-xs text-muted-foreground">Партнер</p>
+              </div>
+            )}
             <Button
               variant="ghost"
               className="w-full justify-start gap-3"
@@ -118,7 +122,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex h-full items-center justify-between px-6">
             <h2 className="text-lg font-semibold">
               {menuItems.find((item) => item.path === location.pathname)?.label ||
-                'Админ-панель'}
+                'Партнерская программа'}
             </h2>
           </div>
         </header>
@@ -131,4 +135,3 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
-

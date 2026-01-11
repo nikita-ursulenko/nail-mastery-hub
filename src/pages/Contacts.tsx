@@ -54,17 +54,17 @@ export default function Contacts() {
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
             {/* Contact Form */}
             <FadeInOnScroll>
-              <div>
-                <div className="mb-6 sm:mb-8">
-                  <h2 className="mb-2 text-2xl font-bold sm:mb-4 sm:text-3xl lg:text-4xl font-display">
-                    Напишите нам
-                  </h2>
-                  <p className="text-sm text-muted-foreground sm:text-base">
-                    Заполните форму, и мы свяжемся с вами в ближайшее время
-                  </p>
-                </div>
+            <div>
+              <div className="mb-6 sm:mb-8">
+                <h2 className="mb-2 text-2xl font-bold sm:mb-4 sm:text-3xl lg:text-4xl font-display">
+                  Напишите нам
+                </h2>
+                <p className="text-sm text-muted-foreground sm:text-base">
+                  Заполните форму, и мы свяжемся с вами в ближайшее время
+                </p>
+              </div>
 
-                <Card variant="elevated">
+              <Card variant="elevated">
                 <CardContent className="p-4 sm:p-6">
                   <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
@@ -161,12 +161,12 @@ export default function Contacts() {
                   </form>
                 </CardContent>
               </Card>
-              </div>
+            </div>
             </FadeInOnScroll>
 
             {/* Map & Additional Info */}
             <FadeInOnScroll delay={100}>
-              <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {/* Map Placeholder */}
               <Card variant="elevated" className="overflow-hidden">
                 <CardContent className="p-0">
@@ -238,7 +238,7 @@ export default function Contacts() {
                   </div>
                 </CardContent>
               </Card>
-              </div>
+            </div>
             </FadeInOnScroll>
           </div>
         </div>
@@ -253,28 +253,28 @@ export default function Contacts() {
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-                Готовы начать обучение?
-              </h2>
-              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-                Присоединяйтесь к тысячам мастеров, которые уже изменили свою
-                жизнь благодаря нашим курсам
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <Button variant="gold" size="xl" asChild>
-                  <Link to="/courses">Выбрать курс</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="xl"
-                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                  asChild
-                >
-                  <Link to="/schedule">Бесплатный вебинар</Link>
-                </Button>
-              </div>
+          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+              Готовы начать обучение?
+            </h2>
+            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+              Присоединяйтесь к тысячам мастеров, которые уже изменили свою
+              жизнь благодаря нашим курсам
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button variant="gold" size="xl" asChild>
+                <Link to="/courses">Выбрать курс</Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="xl"
+                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                asChild
+              >
+                <Link to="/schedule">Бесплатный вебинар</Link>
+              </Button>
             </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </section>

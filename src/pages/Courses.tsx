@@ -236,9 +236,9 @@ export default function Courses() {
           ) : filteredCourses.length > 0 ? (
             <>
               <FadeInOnScroll>
-                <p className="mb-8 text-muted-foreground">
-                  Найдено курсов: {filteredCourses.length}
-                </p>
+              <p className="mb-8 text-muted-foreground">
+                Найдено курсов: {filteredCourses.length}
+              </p>
               </FadeInOnScroll>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredCourses.map((course, index) => {
@@ -258,19 +258,19 @@ export default function Courses() {
 
                   return (
                     <FadeInOnScroll key={course.id || course.slug} delay={index * 50} className="h-full">
-                      <CourseCard
-                        id={course.slug}
-                        title={course.title || "Без названия"}
-                        description={course.description || ""}
-                        image={imageUrl}
-                        price={course.price || 0}
-                        oldPrice={course.oldPrice}
-                        duration={course.duration || ""}
-                        students={course.students || 0}
-                        rating={course.rating || 0}
-                        level={course.level || "beginner"}
-                        isNew={course.isNew}
-                      />
+                    <CourseCard
+                      id={course.slug}
+                      title={course.title || "Без названия"}
+                      description={course.description || ""}
+                      image={imageUrl}
+                      price={course.price || 0}
+                      oldPrice={course.oldPrice}
+                      duration={course.duration || ""}
+                      students={course.students || 0}
+                      rating={course.rating || 0}
+                      level={course.level || "beginner"}
+                      isNew={course.isNew}
+                    />
                     </FadeInOnScroll>
                   );
                 })}

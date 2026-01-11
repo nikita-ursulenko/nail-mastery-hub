@@ -391,6 +391,109 @@ class ApiClient {
     });
   }
 
+  // Admin Referral API
+  async getAdminReferralStats(): Promise<any> {
+    return this.request<any>('/admin/referral/stats');
+  }
+
+  async getAdminReferralPartners(params?: {
+    search?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ partners: any[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString();
+    return this.request<{ partners: any[]; total: number }>(`/admin/referral/partners${query ? `?${query}` : ''}`);
+  }
+
+  async getAdminReferralPartnerStats(id: number): Promise<any> {
+    return this.request<any>(`/admin/referral/partners/${id}/stats`);
+  }
+
+  async addAdminReferralPartnerFunds(id: number, amount: number, description: string): Promise<any> {
+    return this.request<any>(`/admin/referral/partners/${id}/add-funds`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, description }),
+    });
+  }
+
+  async removeAdminReferralPartnerFunds(id: number, amount: number, description: string): Promise<any> {
+    return this.request<any>(`/admin/referral/partners/${id}/remove-funds`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, description }),
+    });
+  }
+
+  async toggleAdminReferralPartnerStatus(id: number): Promise<any> {
+    return this.request<any>(`/admin/referral/partners/${id}/toggle-status`, {
+      method: 'POST',
+    });
+  }
+
+  async getAdminReferralWithdrawals(params?: {
+    status?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ withdrawals: any[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString();
+    return this.request<{ withdrawals: any[]; total: number }>(`/admin/referral/withdrawals${query ? `?${query}` : ''}`);
+  }
+
+  async approveAdminReferralWithdrawal(id: number): Promise<any> {
+    return this.request<any>(`/admin/referral/withdrawals/${id}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectAdminReferralWithdrawal(id: number, notes: string): Promise<any> {
+    return this.request<any>(`/admin/referral/withdrawals/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+  }
+
+  async markAdminReferralWithdrawalPaid(id: number): Promise<any> {
+    return this.request<any>(`/admin/referral/withdrawals/${id}/mark-paid`, {
+      method: 'POST',
+    });
+  }
+
+  async getAdminReferralHistory(params?: {
+    type?: string;
+    partner_id?: number;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ history: any[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString();
+    return this.request<{ history: any[]; total: number }>(`/admin/referral/history${query ? `?${query}` : ''}`);
+  }
+
   async getTeamMemberById(id: number): Promise<any> {
     return this.request<any>(`/admin/team/${id}`);
   }
@@ -907,6 +1010,250 @@ class ApiClient {
     }
 
     return response.json();
+  }
+
+  // Referral Auth API
+  async referralRegister(data: {
+    email: string;
+    password: string;
+    name: string;
+    phone?: string;
+  }): Promise<{ token: string; partner: any }> {
+    const response = await fetch(`${API_BASE_URL}/referral/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      throw new Error(error.error || 'Ошибка при регистрации');
+    }
+
+    return response.json();
+  }
+
+  async referralLogin(email: string, password: string): Promise<{ token: string; partner: any }> {
+    const response = await fetch(`${API_BASE_URL}/referral/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      throw new Error(error.error || 'Ошибка при входе');
+    }
+
+    return response.json();
+  }
+
+  async referralVerifyToken(): Promise<{ valid: boolean; partner: any }> {
+    const token = localStorage.getItem('referral_token');
+    if (!token) {
+      throw new Error('Токен не найден');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/referral/auth/verify`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Токен недействителен');
+    }
+
+    return response.json();
+  }
+
+  // Referral Tracking API
+  async trackReferralVisit(referralCode: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/referral/tracking/track-visit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ referral_code: referralCode }),
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      throw new Error(error.error || 'Ошибка при отслеживании');
+    }
+
+    return response.json();
+  }
+
+  async trackReferralRegistration(referralCode: string, userId: number): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/referral/tracking/track-registration`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ referral_code: referralCode, user_id: userId }),
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      throw new Error(error.error || 'Ошибка при отслеживании регистрации');
+    }
+
+    return response.json();
+  }
+
+  // Referral Dashboard API
+  private async referralRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const token = localStorage.getItem('referral_token');
+    if (!token) {
+      throw new Error('Токен не найден');
+    }
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const error: ApiError = await response.json();
+      throw new Error(error.error || 'Ошибка запроса');
+    }
+
+    return response.json();
+  }
+
+  async getReferralDashboardStats(): Promise<any> {
+    return this.referralRequest<any>('/referral/dashboard/stats');
+  }
+
+  async getReferralRewards(): Promise<{ rewards: any[] }> {
+    const stats = await this.referralRequest<any>('/referral/dashboard/stats');
+    return { rewards: stats.rewardsHistory || [] };
+  }
+
+  async getReferralReferrals(): Promise<{ referrals: any[] }> {
+    const stats = await this.referralRequest<any>('/referral/dashboard/stats');
+    return { referrals: stats.referredUsers || [] };
+  }
+
+  async getReferralWithdrawals(): Promise<{ withdrawals: any[] }> {
+    return this.referralRequest<{ withdrawals: any[] }>('/referral/withdrawals/history');
+  }
+
+  async requestReferralWithdrawal(data: {
+    amount: number;
+    payment_details: string;
+    telegram_tag?: string;
+  }): Promise<any> {
+    return this.referralRequest<any>('/referral/withdrawals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getReferralLink(): Promise<{ referral_code: string; referral_link: string }> {
+    return this.referralRequest<{ referral_code: string; referral_link: string }>('/referral/dashboard/link');
+  }
+
+  async getReferralRewards(params?: {
+    reward_type?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ rewards: any[]; total: number }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString();
+    return this.referralRequest<{ rewards: any[] }>(`/referral/dashboard/rewards${query ? `?${query}` : ''}`);
+  }
+
+  async getReferralReferrals(): Promise<{ referrals: any[] }> {
+    return this.referralRequest<{ referrals: any[] }>('/referral/dashboard/referrals');
+  }
+
+  async getReferralLevel(): Promise<{ level: string; referrals_count: number; total_earnings: number }> {
+    return this.referralRequest<{ level: string; referrals_count: number; total_earnings: number }>('/referral/dashboard/level');
+  }
+
+  // Referral Withdrawals API
+  async createWithdrawalRequest(data: {
+    amount: number;
+    payment_details: string;
+    telegram_tag?: string;
+  }): Promise<any> {
+    return this.referralRequest<any>('/referral/withdrawals/request', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWithdrawalHistory(params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ withdrawals: any[] }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString();
+    return this.referralRequest<{ withdrawals: any[] }>(`/referral/withdrawals/history${query ? `?${query}` : ''}`);
+  }
+
+  // Referral Notifications API
+  async getReferralNotifications(params?: {
+    limit?: number;
+    offset?: number;
+    is_read?: boolean;
+  }): Promise<{ notifications: any[] }> {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    const query = queryParams.toString();
+    return this.referralRequest<{ notifications: any[] }>(`/referral/notifications${query ? `?${query}` : ''}`);
+  }
+
+  async getReferralUnreadCount(): Promise<{ unread_count: number }> {
+    return this.referralRequest<{ unread_count: number }>('/referral/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(notificationId: number): Promise<any> {
+    return this.referralRequest<any>(`/referral/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  }
+
+  async markAllNotificationsAsRead(): Promise<any> {
+    return this.referralRequest<any>('/referral/notifications/mark-all-read', {
+      method: 'PATCH',
+    });
   }
 }
 

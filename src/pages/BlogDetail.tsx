@@ -168,19 +168,19 @@ export default function BlogDetail() {
         <section className="py-8">
           <div className="container">
             <FadeInOnScroll>
-              <div className="mx-auto max-w-4xl">
-                <div className="overflow-hidden rounded-2xl shadow-elevated">
-                  <img
-                    src={post.image_upload_path 
-                      ? `/uploads/blog/${post.image_upload_path}`
-                      : post.image_url || ""}
-                    alt={post.title}
-                    loading="lazy"
-                    decoding="async"
-                    className="aspect-video w-full object-cover"
-                  />
-                </div>
+            <div className="mx-auto max-w-4xl">
+              <div className="overflow-hidden rounded-2xl shadow-elevated">
+                <img
+                  src={post.image_upload_path 
+                    ? `/uploads/blog/${post.image_upload_path}`
+                    : post.image_url || ""}
+                  alt={post.title}
+                  loading="lazy"
+                  decoding="async"
+                  className="aspect-video w-full object-cover"
+                />
               </div>
+            </div>
             </FadeInOnScroll>
           </div>
         </section>
@@ -190,7 +190,7 @@ export default function BlogDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-3xl">
             <article className="prose prose-lg max-w-none">
               {(() => {
                 // Парсим content (JSON массив параграфов)
@@ -229,7 +229,7 @@ export default function BlogDetail() {
                 ))}
               </div>
             )}
-            </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </section>
@@ -238,8 +238,8 @@ export default function BlogDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <div className="mx-auto max-w-3xl">
-              <Card variant="elevated">
+          <div className="mx-auto max-w-3xl">
+            <Card variant="elevated">
               <CardContent className="p-6 lg:p-8">
                   <div className="flex flex-col gap-6 sm:flex-row">
                   {(post.author_avatar || post.author_avatar_upload_path) && (
@@ -269,7 +269,7 @@ export default function BlogDetail() {
                 </div>
               </CardContent>
             </Card>
-            </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </section>
@@ -279,14 +279,14 @@ export default function BlogDetail() {
         <section className="py-12 lg:py-16">
           <div className="container">
             <FadeInOnScroll>
-              <div className="mb-12">
-                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                  Похожие статьи
-                </h2>
-                <p className="text-muted-foreground">
-                  Рекомендуем к прочтению
-                </p>
-              </div>
+            <div className="mb-12">
+              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                Похожие статьи
+              </h2>
+              <p className="text-muted-foreground">
+                Рекомендуем к прочтению
+              </p>
+            </div>
             </FadeInOnScroll>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -301,22 +301,22 @@ export default function BlogDetail() {
                 });
                 return (
                   <FadeInOnScroll key={relatedPost.id} delay={index * 100} className="h-full">
-                    <BlogCard
-                      id={relatedPost.slug}
-                      title={relatedPost.title}
-                      excerpt={relatedPost.excerpt}
-                      image={imageUrl}
-                      author={relatedPost.author}
-                      authorAvatar={
-                        relatedPost.author_avatar_upload_path
-                          ? `/uploads/avatars/${relatedPost.author_avatar_upload_path}`
-                          : relatedPost.author_avatar || undefined
-                      }
-                      date={formattedDate}
-                      readTime={relatedPost.read_time}
-                      category={relatedPost.category}
-                      featured={relatedPost.featured}
-                    />
+                  <BlogCard
+                    id={relatedPost.slug}
+                    title={relatedPost.title}
+                    excerpt={relatedPost.excerpt}
+                    image={imageUrl}
+                    author={relatedPost.author}
+                    authorAvatar={
+                      relatedPost.author_avatar_upload_path
+                        ? `/uploads/avatars/${relatedPost.author_avatar_upload_path}`
+                        : relatedPost.author_avatar || undefined
+                    }
+                    date={formattedDate}
+                    readTime={relatedPost.read_time}
+                    category={relatedPost.category}
+                    featured={relatedPost.featured}
+                  />
                   </FadeInOnScroll>
                 );
               })}
@@ -329,29 +329,29 @@ export default function BlogDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
-              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
-                Хотите узнать больше?
-              </h2>
-              <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
-                Присоединяйтесь к нашим курсам и станьте профессиональным мастером маникюра
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <Button variant="gold" size="lg" asChild>
-                  <Link to="/courses">
-                    Посмотреть курсы
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                  asChild
-                >
-                  <Link to="/blog">Больше статей</Link>
-                </Button>
-              </div>
+          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
+            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
+              Хотите узнать больше?
+            </h2>
+            <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
+              Присоединяйтесь к нашим курсам и станьте профессиональным мастером маникюра
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button variant="gold" size="lg" asChild>
+                <Link to="/courses">
+                  Посмотреть курсы
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                asChild
+              >
+                <Link to="/blog">Больше статей</Link>
+              </Button>
             </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </section>

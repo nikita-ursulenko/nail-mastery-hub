@@ -113,16 +113,16 @@ export default function About() {
             {stats.map((stat, index) => (
               <FadeInOnScroll key={stat.label} delay={index * 100} className="h-full">
                 <Card variant="elevated" className="group h-full">
-                  <CardContent className="p-6 text-center">
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                      <stat.icon className="h-7 w-7 text-primary" />
-                    </div>
-                    <p className="mb-2 font-display text-3xl font-bold text-primary">
-                      {stat.value}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  </CardContent>
-                </Card>
+                <CardContent className="p-6 text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                    <stat.icon className="h-7 w-7 text-primary" />
+                  </div>
+                  <p className="mb-2 font-display text-3xl font-bold text-primary">
+                    {stat.value}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                </CardContent>
+              </Card>
               </FadeInOnScroll>
             ))}
           </div>
@@ -133,15 +133,15 @@ export default function About() {
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-            <div className="mb-12 text-center">
-              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                Наша история
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                Путь от маленькой онлайн-школы до признанного лидера в обучении
-                маникюру
-              </p>
-            </div>
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+              Наша история
+            </h2>
+            <p className="mx-auto max-w-2xl text-muted-foreground">
+              Путь от маленькой онлайн-школы до признанного лидера в обучении
+              маникюру
+            </p>
+          </div>
           </FadeInOnScroll>
 
           <div className="relative">
@@ -151,30 +151,30 @@ export default function About() {
             <div className="space-y-12">
               {history.map((item, index) => (
                 <FadeInOnScroll key={item.year} delay={index * 150}>
-                  <div
-                    className="relative flex gap-8 lg:gap-12"
-                  >
-                    {/* Year badge */}
-                    <div className="relative z-10 shrink-0">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground shadow-elevated lg:h-20 lg:w-20 lg:text-xl">
-                        {item.year}
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 pb-12">
-                      <Card variant="elevated">
-                        <CardContent className="p-6">
-                          <h3 className="mb-2 font-display text-xl font-semibold lg:text-2xl">
-                            {item.title}
-                          </h3>
-                          <p className="text-muted-foreground">
-                            {item.description}
-                          </p>
-                        </CardContent>
-                      </Card>
+                <div
+                  className="relative flex gap-8 lg:gap-12"
+                >
+                  {/* Year badge */}
+                  <div className="relative z-10 shrink-0">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground shadow-elevated lg:h-20 lg:w-20 lg:text-xl">
+                      {item.year}
                     </div>
                   </div>
+
+                  {/* Content */}
+                  <div className="flex-1 pb-12">
+                    <Card variant="elevated">
+                      <CardContent className="p-6">
+                        <h3 className="mb-2 font-display text-xl font-semibold lg:text-2xl">
+                          {item.title}
+                        </h3>
+                        <p className="text-muted-foreground">
+                          {item.description}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
                 </FadeInOnScroll>
               ))}
             </div>
@@ -186,32 +186,32 @@ export default function About() {
       <section className="py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-            <div className="mb-12 text-center">
-              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                Наши ценности
-              </h2>
-              <p className="mx-auto max-w-2xl text-muted-foreground">
-                Принципы, которыми мы руководствуемся в работе
-              </p>
-            </div>
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+              Наши ценности
+            </h2>
+            <p className="mx-auto max-w-2xl text-muted-foreground">
+              Принципы, которыми мы руководствуемся в работе
+            </p>
+          </div>
           </FadeInOnScroll>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {values.map((value, index) => (
               <FadeInOnScroll key={value.title} delay={index * 100} className="h-full">
                 <Card variant="elevated" className="group h-full">
-                  <CardContent className="p-6 text-center">
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                      <value.icon className="h-7 w-7 text-primary" />
-                    </div>
-                    <h3 className="mb-2 font-display text-xl font-semibold">
-                      {value.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {value.description}
-                    </p>
-                  </CardContent>
-                </Card>
+                <CardContent className="p-6 text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                    <value.icon className="h-7 w-7 text-primary" />
+                  </div>
+                  <h3 className="mb-2 font-display text-xl font-semibold">
+                    {value.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {value.description}
+                  </p>
+                </CardContent>
+              </Card>
               </FadeInOnScroll>
             ))}
           </div>
@@ -231,31 +231,31 @@ export default function About() {
       <section className="py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-                Готовы начать обучение?
-              </h2>
-              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-                Присоединяйтесь к тысячам мастеров, которые уже изменили свою
-                жизнь благодаря нашим курсам
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <Button variant="gold" size="xl" asChild>
-                  <Link to="/courses">
-                    Выбрать курс
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="xl"
-                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                  asChild
-                >
-                  <Link to="/schedule">Бесплатный вебинар</Link>
-                </Button>
-              </div>
+          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+              Готовы начать обучение?
+            </h2>
+            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+              Присоединяйтесь к тысячам мастеров, которые уже изменили свою
+              жизнь благодаря нашим курсам
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button variant="gold" size="xl" asChild>
+                <Link to="/courses">
+                  Выбрать курс
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="xl"
+                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                asChild
+              >
+                <Link to="/schedule">Бесплатный вебинар</Link>
+              </Button>
             </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </section>

@@ -277,17 +277,17 @@ export default function CourseDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <h2 className="mb-8 font-display text-3xl font-bold">
-              Что входит в курс
-            </h2>
+          <h2 className="mb-8 font-display text-3xl font-bold">
+            Что входит в курс
+          </h2>
           </FadeInOnScroll>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {courseDataFormatted.includes.map((item: string, index: number) => (
               <FadeInOnScroll key={index} delay={index * 50}>
                 <div className="flex items-start gap-3 rounded-lg bg-secondary/50 p-4">
-                  <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                  <span>{item}</span>
-                </div>
+                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <span>{item}</span>
+              </div>
               </FadeInOnScroll>
             ))}
           </div>
@@ -298,9 +298,9 @@ export default function CourseDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <h2 className="mb-8 font-display text-3xl font-bold">
-              Программа курса
-            </h2>
+          <h2 className="mb-8 font-display text-3xl font-bold">
+            Программа курса
+          </h2>
           </FadeInOnScroll>
           <Accordion type="single" collapsible className="space-y-4">
             {courseDataFormatted.modules.map((module: any, index: number) => (
@@ -344,12 +344,12 @@ export default function CourseDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <h2 className="mb-4 text-center font-display text-3xl font-bold">
-              Выберите тариф
-            </h2>
-            <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
-              Все тарифы включают бессрочный доступ к материалам курса
-            </p>
+          <h2 className="mb-4 text-center font-display text-3xl font-bold">
+            Выберите тариф
+          </h2>
+          <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
+            Все тарифы включают бессрочный доступ к материалам курса
+          </p>
           </FadeInOnScroll>
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -430,12 +430,12 @@ export default function CourseDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <h2 className="mb-8 font-display text-3xl font-bold">
-              Необходимые материалы
-            </h2>
+          <h2 className="mb-8 font-display text-3xl font-bold">
+            Необходимые материалы
+          </h2>
           </FadeInOnScroll>
           <FadeInOnScroll delay={100}>
-            <Card>
+          <Card>
             <CardContent className="p-6">
               <p className="mb-6 text-muted-foreground">
                 Для прохождения курса вам понадобятся следующие материалы и
@@ -470,20 +470,20 @@ export default function CourseDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
-              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
-                Остались вопросы?
-              </h2>
-              <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
-                Свяжитесь с нами, и мы поможем выбрать подходящий курс и тариф
-              </p>
-              <div className="flex flex-wrap justify-center gap-4">
-                <Button variant="gold" size="lg">
-                  <MessageCircle className="mr-2 h-5 w-5" />
-                  Написать в Telegram
-                </Button>
-              </div>
+          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
+            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
+              Остались вопросы?
+            </h2>
+            <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
+              Свяжитесь с нами, и мы поможем выбрать подходящий курс и тариф
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Button variant="gold" size="lg">
+                <MessageCircle className="mr-2 h-5 w-5" />
+                Написать в Telegram
+              </Button>
             </div>
+          </div>
           </FadeInOnScroll>
         </div>
       </section>

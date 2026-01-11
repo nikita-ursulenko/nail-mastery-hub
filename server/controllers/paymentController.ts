@@ -10,6 +10,7 @@ import { Pool } from 'pg';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
 import { Request } from 'express';
+import { notifyPurchase } from '../utils/referralNotifications';
 
 const pool = new Pool(getDatabaseConfig());
 
@@ -194,7 +195,7 @@ export const handleWebhook = asyncHandler(
             const totalLessons = parseInt(lessonsResult.rows[0]?.total || '0');
 
             // Создаем новый enrollment
-            await pool.query(
+            const enrollmentResult = await pool.query(
               `INSERT INTO enrollments (
                 user_id, course_id, tariff_id,
                 payment_id, payment_status, amount_paid,
@@ -208,7 +209,8 @@ export const handleWebhook = asyncHandler(
                 status = 'active',
                 purchased_at = NOW(),
                 started_at = NOW(),
-                updated_at = NOW()`,
+                updated_at = NOW()
+              RETURNING id`,
               [
                 userId,
                 courseId,
@@ -218,6 +220,76 @@ export const handleWebhook = asyncHandler(
                 totalLessons,
               ]
             );
+
+            const enrollmentId = enrollmentResult.rows[0]?.id;
+
+            // Начисление рефералу 10% от покупки (если пользователь пришел по реферальной ссылке)
+            if (enrollmentId) {
+              try {
+                const referralTracking = await pool.query(
+                  `SELECT rt.partner_id, rt.id as tracking_id
+                   FROM referral_tracking rt
+                   WHERE rt.user_id = $1 AND rt.status IN ('registered', 'purchased')
+                   ORDER BY rt.registered_at DESC
+                   LIMIT 1`,
+                  [userId]
+                );
+
+                if (referralTracking.rows.length > 0) {
+                  const { partner_id, tracking_id } = referralTracking.rows[0];
+                  const purchaseAmount = session.amount_total ? session.amount_total / 100 : 0; // Конвертируем из центов в EUR
+                  const rewardAmount = purchaseAmount * 0.1; // 10% от покупки
+
+                  if (rewardAmount > 0) {
+                    await pool.query('BEGIN');
+
+                    try {
+                      // Создаем запись о начислении
+                      await pool.query(
+                        `INSERT INTO referral_rewards (partner_id, tracking_id, user_id, enrollment_id, reward_type, amount, status, description)
+                         VALUES ($1, $2, $3, $4, 'purchase', $5, 'approved', 'Начисление 10% от покупки курса')
+                         RETURNING id`,
+                        [partner_id, tracking_id, userId, enrollmentId, rewardAmount]
+                      );
+
+                      // Обновляем баланс партнера
+                      await pool.query(
+                        `UPDATE referral_partners 
+                         SET total_earnings = total_earnings + $1,
+                             current_balance = current_balance + $1,
+                             updated_at = CURRENT_TIMESTAMP
+                         WHERE id = $2`,
+                        [rewardAmount, partner_id]
+                      );
+
+                      // Обновляем статус tracking на 'purchased'
+                      await pool.query(
+                        `UPDATE referral_tracking 
+                         SET status = 'purchased', updated_at = CURRENT_TIMESTAMP
+                         WHERE id = $1`,
+                        [tracking_id]
+                      );
+
+                      await pool.query('COMMIT');
+                      console.log(`✅ Начислено ${rewardAmount}€ рефералу ${partner_id} за покупку курса`);
+
+                      // Получаем название курса для уведомления
+                      const courseResult = await pool.query('SELECT title FROM courses WHERE id = $1', [courseId]);
+                      const courseTitle = courseResult.rows[0]?.title;
+
+                      // Создаем уведомление о покупке
+                      await notifyPurchase(partner_id, userId, enrollmentId, purchaseAmount, courseTitle);
+                    } catch (error) {
+                      await pool.query('ROLLBACK');
+                      console.error('❌ Ошибка при начислении рефералу:', error);
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Ошибка при проверке реферальной связи:', error);
+                // Не прерываем процесс, если ошибка с реферальной системой
+              }
+            }
           }
         } catch (error) {
           console.error('❌ Ошибка при создании enrollment в webhook:', error);

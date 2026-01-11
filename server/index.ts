@@ -22,6 +22,12 @@ import adminOrdersRoutes from './routes/adminOrders';
 import uploadRoutes from './routes/upload';
 import publicRoutes from './routes/public';
 import paymentsRoutes from './routes/payments';
+import referralAuthRoutes from './routes/referralAuth';
+import referralTrackingRoutes from './routes/referralTracking';
+import referralDashboardRoutes from './routes/referralDashboard';
+import referralWithdrawalsRoutes from './routes/referralWithdrawals';
+import referralNotificationsRoutes from './routes/referralNotifications';
+import adminReferralRoutes from './routes/adminReferral';
 import { securityHeaders, preventNoSqlInjection } from './middleware/security';
 import { sanitize } from './middleware/validation';
 import { apiRateLimit, loginRateLimit, uploadRateLimit } from './middleware/rateLimit';
@@ -87,6 +93,12 @@ app.use('/api/admin/orders', adminOrdersRoutes);
 app.use('/api/admin/upload', uploadRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/referral/auth', referralAuthRoutes);
+app.use('/api/referral/tracking', referralTrackingRoutes);
+app.use('/api/referral/dashboard', referralDashboardRoutes);
+app.use('/api/referral/withdrawals', referralWithdrawalsRoutes);
+app.use('/api/referral/notifications', referralNotificationsRoutes);
+app.use('/api/admin/referral', adminReferralRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

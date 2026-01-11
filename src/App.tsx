@@ -8,8 +8,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { UserAuthProvider } from "@/contexts/UserAuthContext";
 import { ProtectedRoute } from "@/components/admin/ProtectedRoute";
 import { ProtectedUserRoute } from "@/components/user/ProtectedUserRoute";
+import { ProtectedReferralRoute } from "@/components/referral/ProtectedReferralRoute";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SEOUpdater } from "@/components/SEOUpdater";
+import { ReferralTracker } from "@/components/referral/ReferralTracker";
 
 // Lazy load pages для code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -42,6 +44,17 @@ const AdminCourses = lazy(() => import("./pages/admin/Courses"));
 const AdminUsers = lazy(() => import("./pages/admin/Users"));
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
+const AdminReferral = lazy(() => import("./pages/admin/Referral"));
+const ReferralRedirect = lazy(() => import("./components/referral/ReferralRedirect"));
+const ReferralLogin = lazy(() => import("./pages/referral/Login"));
+const ReferralRegister = lazy(() => import("./pages/referral/Register"));
+const ReferralDashboard = lazy(() => import("./pages/referral/Dashboard"));
+const ReferralStats = lazy(() => import("./pages/referral/Stats"));
+const ReferralRewards = lazy(() => import("./pages/referral/Rewards"));
+const ReferralReferrals = lazy(() => import("./pages/referral/Referrals"));
+const ReferralWithdrawals = lazy(() => import("./pages/referral/Withdrawals"));
+const ReferralMaterials = lazy(() => import("./pages/referral/Materials"));
+const ReferralNotifications = lazy(() => import("./pages/referral/Notifications"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Loading component
@@ -63,6 +76,7 @@ const App = () => (
           <BrowserRouter>
           <ScrollToTop />
           <SEOUpdater />
+          <ReferralTracker />
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
@@ -126,6 +140,67 @@ const App = () => (
                   <ProtectedUserRoute>
                     <DashboardCertificates />
                   </ProtectedUserRoute>
+                }
+              />
+              
+              {/* Referral routes */}
+              <Route path="/referral" element={<ReferralRedirect />} />
+              <Route path="/referral/login" element={<ReferralLogin />} />
+              <Route path="/referral/register" element={<ReferralRegister />} />
+              <Route
+                path="/referral/dashboard"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralDashboard />
+                  </ProtectedReferralRoute>
+                }
+              />
+              <Route
+                path="/referral/dashboard/stats"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralStats />
+                  </ProtectedReferralRoute>
+                }
+              />
+              <Route
+                path="/referral/dashboard/rewards"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralRewards />
+                  </ProtectedReferralRoute>
+                }
+              />
+              <Route
+                path="/referral/dashboard/referrals"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralReferrals />
+                  </ProtectedReferralRoute>
+                }
+              />
+              <Route
+                path="/referral/dashboard/withdrawals"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralWithdrawals />
+                  </ProtectedReferralRoute>
+                }
+              />
+              <Route
+                path="/referral/dashboard/materials"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralMaterials />
+                  </ProtectedReferralRoute>
+                }
+              />
+              <Route
+                path="/referral/dashboard/notifications"
+                element={
+                  <ProtectedReferralRoute>
+                    <ReferralNotifications />
+                  </ProtectedReferralRoute>
                 }
               />
               
@@ -217,6 +292,22 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <AdminSettings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/referral"
+                element={
+                  <ProtectedRoute>
+                    <AdminReferral />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/referral"
+                element={
+                  <ProtectedRoute>
+                    <AdminReferral />
                   </ProtectedRoute>
                 }
               />

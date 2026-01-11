@@ -15,7 +15,7 @@ interface UserAuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string, phone?: string) => Promise<void>;
+  register: (email: string, password: string, name: string, phone?: string, referral_code?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -60,9 +60,9 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const register = async (email: string, password: string, name: string, phone?: string) => {
+  const register = async (email: string, password: string, name: string, phone?: string, referral_code?: string) => {
     try {
-      const response: RegisterResponse = await api.userRegister({ email, password, name, phone });
+      const response: RegisterResponse = await api.userRegister({ email, password, name, phone, referral_code });
       localStorage.setItem('user_token', response.token);
       setUser(response.user);
     } catch (error) {

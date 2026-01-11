@@ -224,14 +224,14 @@ export default function Schedule() {
               { value: events.reduce((sum, e) => sum + e.registered, 0).toLocaleString("ru-RU"), label: "Участников всего" },
             ].map((stat, index) => (
               <FadeInOnScroll key={index} delay={index * 100}>
-                <div className="text-center">
-                  <p className="mb-2 font-display text-3xl font-bold text-primary">
+            <div className="text-center">
+              <p className="mb-2 font-display text-3xl font-bold text-primary">
                     {stat.value}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
+              </p>
+              <p className="text-sm text-muted-foreground">
                     {stat.label}
-                  </p>
-                </div>
+              </p>
+            </div>
               </FadeInOnScroll>
             ))}
           </div>
@@ -292,10 +292,10 @@ export default function Schedule() {
             <div className="space-y-6">
               {filteredEvents.map((event, index) => (
                 <FadeInOnScroll key={event.id} delay={index * 100}>
-                  <Card
-                    variant="elevated"
-                    className="group overflow-hidden transition-all duration-300 hover:shadow-elevated"
-                  >
+                <Card
+                  variant="elevated"
+                  className="group overflow-hidden transition-all duration-300 hover:shadow-elevated"
+                >
                   <div className="grid gap-6 lg:grid-cols-3">
                     {/* Image */}
                     {event.image && (

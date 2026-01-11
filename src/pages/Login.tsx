@@ -42,11 +42,30 @@ export default function Login() {
     setIsLoading(true);
 
     try {
+      // Проверяем наличие реферального кода в localStorage или cookie
+      let referralCode: string | null = null;
+      
+      // Проверяем localStorage
+      referralCode = localStorage.getItem('referral_code');
+      
+      // Если нет в localStorage, проверяем cookie
+      if (!referralCode) {
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'referral_code') {
+            referralCode = value;
+            break;
+          }
+        }
+      }
+
       await register(
         email.trim().toLowerCase(),
         password,
         name.trim(),
-        phone.trim() || undefined
+        phone.trim() || undefined,
+        referralCode || undefined
       );
       navigate('/dashboard');
     } catch (err: any) {
