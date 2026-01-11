@@ -1155,7 +1155,7 @@ class ApiClient {
     payment_details: string;
     telegram_tag?: string;
   }): Promise<any> {
-    return this.referralRequest<any>('/referral/withdrawals', {
+    return this.referralRequest<any>('/referral/withdrawals/request', {
       method: 'POST',
       body: JSON.stringify(data),
     });

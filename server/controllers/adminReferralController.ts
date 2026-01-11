@@ -439,19 +439,71 @@ export const approveWithdrawal = asyncHandler(async (req: AuthRequest, res: Resp
     throw new AppError('Неверный ID запроса', 400);
   }
 
-  const result = await pool.query(
-    'UPDATE referral_withdrawals SET status = $1, processed_at = NOW(), processed_by = $2 WHERE id = $3 RETURNING partner_id, amount',
-    ['approved', req.admin!.id, withdrawalId]
-  );
+  await pool.query('BEGIN');
 
-  if (result.rows.length === 0) {
-    throw new AppError('Запрос не найден', 404);
+  try {
+    // Получаем информацию о запросе и проверяем, что он еще не обработан
+    const withdrawalResult = await pool.query(
+      'SELECT partner_id, amount, status FROM referral_withdrawals WHERE id = $1',
+      [withdrawalId]
+    );
+
+    if (withdrawalResult.rows.length === 0) {
+      throw new AppError('Запрос не найден', 404);
+    }
+
+    const { partner_id, amount, status } = withdrawalResult.rows[0];
+
+    // Проверяем, что запрос еще не обработан
+    if (status !== 'pending') {
+      await pool.query('ROLLBACK');
+      throw new AppError('Запрос уже обработан', 400);
+    }
+
+    // Проверяем баланс партнера
+    const partnerResult = await pool.query(
+      'SELECT current_balance FROM referral_partners WHERE id = $1',
+      [partner_id]
+    );
+
+    if (partnerResult.rows.length === 0) {
+      throw new AppError('Партнер не найден', 404);
+    }
+
+    const currentBalance = parseFloat(partnerResult.rows[0].current_balance || '0');
+    const withdrawalAmount = parseFloat(amount);
+
+    if (currentBalance < withdrawalAmount) {
+      await pool.query('ROLLBACK');
+      throw new AppError('Недостаточно средств на балансе партнера', 400);
+    }
+
+    // Обновляем статус запроса
+    await pool.query(
+      'UPDATE referral_withdrawals SET status = $1, processed_at = NOW(), processed_by = $2 WHERE id = $3',
+      ['approved', req.admin!.id, withdrawalId]
+    );
+
+    // Списываем баланс партнера
+    await pool.query(
+      `UPDATE referral_partners 
+       SET current_balance = current_balance - $1,
+           withdrawn_amount = COALESCE(withdrawn_amount, 0) + $1,
+           updated_at = NOW()
+       WHERE id = $2`,
+      [withdrawalAmount, partner_id]
+    );
+
+    await pool.query('COMMIT');
+
+    // Создаем уведомление об одобрении
+    await notifyWithdrawalStatusChange(partner_id, withdrawalId, 'approved', withdrawalAmount);
+
+    res.json({ success: true });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    throw error;
   }
-
-  const { partner_id, amount } = result.rows[0];
-  await notifyWithdrawalStatusChange(partner_id, withdrawalId, 'approved', parseFloat(amount));
-
-  res.json({ success: true });
 });
 
 /**
@@ -483,6 +535,7 @@ export const rejectWithdrawal = asyncHandler(async (req: AuthRequest, res: Respo
 
 /**
  * Пометить запрос как выплаченный
+ * Баланс уже списан при одобрении, здесь только меняем статус
  */
 export const markWithdrawalPaid = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
@@ -492,47 +545,33 @@ export const markWithdrawalPaid = asyncHandler(async (req: AuthRequest, res: Res
     throw new AppError('Неверный ID запроса', 400);
   }
 
-  await pool.query('BEGIN');
+  // Получаем информацию о запросе
+  const withdrawalResult = await pool.query(
+    'SELECT partner_id, amount, status FROM referral_withdrawals WHERE id = $1',
+    [withdrawalId]
+  );
 
-  try {
-    // Получаем информацию о запросе
-    const withdrawalResult = await pool.query(
-      'SELECT partner_id, amount FROM referral_withdrawals WHERE id = $1',
-      [withdrawalId]
-    );
-
-    if (withdrawalResult.rows.length === 0) {
-      throw new AppError('Запрос не найден', 404);
-    }
-
-    const { partner_id, amount } = withdrawalResult.rows[0];
-
-    // Обновляем статус запроса
-    await pool.query(
-      'UPDATE referral_withdrawals SET status = $1, processed_at = NOW(), processed_by = $2 WHERE id = $3',
-      ['paid', req.admin!.id, withdrawalId]
-    );
-
-    // Обновляем баланс партнера
-    await pool.query(
-      `UPDATE referral_partners 
-       SET current_balance = current_balance - $1,
-           withdrawn_amount = withdrawn_amount + $1,
-           updated_at = NOW()
-       WHERE id = $2`,
-      [amount, partner_id]
-    );
-
-    await pool.query('COMMIT');
-
-    // Создаем уведомление о выплате
-    await notifyWithdrawalStatusChange(partner_id, withdrawalId, 'paid', parseFloat(amount));
-
-    res.json({ success: true });
-  } catch (error) {
-    await pool.query('ROLLBACK');
-    throw error;
+  if (withdrawalResult.rows.length === 0) {
+    throw new AppError('Запрос не найден', 404);
   }
+
+  const { partner_id, amount, status } = withdrawalResult.rows[0];
+
+  // Проверяем, что запрос одобрен
+  if (status !== 'approved') {
+    throw new AppError('Запрос должен быть одобрен перед пометкой как выплаченный', 400);
+  }
+
+  // Обновляем статус запроса (баланс уже списан при одобрении)
+  await pool.query(
+    'UPDATE referral_withdrawals SET status = $1, processed_at = NOW(), processed_by = $2 WHERE id = $3',
+    ['paid', req.admin!.id, withdrawalId]
+  );
+
+  // Создаем уведомление о выплате
+  await notifyWithdrawalStatusChange(partner_id, withdrawalId, 'paid', parseFloat(amount));
+
+  res.json({ success: true });
 });
 
 /**
