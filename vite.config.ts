@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { createHtmlPlugin } from "vite-plugin-html";
 
 // SEO плагин отключен - SEO обновляется через SEOUpdater компонент на клиенте
 // В production Express middleware обрабатывает HTML напрямую
@@ -24,7 +25,16 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(), 
-    mode === "development" && componentTagger()
+    mode === "development" && componentTagger(),
+    createHtmlPlugin({
+      minify: mode === "production",
+      inject: {
+        data: {
+          title: "NailArt Academy — Онлайн-курсы маникюра",
+          description: "Онлайн-школа маникюра для начинающих и профессионалов",
+        },
+      },
+    }),
   ].filter(Boolean),
   resolve: {
     alias: {

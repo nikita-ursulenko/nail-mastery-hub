@@ -6,15 +6,18 @@ import { api } from '@/lib/api';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { useUserAuth } from '@/contexts/UserAuthContext';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import { toast } from 'sonner';
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useUserAuth();
+  const { trackPurchase } = useAnalytics();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [purchaseTracked, setPurchaseTracked] = useState(false);
   const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
@@ -70,6 +73,22 @@ export default function PaymentSuccess() {
       setPaymentStatus(status.status);
 
       if (status.status === 'paid') {
+        // Трекинг покупки (только один раз)
+        if (!purchaseTracked && status.course && status.amount) {
+          trackPurchase({
+            transactionId: sessionIdParam,
+            value: status.amount,
+            currency: 'EUR',
+            items: [{
+              item_id: status.course.id?.toString() || sessionIdParam,
+              item_name: status.course.title || 'Course',
+              price: status.amount,
+              quantity: 1,
+            }],
+          });
+          setPurchaseTracked(true);
+        }
+
         if (status.enrollmentActivated) {
           // Доступ активирован, показываем успех
           toast.success('Доступ к курсу активирован!');

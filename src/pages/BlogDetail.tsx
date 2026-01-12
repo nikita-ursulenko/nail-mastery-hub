@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BlogCard } from "@/components/blog/BlogCard";
 import { api } from "@/lib/api";
+import { Helmet } from "react-helmet-async";
+import { StructuredData, createArticleSchema } from "@/components/seo/StructuredData";
 
 interface BlogPost {
   id: number;
@@ -93,8 +95,40 @@ export default function BlogDetail() {
     );
   }
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const postImageUrl = post.image_upload_path
+    ? `${baseUrl}/uploads/blog/${post.image_upload_path}`
+    : post.image_url || '';
+
   return (
     <div className="flex min-h-screen flex-col">
+      <Helmet>
+        <title>{post.title} | Блог NailArt Academy</title>
+        <meta name="description" content={post.excerpt || post.title} />
+        <meta name="keywords" content={`маникюр, ${post.category}, ${post.title}`} />
+        <meta property="og:title" content={`${post.title} | Блог NailArt Academy`} />
+        <meta property="og:description" content={post.excerpt || post.title} />
+        <meta property="og:type" content="article" />
+        {postImageUrl && <meta property="og:image" content={postImageUrl} />}
+        <meta property="og:url" content={`${baseUrl}/blog/${post.slug}`} />
+        <meta property="article:published_time" content={post.date} />
+        <meta property="article:author" content={post.author} />
+        <meta property="article:section" content={post.category} />
+        <link rel="canonical" href={`${baseUrl}/blog/${post.slug}`} />
+      </Helmet>
+      <StructuredData
+        type="article"
+        data={createArticleSchema(
+          {
+            title: post.title,
+            description: post.excerpt || post.title,
+            image: postImageUrl,
+            datePublished: post.date,
+            author: post.author,
+          },
+          baseUrl
+        )}
+      />
       <Header />
 
       {/* Breadcrumb */}

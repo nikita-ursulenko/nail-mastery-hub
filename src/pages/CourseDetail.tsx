@@ -27,6 +27,9 @@ import {
 import { api } from "@/lib/api";
 import { useUserAuth } from "@/contexts/UserAuthContext";
 import { toast } from "sonner";
+import { Helmet } from "react-helmet-async";
+import { StructuredData, createCourseSchema } from "@/components/seo/StructuredData";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 const levelLabels: Record<string, string> = {
   beginner: "Для начинающих",
@@ -38,6 +41,7 @@ export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useUserAuth();
   const navigate = useNavigate();
+  const { trackViewCourse, trackInitiateCheckout } = useAnalytics();
   const [courseData, setCourseData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +52,21 @@ export default function CourseDetail() {
       loadCourse();
     }
   }, [id]);
+
+  // Трекинг просмотра курса
+  useEffect(() => {
+    if (courseData) {
+      const minPrice = courseData.tariffs && courseData.tariffs.length > 0
+        ? Math.min(...courseData.tariffs.map((t: any) => t.price || Infinity))
+        : undefined;
+      
+      trackViewCourse(
+        courseData.id?.toString() || courseData.slug,
+        courseData.title,
+        minPrice !== undefined && minPrice !== Infinity ? minPrice : undefined
+      );
+    }
+  }, [courseData, trackViewCourse]);
 
   const loadCourse = async () => {
     try {
@@ -76,6 +95,14 @@ export default function CourseDetail() {
 
     try {
       setPurchasing(tariff.id);
+      
+      // Трекинг начала покупки
+      trackInitiateCheckout(
+        courseData.id?.toString() || courseData.slug,
+        courseData.title,
+        tariff.price
+      );
+
       const response = await api.createCheckoutSession({
         courseId: courseData.id,
         tariffId: tariff.id,
@@ -128,12 +155,23 @@ export default function CourseDetail() {
     );
   }
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  
   // Формируем URL изображения
   const courseImage = courseData.image_upload_path
     ? (courseData.image_upload_path.startsWith('/uploads/')
         ? courseData.image_upload_path
         : `/uploads/courses/${courseData.image_upload_path}`)
     : courseData.image_url || "";
+
+  const courseImageUrl = courseImage.startsWith('http') 
+    ? courseImage 
+    : `${baseUrl}${courseImage}`;
+
+  // Получаем минимальную цену курса для JSON-LD
+  const minPrice = courseData.tariffs && courseData.tariffs.length > 0
+    ? Math.min(...courseData.tariffs.map((t: any) => t.price || Infinity))
+    : undefined;
 
   // Формируем URL изображения преподавателя
   const instructorImage = courseData.instructor?.image_upload_path
@@ -170,6 +208,31 @@ export default function CourseDetail() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <Helmet>
+        <title>{courseData.title} | NailArt Academy</title>
+        <meta name="description" content={courseData.description || courseData.subtitle || courseData.title} />
+        <meta name="keywords" content={`курс маникюра, ${courseData.title}, обучение маникюру, ${courseData.category || ''}`} />
+        <meta property="og:title" content={`${courseData.title} | NailArt Academy`} />
+        <meta property="og:description" content={courseData.description || courseData.subtitle || courseData.title} />
+        <meta property="og:type" content="product" />
+        {courseImageUrl && <meta property="og:image" content={courseImageUrl} />}
+        <meta property="og:url" content={`${baseUrl}/courses/${id}`} />
+        <link rel="canonical" href={`${baseUrl}/courses/${id}`} />
+      </Helmet>
+      {minPrice && (
+        <StructuredData
+          type="course"
+          data={createCourseSchema(
+            {
+              title: courseData.title,
+              description: courseData.description || courseData.subtitle || courseData.title,
+              price: minPrice,
+              currency: 'EUR',
+            },
+            baseUrl
+          )}
+        />
+      )}
       <Header />
 
       {/* Breadcrumb */}

@@ -972,8 +972,22 @@ class ApiClient {
     });
   }
 
-  async getPaymentStatus(sessionId: string): Promise<{ status: string; sessionId: string; customerEmail?: string; enrollmentActivated?: boolean }> {
-    return this.userRequest<{ status: string; sessionId: string; customerEmail?: string; enrollmentActivated?: boolean }>(`/payments/status/${sessionId}`);
+  async getPaymentStatus(sessionId: string): Promise<{ 
+    status: string; 
+    sessionId: string; 
+    customerEmail?: string; 
+    enrollmentActivated?: boolean;
+    course?: { id: number; title: string; slug: string };
+    amount?: number;
+  }> {
+    return this.userRequest<{ 
+      status: string; 
+      sessionId: string; 
+      customerEmail?: string; 
+      enrollmentActivated?: boolean;
+      course?: { id: number; title: string; slug: string };
+      amount?: number;
+    }>(`/payments/status/${sessionId}`);
   }
 
   // User Profile API

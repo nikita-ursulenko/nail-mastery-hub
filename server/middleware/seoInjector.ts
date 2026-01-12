@@ -33,9 +33,9 @@ const getHtmlTemplate = (): string => {
 };
 
 // Функция для нормализации пути
-const normalizePath = (url: string): string => {
+const normalizePath = (path: string): string => {
   // Убираем query параметры и hash
-  const pathname = new URL(url, 'http://localhost').pathname;
+  const pathname = path.split('?')[0].split('#')[0];
   
   // Нормализуем путь
   if (pathname === '' || pathname === '/') {
@@ -175,8 +175,8 @@ export const injectSeoMiddleware = async (
   }
 
   try {
-    // Получаем нормализованный путь
-    const normalizedPath = normalizePath(req.url);
+    // Получаем нормализованный путь (req.path уже содержит путь без query параметров)
+    const normalizedPath = normalizePath(req.path || '/');
     
     // Получаем базовый URL для canonical и og:url
     const protocol = req.protocol;
@@ -190,31 +190,68 @@ export const injectSeoMiddleware = async (
     // Получаем HTML шаблон
     let html = getHtmlTemplate();
 
-    // Заменяем плейсхолдеры (используем replaceAll для надежности)
-    const replacements: [RegExp, string][] = [
-      [/__TITLE__/g, escapeHtml(seo.title)],
-      [/__DESCRIPTION__/g, escapeHtml(seo.description)],
-      [/__KEYWORDS__/g, escapeHtml(seo.keywords || '')],
-      [/__OG_TITLE__/g, escapeHtml(seo.og_title || seo.title)],
-      [/__OG_DESCRIPTION__/g, escapeHtml(seo.og_description || seo.description)],
-      [/__OG_IMAGE__/g, escapeHtml(seo.og_image || '')],
-      [/__OG_TYPE__/g, escapeHtml(seo.og_type || 'website')],
-      [/__OG_URL__/g, escapeHtml(seo.og_url || fullUrl)],
-      [/__TWITTER_CARD__/g, escapeHtml(seo.twitter_card || 'summary_large_image')],
-      [/__TWITTER_TITLE__/g, escapeHtml(seo.twitter_title || seo.og_title || seo.title)],
-      [/__TWITTER_DESCRIPTION__/g, escapeHtml(seo.twitter_description || seo.og_description || seo.description)],
-      [/__TWITTER_IMAGE__/g, escapeHtml(seo.twitter_image || seo.og_image || '')],
-      [/__CANONICAL_URL__/g, escapeHtml(seo.canonical_url || fullUrl)],
-      [/__ROBOTS__/g, escapeHtml(seo.robots || 'index, follow')],
-    ];
-
-    for (const [pattern, replacement] of replacements) {
-      html = html.replace(pattern, replacement);
+    // Заменяем мета-теги используя регулярные выражения для поиска атрибутов content
+    // Это работает как с плейсхолдерами, так и с дефолтными значениями
+    
+    // Title
+    html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtml(seo.title)}</title>`);
+    
+    // Description
+    html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta name="description" content="${escapeHtml(seo.description)}" />`);
+    
+    // Keywords
+    if (seo.keywords) {
+      html = html.replace(/<meta\s+name=["']keywords["']\s+content=["'][^"']*["']\s*\/?>/, 
+        `<meta name="keywords" content="${escapeHtml(seo.keywords)}" />`);
     }
-
-    // Проверяем, что все плейсхолдеры заменены
-    if (html.includes('__TITLE__') || html.includes('__DESCRIPTION__')) {
-      console.warn('⚠️  Warning: Some placeholders were not replaced in HTML');
+    
+    // Robots
+    html = html.replace(/<meta\s+name=["']robots["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta name="robots" content="${escapeHtml(seo.robots || 'index, follow')}" />`);
+    
+    // Canonical URL
+    html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/, 
+      `<link rel="canonical" href="${escapeHtml(seo.canonical_url || fullUrl)}" />`);
+    
+    // Open Graph Title
+    html = html.replace(/<meta\s+property=["']og:title["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta property="og:title" content="${escapeHtml(seo.og_title || seo.title)}" />`);
+    
+    // Open Graph Description
+    html = html.replace(/<meta\s+property=["']og:description["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta property="og:description" content="${escapeHtml(seo.og_description || seo.description)}" />`);
+    
+    // Open Graph Image
+    if (seo.og_image) {
+      html = html.replace(/<meta\s+property=["']og:image["']\s+content=["'][^"']*["']\s*\/?>/, 
+        `<meta property="og:image" content="${escapeHtml(seo.og_image)}" />`);
+    }
+    
+    // Open Graph Type
+    html = html.replace(/<meta\s+property=["']og:type["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta property="og:type" content="${escapeHtml(seo.og_type || 'website')}" />`);
+    
+    // Open Graph URL
+    html = html.replace(/<meta\s+property=["']og:url["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta property="og:url" content="${escapeHtml(seo.og_url || fullUrl)}" />`);
+    
+    // Twitter Card
+    html = html.replace(/<meta\s+name=["']twitter:card["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta name="twitter:card" content="${escapeHtml(seo.twitter_card || 'summary_large_image')}" />`);
+    
+    // Twitter Title
+    html = html.replace(/<meta\s+name=["']twitter:title["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta name="twitter:title" content="${escapeHtml(seo.twitter_title || seo.og_title || seo.title)}" />`);
+    
+    // Twitter Description
+    html = html.replace(/<meta\s+name=["']twitter:description["']\s+content=["'][^"']*["']\s*\/?>/, 
+      `<meta name="twitter:description" content="${escapeHtml(seo.twitter_description || seo.og_description || seo.description)}" />`);
+    
+    // Twitter Image
+    if (seo.twitter_image) {
+      html = html.replace(/<meta\s+name=["']twitter:image["']\s+content=["'][^"']*["']\s*\/?>/, 
+        `<meta name="twitter:image" content="${escapeHtml(seo.twitter_image)}" />`);
     }
 
     // Отправляем HTML

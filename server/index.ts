@@ -28,6 +28,7 @@ import referralDashboardRoutes from './routes/referralDashboard';
 import referralWithdrawalsRoutes from './routes/referralWithdrawals';
 import referralNotificationsRoutes from './routes/referralNotifications';
 import adminReferralRoutes from './routes/adminReferral';
+import sitemapRoutes from './routes/sitemap';
 import { securityHeaders, preventNoSqlInjection } from './middleware/security';
 import { sanitize } from './middleware/validation';
 import { apiRateLimit, loginRateLimit, uploadRateLimit } from './middleware/rateLimit';
@@ -100,6 +101,9 @@ app.use('/api/referral/withdrawals', referralWithdrawalsRoutes);
 app.use('/api/referral/notifications', referralNotificationsRoutes);
 app.use('/api/admin/referral', adminReferralRoutes);
 
+// Sitemap
+app.use('/', sitemapRoutes);
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
@@ -117,6 +121,11 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  const env = process.env.NODE_ENV || 'development';
+  if (env === 'production') {
+    console.log(`🚀 Server is running on port ${PORT}`);
+  } else {
+    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  }
 });
 

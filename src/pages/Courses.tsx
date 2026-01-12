@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
+import { Helmet } from "react-helmet-async";
 
 const categories = [
   { id: "all", label: "Все курсы" },
@@ -77,8 +78,19 @@ export default function Courses() {
   const hasActiveFilters =
     searchQuery || selectedCategory !== "all" || selectedLevel !== "all";
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
   return (
     <div className="flex min-h-screen flex-col">
+      <Helmet>
+        <title>Курсы маникюра | NailArt Academy</title>
+        <meta name="description" content="Выберите курс маникюра для себя. Базовые, аппаратные курсы, наращивание ногтей, дизайн. Обучение от профессиональных мастеров." />
+        <meta name="keywords" content="курсы маникюра, обучение маникюру, базовый маникюр, аппаратный маникюр, наращивание ногтей, дизайн ногтей" />
+        <meta property="og:title" content="Курсы маникюра | NailArt Academy" />
+        <meta property="og:description" content="Выберите курс маникюра для себя. Базовые, аппаратные курсы, наращивание ногтей, дизайн." />
+        <meta property="og:type" content="website" />
+        <link rel="canonical" href={`${baseUrl}/courses`} />
+      </Helmet>
       <Header />
 
       {/* Hero */}

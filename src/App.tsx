@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { UserAuthProvider } from "@/contexts/UserAuthContext";
@@ -12,6 +13,7 @@ import { ProtectedReferralRoute } from "@/components/referral/ProtectedReferralR
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { SEOUpdater } from "@/components/SEOUpdater";
 import { ReferralTracker } from "@/components/referral/ReferralTracker";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 
 // Lazy load pages для code splitting
 const Index = lazy(() => import("./pages/Index"));
@@ -69,15 +71,17 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <UserAuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-          <ScrollToTop />
-          <SEOUpdater />
-          <ReferralTracker />
-          <Suspense fallback={<PageLoader />}>
+      <HelmetProvider>
+        <AuthProvider>
+          <UserAuthProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+            <AnalyticsProvider>
+              <ScrollToTop />
+              <SEOUpdater />
+              <ReferralTracker />
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Index />} />
@@ -316,9 +320,11 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-        </BrowserRouter>
+            </AnalyticsProvider>
+          </BrowserRouter>
         </UserAuthProvider>
       </AuthProvider>
+      </HelmetProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

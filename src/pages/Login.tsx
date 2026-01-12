@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUserAuth } from '@/contexts/UserAuthContext';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, register } = useUserAuth();
+  const { trackSignUp } = useAnalytics();
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -67,6 +69,10 @@ export default function Login() {
         phone.trim() || undefined,
         referralCode || undefined
       );
+      
+      // Трекинг регистрации
+      trackSignUp('email');
+      
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Ошибка при регистрации');

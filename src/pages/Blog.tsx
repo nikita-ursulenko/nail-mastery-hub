@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
+import { Helmet } from "react-helmet-async";
 
 interface BlogPost {
   id: number;
@@ -160,8 +161,19 @@ export default function Blog() {
   const hasActiveFilters =
     searchQuery || selectedCategory !== "all";
 
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+
   return (
     <div className="flex min-h-screen flex-col">
+      <Helmet>
+        <title>Блог о маникюре | NailArt Academy</title>
+        <meta name="description" content="Полезные статьи и экспертные советы о маникюре, дизайне ногтей, техниках и трендах от профессионалов индустрии красоты." />
+        <meta name="keywords" content="блог маникюра, статьи о маникюре, советы мастера маникюра, тренды маникюра, дизайн ногтей" />
+        <meta property="og:title" content="Блог о маникюре | NailArt Academy" />
+        <meta property="og:description" content="Полезные статьи и экспертные советы о маникюре, дизайне ногтей, техниках и трендах." />
+        <meta property="og:type" content="website" />
+        <link rel="canonical" href={`${baseUrl}/blog`} />
+      </Helmet>
       <Header />
 
       {/* Hero Section */}

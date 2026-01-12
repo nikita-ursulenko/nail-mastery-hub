@@ -19,6 +19,8 @@ import { TestimonialsSection } from "@/components/testimonials/TestimonialsSecti
 import { FounderSection } from "@/components/founder/FounderSection";
 import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { api } from "@/lib/api";
+import { StructuredData, createOrganizationSchema } from "@/components/seo/StructuredData";
+import { Helmet } from "react-helmet-async";
 
 import heroImage from "@/assets/hero-nails.jpg";
 
@@ -82,8 +84,21 @@ export default function Index() {
     }
   };
 
+  const baseUrl = window.location.origin;
+
   return (
     <div className="flex min-h-screen flex-col">
+      <Helmet>
+        <title>NailArt Academy — Онлайн-курсы маникюра</title>
+        <meta name="description" content="Онлайн-школа маникюра для начинающих и профессионалов. Освойте профессию nail-мастера и начните зарабатывать от 1 000 € в месяц." />
+        <meta name="keywords" content="маникюр, курсы маникюра, обучение маникюру, nail мастер, онлайн курсы" />
+        <meta property="og:title" content="NailArt Academy — Онлайн-курсы маникюра" />
+        <meta property="og:description" content="Онлайн-школа маникюра для начинающих и профессионалов. Освойте профессию nail-мастера." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+        <link rel="canonical" href={baseUrl} />
+      </Helmet>
+      <StructuredData type="organization" data={createOrganizationSchema(baseUrl)} />
       <Header />
 
       {/* Hero Section */}

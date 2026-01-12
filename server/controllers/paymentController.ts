@@ -478,11 +478,47 @@ export const getPaymentStatus = asyncHandler(
         }
       }
 
+      // Получаем данные о курсе для трекинга
+      let courseData = null;
+      let amount = null;
+      
+      if (session.payment_status === 'paid' && session.metadata) {
+        const { courseId } = session.metadata;
+        
+        // Получаем информацию о курсе
+        const courseResult = await pool.query(
+          'SELECT id, title, slug FROM courses WHERE id = $1',
+          [courseId]
+        );
+        
+        if (courseResult.rows.length > 0) {
+          courseData = {
+            id: courseResult.rows[0].id,
+            title: courseResult.rows[0].title,
+            slug: courseResult.rows[0].slug,
+          };
+        }
+        
+        // Получаем сумму из enrollment или из session
+        const enrollmentResult = await pool.query(
+          'SELECT amount_paid FROM enrollments WHERE user_id = $1 AND course_id = $2',
+          [userId, courseId]
+        );
+        
+        if (enrollmentResult.rows.length > 0 && enrollmentResult.rows[0].amount_paid) {
+          amount = parseFloat(enrollmentResult.rows[0].amount_paid);
+        } else if (session.amount_total) {
+          amount = session.amount_total / 100; // Конвертируем из центов
+        }
+      }
+
       res.json({
         status: session.payment_status,
         sessionId: session.id,
         customerEmail: session.customer_email,
         enrollmentActivated: session.payment_status === 'paid',
+        course: courseData,
+        amount: amount,
       });
     } catch (error: any) {
       console.error('Ошибка при проверке статуса платежа:', error);
