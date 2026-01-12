@@ -113,8 +113,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-primary">
-                  О нас
+                <Link to="/referral" className="hover:text-primary">
+                  Партнерская программа
                 </Link>
               </li>
               <li>
