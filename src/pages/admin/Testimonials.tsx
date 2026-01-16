@@ -25,6 +25,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Star, Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 
 interface Testimonial {
@@ -163,22 +164,15 @@ export default function Testimonials() {
       // Если загружен файл, сначала загружаем его
       if (avatarFile) {
         setIsUploading(true);
-        const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
+        try {
+          const { secure_url, public_id } = await uploadToCloudinary(avatarFile);
 
-        const { error: uploadError } = await supabase.storage
-          .from('testimonials')
-          .upload(filePath, avatarFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('testimonials')
-          .getPublicUrl(filePath);
-
-        submitPayload.avatar_upload_path = filePath;
-        submitPayload.avatar = publicUrl;
+          submitPayload.avatar = secure_url;
+          submitPayload.avatar_upload_path = public_id;
+        } catch (uploadError: any) {
+          console.error('Cloudinary upload error:', uploadError);
+          throw uploadError;
+        }
       } else if (!useUpload && formData.avatar) {
         // Если используется URL
         submitPayload.avatar_upload_path = null;

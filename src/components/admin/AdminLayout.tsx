@@ -60,9 +60,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     document.title = 'Admin panel';
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/admin/login');
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      navigate('/admin/login');
+    }
   };
 
   const MenuContent = () => (

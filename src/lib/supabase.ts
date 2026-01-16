@@ -13,11 +13,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Missing Supabase URL or Anon Key');
 }
 
-// Minimal configuration to debug AbortError
+// Standard configuration with persistence enabled
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-        autoRefreshToken: false,
-        persistSession: false,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
     },
 });
 

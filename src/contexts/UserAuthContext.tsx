@@ -32,10 +32,12 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
       if (session?.user) {
-        await loadUserProfile(session.user.id);
+        await loadUserProfile(session.user);
       } else {
         setUser(null);
+        setIsLoading(false);
       }
     });
 
@@ -48,30 +50,49 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        await loadUserProfile(session.user.id);
+        await loadUserProfile(session.user);
+      } else {
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Session check failed:', error);
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const loadUserProfile = async (authUserId: string) => {
+  const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
+      console.log('Loading profile for:', authUser.email);
+      // Try to find user by email since we lack auth_user_id
       const { data, error } = await supabase
         .from('users')
         .select('id, email, name, phone, avatar_url, avatar_upload_path')
-        .eq('auth_user_id', authUserId)
+        .eq('email', authUser.email)
         .single();
 
-      if (error) throw error;
-      if (data) {
+      if (error) {
+        console.error('Supabase fetch error:', error);
+        // If user not found in public table but exists in Auth, we might need to handle it.
+        // For now just stop loading.
+        setUser({
+          id: 0, // Placeholder
+          email: authUser.email || '',
+          name: authUser.user_metadata?.name || 'User',
+          phone: authUser.phone
+        });
+      } else if (data) {
         setUser(data);
       }
     } catch (error) {
       console.error('Failed to load user profile:', error);
-      setUser(null);
+      // Fallback to auth data so checking isAuthenticated works
+      setUser({
+        id: 0,
+        email: authUser.email || '',
+        name: authUser.user_metadata?.name || 'User'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,7 +106,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       if (data.user) {
-        await loadUserProfile(data.user.id);
+        await loadUserProfile(data.user);
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -117,10 +138,10 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       if (!authData.user) throw new Error('Не удалось создать аккаунт');
 
       // Step 2: Create user profile in users table
+      // Note: we are NOT using auth_user_id as it doesn't exist in the table schema currently
       const { data: userData, error: userError } = await supabase
         .from('users')
         .insert({
-          auth_user_id: authData.user.id,
           email,
           name,
           phone: phone || null,
