@@ -1,7 +1,8 @@
+import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Instagram, Send, Mail, Phone } from "lucide-react";
-import { api } from "@/lib/api";
+
 
 const iconMap: Record<string, any> = {
   Phone,
@@ -25,14 +26,23 @@ export function Footer() {
     loadContacts();
   }, []);
 
+
+
+  // ... existing imports
+
   const loadContacts = async () => {
     try {
-      const data = await api.getPublicContacts();
-      // Показываем только телефон и email в футере
-      const footerContacts = data.filter(
-        (contact: Contact) => contact.type === 'phone' || contact.type === 'email'
-      );
-      setContacts(footerContacts);
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .in('type', ['phone', 'email']);
+
+      if (error) {
+        console.error('Failed to load contacts:', error);
+        return;
+      }
+
+      setContacts(data || []);
     } catch (error) {
       console.error('Failed to load contacts:', error);
     }

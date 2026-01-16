@@ -26,7 +26,8 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface BlogPost {
   id: number;
@@ -102,10 +103,16 @@ export default function AdminBlog() {
 
   const loadBlogPosts = async () => {
     try {
-      const data = await api.getBlogPosts();
-      setBlogPosts(data);
-    } catch (error) {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      setBlogPosts(data || []);
+    } catch (error: any) {
       console.error('Failed to load blog posts:', error);
+      toast.error('Ошибка при загрузке статей');
     } finally {
       setIsLoading(false);
     }
@@ -113,9 +120,14 @@ export default function AdminBlog() {
 
   const loadTeamMembers = async () => {
     try {
-      const data = await api.getTeamMembers();
-      setTeamMembers(data.filter((member: any) => member.is_active));
-    } catch (error) {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('is_active', true);
+
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (error: any) {
       console.error('Failed to load team members:', error);
     }
   };
@@ -142,15 +154,15 @@ export default function AdminBlog() {
         author_avatar_upload_path: post.author_avatar_upload_path || '',
         author_bio: post.author_bio || '',
       };
-      
+
       if (post.author_id && teamMembers.length > 0) {
         const teamMember = teamMembers.find(m => m.id === post.author_id);
         if (teamMember) {
           // Используем данные из команды
-          const avatarUrl = teamMember.image_upload_path 
+          const avatarUrl = teamMember.image_upload_path
             ? `/uploads/team/${teamMember.image_upload_path}`
             : teamMember.image_url || '';
-          
+
           authorData = {
             author: teamMember.name,
             author_avatar: avatarUrl,
@@ -159,11 +171,11 @@ export default function AdminBlog() {
           };
         }
       }
-      
+
       // Если есть author_id, всегда используем аватар из команды
       const isAuthorFromTeam = !!post.author_id && teamMembers.length > 0;
       const isAuthorAvatarUploaded = authorData.author_avatar_upload_path && !isAuthorFromTeam;
-      
+
       setFormData({
         slug: post.slug,
         title: post.title,
@@ -194,7 +206,7 @@ export default function AdminBlog() {
         setImagePreview('');
         setUseUpload(false);
       }
-      
+
       // Устанавливаем preview аватара
       if (isAuthorFromTeam && authorData.author_avatar) {
         // Аватар из команды
@@ -356,23 +368,34 @@ export default function AdminBlog() {
       // Если загружен файл изображения, сначала загружаем его
       if (imageFile) {
         setIsUploading(true);
-        try {
-          const uploadResult = await api.uploadBlogImage(imageFile);
-          submitData.image_upload_path = uploadResult.filename;
-          submitData.image_url = null;
-        } catch (uploadError: any) {
-          alert(uploadError.message || 'Ошибка при загрузке файла');
-          setIsUploading(false);
-          return;
-        } finally {
-          setIsUploading(false);
-        }
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `blog-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('general-assets')
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('general-assets')
+          .getPublicUrl(filePath);
+
+        submitData.image_upload_path = filePath;
+        submitData.image_url = publicUrl;
       } else if (!useUpload && formData.image_url) {
         submitData.image_url = formData.image_url;
         submitData.image_upload_path = null;
       } else if (formData.image_upload_path) {
+        // Keep existing from editingPost
         submitData.image_upload_path = formData.image_upload_path;
-        submitData.image_url = null;
+        if (editingPost?.image_url) {
+          submitData.image_url = editingPost.image_url;
+        } else {
+          const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.image_upload_path);
+          submitData.image_url = publicUrl;
+        }
       } else {
         submitData.image_url = null;
         submitData.image_upload_path = null;
@@ -381,49 +404,93 @@ export default function AdminBlog() {
       // Если загружен файл аватара автора, сначала загружаем его
       if (authorAvatarFile) {
         setIsUploadingAuthorAvatar(true);
-        try {
-          const uploadResult = await api.uploadAuthorAvatar(authorAvatarFile);
-          submitData.author_avatar_upload_path = uploadResult.filename;
-          submitData.author_avatar = null;
-        } catch (uploadError: any) {
-          alert(uploadError.message || 'Ошибка при загрузке аватара автора');
-          setIsUploadingAuthorAvatar(false);
-          return;
-        } finally {
-          setIsUploadingAuthorAvatar(false);
-        }
+        const fileExt = authorAvatarFile.name.split('.').pop();
+        const fileName = `avatar-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('general-assets')
+          .upload(filePath, authorAvatarFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('general-assets')
+          .getPublicUrl(filePath);
+
+        submitData.author_avatar_upload_path = filePath;
+        submitData.author_avatar = publicUrl; // Use publicUrl instead of null?? Wait, previous code used null? 
+        // Previous code: submitData.author_avatar = null; 
+        // But logic usually requires one or the other.
+        // Let's set publicUrl as well for easier display.
       } else if (!useAuthorAvatarUpload && formData.author_avatar) {
         submitData.author_avatar = formData.author_avatar;
         submitData.author_avatar_upload_path = null;
       } else if (formData.author_avatar_upload_path) {
         submitData.author_avatar_upload_path = formData.author_avatar_upload_path;
-        submitData.author_avatar = null;
+        // Keep existing URL if possible
+        if (editingPost?.author_avatar) { // Wait, editingPost might be null if creating new
+          // If we are editing, we might keep it.
+          // If creating new but reusing upload path? Unlikely.
+          // Let's verify logic:
+          // If formData has upload path, it means we editing or we just uploaded it?
+          // If we just uploaded, we entered the specific 'if' block.
+          // So here we are keeping existing.
+          // If we have editingPost, use its avatar.
+          if (editingPost?.author_avatar) submitData.author_avatar = editingPost.author_avatar;
+          else {
+            const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.author_avatar_upload_path);
+            submitData.author_avatar = publicUrl;
+          }
+        } else {
+          // If no editingPost but we have upload path? Maybe manual entry?
+          // Should not happen unless state is weird.
+        }
       } else {
         submitData.author_avatar = null;
         submitData.author_avatar_upload_path = null;
       }
 
       if (editingPost) {
-        await api.updateBlogPost(editingPost.id, submitData);
+        const { error } = await supabase
+          .from('blog_posts')
+          .update(submitData)
+          .eq('id', editingPost.id);
+        if (error) throw error;
+        toast.success('Статья обновлена');
       } else {
-        await api.createBlogPost(submitData);
+        const { error } = await supabase
+          .from('blog_posts')
+          .insert([submitData]);
+        if (error) throw error;
+        toast.success('Статья добавлена');
       }
       loadBlogPosts();
       handleCloseDialog();
     } catch (error: any) {
       console.error('Failed to save blog post:', error);
-      alert(error.message || 'Ошибка при сохранении статьи.');
+      toast.error(error.message || 'Ошибка при сохранении статьи.');
+    } finally {
+      setIsUploading(false);
+      setIsUploadingAuthorAvatar(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить эту статью?')) {
       try {
-        await api.deleteBlogPost(id);
+        const { error } = await supabase
+          .from('blog_posts')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+
         loadBlogPosts();
-      } catch (error) {
+        toast.success('Статья удалена');
+      } catch (error: any) {
         console.error('Failed to delete blog post:', error);
-        alert('Ошибка при удалении статьи.');
+        toast.error('Ошибка при удалении статьи.');
       }
     }
   };
@@ -599,13 +666,13 @@ export default function AdminBlog() {
                       onValueChange={(value) => {
                         const selectedId = value === 'none' ? null : parseInt(value);
                         const selectedMember = teamMembers.find(m => m.id === selectedId);
-                        
+
                         if (selectedMember) {
                           // Автоматически заполняем данные из команды
-                          const avatarUrl = selectedMember.image_upload_path 
+                          const avatarUrl = selectedMember.image_upload_path
                             ? `/uploads/team/${selectedMember.image_upload_path}`
                             : selectedMember.image_url || '';
-                          
+
                           setFormData({
                             ...formData,
                             author_id: selectedId,
@@ -614,7 +681,7 @@ export default function AdminBlog() {
                             author_avatar_upload_path: selectedMember.image_upload_path || '',
                             author_bio: selectedMember.bio || '',
                           });
-                          
+
                           // Обновляем preview аватара
                           if (avatarUrl) {
                             setAuthorAvatarPreview(avatarUrl);

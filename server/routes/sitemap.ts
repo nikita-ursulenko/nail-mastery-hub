@@ -1,9 +1,7 @@
 import express from 'express';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 
 const router = express.Router();
-const pool = new Pool(getDatabaseConfig());
 
 /**
  * Генерация sitemap.xml
@@ -15,7 +13,7 @@ router.get('/sitemap.xml', async (req, res) => {
     const baseUrl = `${protocol}://${host}`;
 
     // Статические страницы
-    const staticPages = [
+    const staticPages: { url: string; priority: string; changefreq: string; lastmod?: string }[] = [
       { url: `${baseUrl}/`, priority: '1.0', changefreq: 'daily' },
       { url: `${baseUrl}/courses`, priority: '0.9', changefreq: 'weekly' },
       { url: `${baseUrl}/blog`, priority: '0.8', changefreq: 'daily' },
@@ -26,10 +24,13 @@ router.get('/sitemap.xml', async (req, res) => {
     ];
 
     // Получаем активные курсы
-    const coursesResult = await pool.query(
-      `SELECT slug, updated_at FROM courses WHERE is_active = TRUE AND slug IS NOT NULL`
-    );
-    const courses = coursesResult.rows.map((course) => ({
+    const { data: courses } = await supabase
+      .from('courses')
+      .select('slug, updated_at')
+      .eq('is_active', true)
+      .not('slug', 'is', null);
+
+    const coursesLinks = (courses || []).map((course) => ({
       url: `${baseUrl}/courses/${course.slug}`,
       priority: '0.8',
       changefreq: 'weekly',
@@ -37,10 +38,13 @@ router.get('/sitemap.xml', async (req, res) => {
     }));
 
     // Получаем активные статьи блога
-    const blogResult = await pool.query(
-      `SELECT slug, updated_at FROM blog_posts WHERE is_active = TRUE AND slug IS NOT NULL`
-    );
-    const blogPosts = blogResult.rows.map((post) => ({
+    const { data: blogPosts } = await supabase
+      .from('blog_posts')
+      .select('slug, updated_at')
+      .eq('is_active', true)
+      .not('slug', 'is', null);
+
+    const blogLinks = (blogPosts || []).map((post) => ({
       url: `${baseUrl}/blog/${post.slug}`,
       priority: '0.7',
       changefreq: 'monthly',
@@ -48,19 +52,19 @@ router.get('/sitemap.xml', async (req, res) => {
     }));
 
     // Генерируем XML
-    const urls = [...staticPages, ...courses, ...blogPosts];
+    const urls = [...staticPages, ...coursesLinks, ...blogLinks];
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls
-  .map(
-    (url) => `  <url>
+        .map(
+          (url) => `  <url>
     <loc>${url.url}</loc>
     <priority>${url.priority}</priority>
     <changefreq>${url.changefreq}</changefreq>
     ${url.lastmod ? `<lastmod>${url.lastmod}</lastmod>` : ''}
   </url>`
-  )
-  .join('\n')}
+        )
+        .join('\n')}
 </urlset>`;
 
     res.setHeader('Content-Type', 'application/xml');

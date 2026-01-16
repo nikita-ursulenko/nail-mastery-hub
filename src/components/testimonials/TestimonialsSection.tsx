@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Carousel,
@@ -8,7 +9,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { TestimonialCard } from "./TestimonialCard";
-import { api } from "@/lib/api";
+
 
 interface Testimonial {
   id?: number;
@@ -46,10 +47,21 @@ export function TestimonialsSection({
   const backgroundClass =
     variant === "secondary" ? "bg-secondary/30" : "";
 
+
+
+  // ... existing imports
+
   const loadTestimonials = async () => {
     try {
-      const data = await api.getPublicTestimonials();
-      setTestimonials(data);
+      const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .order('rating', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+      setTestimonials(data || []);
     } catch (error) {
       console.error("Failed to load testimonials:", error);
       setTestimonials([]);
@@ -78,7 +90,7 @@ export function TestimonialsSection({
   // Запуск автослайда
   const startAutoplay = useCallback(() => {
     clearTimers();
-    
+
     if (!carouselApi || isHovered || isPaused) {
       return;
     }
@@ -93,15 +105,15 @@ export function TestimonialsSection({
   // Обработчик ручного переключения
   const handleUserScroll = useCallback(() => {
     isUserInteractingRef.current = true;
-    
+
     // Ставим на паузу на 6 секунд
     setIsPaused(true);
     clearTimers();
-    
+
     if (pauseTimerRef.current) {
       clearTimeout(pauseTimerRef.current);
     }
-    
+
     pauseTimerRef.current = setTimeout(() => {
       setIsPaused(false);
       isUserInteractingRef.current = false;
@@ -185,9 +197,9 @@ export function TestimonialsSection({
       const target = e.target as HTMLElement;
       const button = target.closest('button');
       // Проверяем, что это кнопка навигации карусели
-      if (button && (button.getAttribute('aria-label')?.includes('slide') || 
-                     button.closest('[class*="CarouselPrevious"]') || 
-                     button.closest('[class*="CarouselNext"]'))) {
+      if (button && (button.getAttribute('aria-label')?.includes('slide') ||
+        button.closest('[class*="CarouselPrevious"]') ||
+        button.closest('[class*="CarouselNext"]'))) {
         isManualScroll = true;
       }
     };
@@ -261,7 +273,7 @@ export function TestimonialsSection({
             <p className="text-muted-foreground">Отзывов пока нет</p>
           </div>
         ) : (
-          <div 
+          <div
             ref={carouselRef}
             className="relative px-8 lg:px-16"
           >
@@ -273,7 +285,7 @@ export function TestimonialsSection({
               }}
               className="w-full"
             >
-              <CarouselContent 
+              <CarouselContent
                 className="-ml-2 md:-ml-4"
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
@@ -295,10 +307,10 @@ export function TestimonialsSection({
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious 
+              <CarouselPrevious
                 className="hidden lg:flex"
               />
-              <CarouselNext 
+              <CarouselNext
                 className="hidden lg:flex"
               />
             </Carousel>

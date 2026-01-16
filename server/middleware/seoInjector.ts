@@ -1,10 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
-
-const pool = new Pool(getDatabaseConfig());
+import { supabase } from '../../database/config';
 
 // Кэш для HTML шаблона
 let htmlTemplate: string | null = null;
@@ -36,30 +33,38 @@ const getHtmlTemplate = (): string => {
 const normalizePath = (path: string): string => {
   // Убираем query параметры и hash
   const pathname = path.split('?')[0].split('#')[0];
-  
+
   // Нормализуем путь
   if (pathname === '' || pathname === '/') {
     return '/';
   }
-  
+
   // Убираем trailing slash (кроме корня)
-  return pathname.endsWith('/') && pathname !== '/' 
-    ? pathname.slice(0, -1) 
+  return pathname.endsWith('/') && pathname !== '/'
+    ? pathname.slice(0, -1)
     : pathname;
 };
 
 // Функция для получения SEO из статьи блога
 const getBlogPostSEO = async (slug: string, baseUrl: string): Promise<any | null> => {
   try {
-    const result = await pool.query(
-      `SELECT title, excerpt, image_url, image_upload_path, author, category, tags
-       FROM blog_posts 
-       WHERE slug = $1 AND is_active = TRUE`,
-      [slug]
-    );
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .select('title, excerpt, image_url, image_upload_path, author, category, tags')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .single();
 
-    if (result.rows.length > 0) {
-      const post = result.rows[0];
+    if (error) {
+      // If not found or other error, return null usually (or log)
+      if (error.code !== 'PGRST116') {
+        console.error('Supabase error fetching blog post SEO:', error);
+      }
+      return null;
+    }
+
+    if (data) {
+      const post = data;
       const imageUrl = post.image_upload_path
         ? `${baseUrl}/uploads/blog/${post.image_upload_path}`
         : post.image_url || `${baseUrl}/uploads/default-blog.jpg`;
@@ -91,13 +96,14 @@ const getBlogPostSEO = async (slug: string, baseUrl: string): Promise<any | null
 const getSEOData = async (path: string, baseUrl: string): Promise<any> => {
   try {
     // Сначала проверяем, есть ли настройки в БД для этого пути
-    const result = await pool.query(
-      'SELECT * FROM seo_settings WHERE path = $1',
-      [path]
-    );
+    const { data: seoSettings, error } = await supabase
+      .from('seo_settings')
+      .select('*')
+      .eq('path', path)
+      .single();
 
-    if (result.rows.length > 0) {
-      return result.rows[0];
+    if (seoSettings) {
+      return seoSettings;
     }
 
     // Если это статья блога (/blog/:slug), пытаемся получить SEO из статьи
@@ -177,13 +183,13 @@ export const injectSeoMiddleware = async (
   try {
     // Получаем нормализованный путь (req.path уже содержит путь без query параметров)
     const normalizedPath = normalizePath(req.path || '/');
-    
+
     // Получаем базовый URL для canonical и og:url
     const protocol = req.protocol;
     const host = req.get('host');
     const baseUrl = `${protocol}://${host}`;
     const fullUrl = `${baseUrl}${normalizedPath}`;
-    
+
     // Получаем SEO данные (передаем baseUrl для генерации полных URL)
     const seo = await getSEOData(normalizedPath, baseUrl);
 
@@ -192,65 +198,65 @@ export const injectSeoMiddleware = async (
 
     // Заменяем мета-теги используя регулярные выражения для поиска атрибутов content
     // Это работает как с плейсхолдерами, так и с дефолтными значениями
-    
+
     // Title
     html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtml(seo.title)}</title>`);
-    
+
     // Description
-    html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta name="description" content="${escapeHtml(seo.description)}" />`);
-    
+
     // Keywords
     if (seo.keywords) {
-      html = html.replace(/<meta\s+name=["']keywords["']\s+content=["'][^"']*["']\s*\/?>/, 
+      html = html.replace(/<meta\s+name=["']keywords["']\s+content=["'][^"']*["']\s*\/?>/,
         `<meta name="keywords" content="${escapeHtml(seo.keywords)}" />`);
     }
-    
+
     // Robots
-    html = html.replace(/<meta\s+name=["']robots["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+name=["']robots["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta name="robots" content="${escapeHtml(seo.robots || 'index, follow')}" />`);
-    
+
     // Canonical URL
-    html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/,
       `<link rel="canonical" href="${escapeHtml(seo.canonical_url || fullUrl)}" />`);
-    
+
     // Open Graph Title
-    html = html.replace(/<meta\s+property=["']og:title["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+property=["']og:title["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta property="og:title" content="${escapeHtml(seo.og_title || seo.title)}" />`);
-    
+
     // Open Graph Description
-    html = html.replace(/<meta\s+property=["']og:description["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+property=["']og:description["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta property="og:description" content="${escapeHtml(seo.og_description || seo.description)}" />`);
-    
+
     // Open Graph Image
     if (seo.og_image) {
-      html = html.replace(/<meta\s+property=["']og:image["']\s+content=["'][^"']*["']\s*\/?>/, 
+      html = html.replace(/<meta\s+property=["']og:image["']\s+content=["'][^"']*["']\s*\/?>/,
         `<meta property="og:image" content="${escapeHtml(seo.og_image)}" />`);
     }
-    
+
     // Open Graph Type
-    html = html.replace(/<meta\s+property=["']og:type["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+property=["']og:type["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta property="og:type" content="${escapeHtml(seo.og_type || 'website')}" />`);
-    
+
     // Open Graph URL
-    html = html.replace(/<meta\s+property=["']og:url["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+property=["']og:url["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta property="og:url" content="${escapeHtml(seo.og_url || fullUrl)}" />`);
-    
+
     // Twitter Card
-    html = html.replace(/<meta\s+name=["']twitter:card["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+name=["']twitter:card["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta name="twitter:card" content="${escapeHtml(seo.twitter_card || 'summary_large_image')}" />`);
-    
+
     // Twitter Title
-    html = html.replace(/<meta\s+name=["']twitter:title["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+name=["']twitter:title["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta name="twitter:title" content="${escapeHtml(seo.twitter_title || seo.og_title || seo.title)}" />`);
-    
+
     // Twitter Description
-    html = html.replace(/<meta\s+name=["']twitter:description["']\s+content=["'][^"']*["']\s*\/?>/, 
+    html = html.replace(/<meta\s+name=["']twitter:description["']\s+content=["'][^"']*["']\s*\/?>/,
       `<meta name="twitter:description" content="${escapeHtml(seo.twitter_description || seo.og_description || seo.description)}" />`);
-    
+
     // Twitter Image
     if (seo.twitter_image) {
-      html = html.replace(/<meta\s+name=["']twitter:image["']\s+content=["'][^"']*["']\s*\/?>/, 
+      html = html.replace(/<meta\s+name=["']twitter:image["']\s+content=["'][^"']*["']\s*\/?>/,
         `<meta name="twitter:image" content="${escapeHtml(seo.twitter_image)}" />`);
     }
 

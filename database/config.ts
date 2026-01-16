@@ -1,47 +1,75 @@
 /**
  * Конфигурация подключения к базе данных
  * 
- * ВАЖНО: В продакшене используйте переменные окружения!
- * Не коммитьте .env файл с реальными паролями в репозиторий.
+ * Использует Supabase JS SDK - НЕ ТРЕБУЕТ ПАРОЛЯ БД!
+ * Работает через REST API с VITE_SUPABASE_ANON_KEY
  */
 
+import dotenv from 'dotenv';
+dotenv.config();
+
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Singleton для Supabase клиента
+let supabaseClient: SupabaseClient | null = null;
+
+/**
+ * Получить Supabase клиент
+ * Использует VITE_SUPABASE_URL и VITE_SUPABASE_ANON_KEY
+ */
+export function getSupabaseClient(): SupabaseClient {
+  if (supabaseClient) {
+    return supabaseClient;
+  }
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      'Supabase URL or Anon Key is missing. Please add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env'
+    );
+  }
+
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  return supabaseClient;
+}
+
+/**
+ * Экспортируем клиент для использования в контроллерах
+ */
+export const supabase = getSupabaseClient();
+
+/**
+ * Legacy: для обратной совместимости с pg Pool (если нужно)
+ * НЕ ИСПОЛЬЗУЕТСЯ с Supabase - оставлено для справки
+ */
 export interface DatabaseConfig {
   host: string;
   port: number;
   database: string;
   user: string;
   password: string;
-  ssl?: boolean;
+  ssl?: boolean | { rejectUnauthorized: boolean };
 }
 
-/**
- * Получение конфигурации из переменных окружения или значений по умолчанию
- */
 export function getDatabaseConfig(): DatabaseConfig {
-  return {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.DB_NAME || 'nail_mastery_hub',
-    user: process.env.DB_USER || 'nailmastery',
-    password: process.env.DB_PASSWORD || 'nailmastery123',
-    ssl: process.env.DB_SSL === 'true',
-  };
+  throw new Error(
+    'getDatabaseConfig() is deprecated. Use getSupabaseClient() instead.'
+  );
 }
 
-/**
- * Формирование connection string для PostgreSQL
- */
 export function getConnectionString(): string {
-  const config = getDatabaseConfig();
-  return `postgresql://${config.user}:${config.password}@${config.host}:${config.port}/${config.database}`;
+  throw new Error(
+    'getConnectionString() is deprecated. Use getSupabaseClient() instead.'
+  );
 }
 
 /**
- * Конфигурация для pgAdmin (для справки)
+ * Конфигурация для pgAdmin (только для локальной разработки)
  */
 export const pgAdminConfig = {
   url: process.env.PGADMIN_URL || 'http://localhost:5050',
   email: process.env.PGADMIN_EMAIL || 'admin@nailmastery.com',
   password: process.env.PGADMIN_PASSWORD || 'admin123',
 };
-

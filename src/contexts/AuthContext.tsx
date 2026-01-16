@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api, LoginResponse } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { Session } from '@supabase/supabase-js';
 
 interface Admin {
   id: number;
@@ -9,63 +10,86 @@ interface Admin {
 
 interface AuthContextType {
   admin: Admin | null;
+  session: Session | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [admin, setAdmin] = useState<Admin | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Проверяем, есть ли сохраненный токен
-    const token = localStorage.getItem('admin_token');
-    if (token) {
-      verifyAuth();
-    } else {
-      setIsLoading(false);
-    }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user?.email) {
+        checkAdminStatus(session.user.email);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // Listen for changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user?.email) {
+        checkAdminStatus(session.user.email);
+      } else {
+        setAdmin(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const verifyAuth = async () => {
-    try {
-      const response = await api.verifyToken();
-      if (response.valid && response.admin) {
-        setAdmin(response.admin);
-      } else {
-        localStorage.removeItem('admin_token');
-      }
-    } catch (error) {
-      localStorage.removeItem('admin_token');
-    } finally {
-      setIsLoading(false);
+  const checkAdminStatus = async (email: string) => {
+    // Hardcoded check to match RLS policies
+    // This removes dependency on the 'admins' table
+    if (email === 'nik.urs@icloud.com') {
+      setAdmin({
+        id: 1, // Dummy ID since we don't rely on DB table anymore for ID
+        email: email,
+        name: 'Admin'
+      });
+    } else {
+      console.warn('User is not authorized as admin:', email);
+      setAdmin(null);
     }
+    setIsLoading(false);
   };
 
   const login = async (email: string, password: string) => {
-    try {
-      const response: LoginResponse = await api.login(email, password);
-      localStorage.setItem('admin_token', response.token);
-      setAdmin(response.admin);
-    } catch (error) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
       throw error;
     }
+    // State update happens in onAuthStateChange
   };
 
-  const logout = () => {
-    localStorage.removeItem('admin_token');
+  const logout = async () => {
+    await supabase.auth.signOut();
     setAdmin(null);
-    api.logout().catch(console.error);
+    setSession(null);
   };
 
   return (
     <AuthContext.Provider
       value={{
         admin,
+        session,
         isAuthenticated: !!admin,
         isLoading,
         login,

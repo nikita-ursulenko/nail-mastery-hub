@@ -25,7 +25,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface TeamMember {
   id: number;
@@ -68,10 +69,16 @@ export default function AdminTeam() {
 
   const loadTeamMembers = async () => {
     try {
-      const data = await api.getTeamMembers();
-      setTeamMembers(data);
-    } catch (error) {
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setTeamMembers(data || []);
+    } catch (error: any) {
       console.error('Failed to load team members:', error);
+      toast.error('Ошибка при загрузке команды');
     } finally {
       setIsLoading(false);
     }
@@ -182,51 +189,79 @@ export default function AdminTeam() {
       // Если загружен файл, сначала загружаем его
       if (imageFile) {
         setIsUploading(true);
-        try {
-          const uploadResult = await api.uploadTeamImage(imageFile);
-          submitData.image_upload_path = uploadResult.filename;
-          submitData.image_url = null;
-        } catch (uploadError: any) {
-          alert(uploadError.message || 'Ошибка при загрузке файла');
-          setIsUploading(false);
-          return;
-        } finally {
-          setIsUploading(false);
-        }
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `team-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('general-assets')
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('general-assets')
+          .getPublicUrl(filePath);
+
+        submitData.image_upload_path = filePath;
+        submitData.image_url = publicUrl;
       } else if (!useUpload && formData.image_url) {
         // Если используется URL, очищаем путь к загруженному файлу
         submitData.image_url = formData.image_url;
         submitData.image_upload_path = null;
       } else if (formData.image_upload_path) {
-        // Используем существующий загруженный файл
+        // Keep existing from editingMember or form state
         submitData.image_upload_path = formData.image_upload_path;
-        submitData.image_url = null;
+        if (editingMember?.image_url) {
+          submitData.image_url = editingMember.image_url;
+        } else {
+          const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.image_upload_path);
+          submitData.image_url = publicUrl;
+        }
       } else {
         submitData.image_url = null;
         submitData.image_upload_path = null;
       }
 
       if (editingMember) {
-        await api.updateTeamMember(editingMember.id, submitData);
+        const { error } = await supabase
+          .from('team_members')
+          .update(submitData)
+          .eq('id', editingMember.id);
+        if (error) throw error;
+        toast.success('Член команды обновлен');
       } else {
-        await api.createTeamMember(submitData);
+        const { error } = await supabase
+          .from('team_members')
+          .insert([submitData]);
+        if (error) throw error;
+        toast.success('Член команды добавлен');
       }
       loadTeamMembers();
       handleCloseDialog();
     } catch (error: any) {
       console.error('Failed to save team member:', error);
-      alert(error.message || 'Ошибка при сохранении члена команды.');
+      toast.error(error.message || 'Ошибка при сохранении члена команды.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этого члена команды?')) {
       try {
-        await api.deleteTeamMember(id);
+        const { error } = await supabase
+          .from('team_members')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+
         loadTeamMembers();
-      } catch (error) {
+        toast.success('Член команды удален');
+      } catch (error: any) {
         console.error('Failed to delete team member:', error);
-        alert('Ошибка при удалении члена команды.');
+        toast.error('Ошибка при удалении члена команды.');
       }
     }
   };

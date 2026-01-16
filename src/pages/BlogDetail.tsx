@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BlogCard } from "@/components/blog/BlogCard";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { Helmet } from "react-helmet-async";
 import { StructuredData, createArticleSchema } from "@/components/seo/StructuredData";
 
@@ -46,16 +46,28 @@ export default function BlogDetail() {
   const loadBlogPost = async (slug: string) => {
     setIsLoading(true);
     try {
-      const data = await api.getPublicBlogPostBySlug(slug);
-      setPost(data);
-      
+      const { data: postData, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('slug', slug)
+        .eq('is_active', true)
+        .single();
+
+      if (error) throw error;
+      if (!postData) throw new Error('Post not found');
+
+      setPost(postData);
+
       // Загружаем похожие статьи из той же категории
-      const relatedResponse = await api.getPublicBlogPosts({ 
-        category: data.category,
-        featured: false 
-      });
-      const related = relatedResponse.posts || relatedResponse; // Поддержка старого формата
-      setRelatedPosts(related.filter((p: BlogPost) => p.slug !== slug).slice(0, 3));
+      const { data: relatedData } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('category', postData.category)
+        .eq('is_active', true)
+        .neq('slug', slug) // Exclude current post
+        .limit(3);
+
+      setRelatedPosts(relatedData || []);
     } catch (error) {
       console.error("Failed to load blog post:", error);
       setPost(null);
@@ -202,19 +214,19 @@ export default function BlogDetail() {
         <section className="py-8">
           <div className="container">
             <FadeInOnScroll>
-            <div className="mx-auto max-w-4xl">
-              <div className="overflow-hidden rounded-2xl shadow-elevated">
-                <img
-                  src={post.image_upload_path 
-                    ? `/uploads/blog/${post.image_upload_path}`
-                    : post.image_url || ""}
-                  alt={post.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="aspect-video w-full object-cover"
-                />
+              <div className="mx-auto max-w-4xl">
+                <div className="overflow-hidden rounded-2xl shadow-elevated">
+                  <img
+                    src={post.image_upload_path
+                      ? `/uploads/blog/${post.image_upload_path}`
+                      : post.image_url || ""}
+                    alt={post.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="aspect-video w-full object-cover"
+                  />
+                </div>
               </div>
-            </div>
             </FadeInOnScroll>
           </div>
         </section>
@@ -224,46 +236,46 @@ export default function BlogDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <div className="mx-auto max-w-3xl">
-            <article className="prose prose-lg max-w-none">
-              {(() => {
-                // Парсим content (JSON массив параграфов)
-                let paragraphs: string[] = [];
-                try {
-                  const parsed = JSON.parse(post.content);
-                  if (Array.isArray(parsed)) {
-                    paragraphs = parsed;
-                  } else {
+            <div className="mx-auto max-w-3xl">
+              <article className="prose prose-lg max-w-none">
+                {(() => {
+                  // Парсим content (JSON массив параграфов)
+                  let paragraphs: string[] = [];
+                  try {
+                    const parsed = JSON.parse(post.content);
+                    if (Array.isArray(parsed)) {
+                      paragraphs = parsed;
+                    } else {
+                      paragraphs = [post.content];
+                    }
+                  } catch (e) {
                     paragraphs = [post.content];
                   }
-                } catch (e) {
-                  paragraphs = [post.content];
-                }
-                return paragraphs.map((paragraph, index) => (
-                  <p
-                    key={index}
-                    className="mb-6 text-base leading-relaxed text-foreground lg:text-lg"
-                  >
-                    {paragraph}
-                  </p>
-                ));
-              })()}
-            </article>
+                  return paragraphs.map((paragraph, index) => (
+                    <p
+                      key={index}
+                      className="mb-6 text-base leading-relaxed text-foreground lg:text-lg"
+                    >
+                      {paragraph}
+                    </p>
+                  ));
+                })()}
+              </article>
 
-            {/* Tags */}
-            {post.tags && post.tags.length > 0 && (
-              <div className="mt-12 flex flex-wrap gap-2 border-t pt-8">
-                <span className="mr-2 text-sm font-medium text-muted-foreground">
-                  Теги:
-                </span>
-                {post.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="cursor-pointer hover:bg-primary/10">
-                    #{tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
+              {/* Tags */}
+              {post.tags && post.tags.length > 0 && (
+                <div className="mt-12 flex flex-wrap gap-2 border-t pt-8">
+                  <span className="mr-2 text-sm font-medium text-muted-foreground">
+                    Теги:
+                  </span>
+                  {post.tags.map((tag) => (
+                    <Badge key={tag} variant="outline" className="cursor-pointer hover:bg-primary/10">
+                      #{tag}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </FadeInOnScroll>
         </div>
       </section>
@@ -272,38 +284,38 @@ export default function BlogDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <div className="mx-auto max-w-3xl">
-            <Card variant="elevated">
-              <CardContent className="p-6 lg:p-8">
+            <div className="mx-auto max-w-3xl">
+              <Card variant="elevated">
+                <CardContent className="p-6 lg:p-8">
                   <div className="flex flex-col gap-6 sm:flex-row">
-                  {(post.author_avatar || post.author_avatar_upload_path) && (
-                    <img
-                      src={post.author_avatar || (post.author_avatar_upload_path
-                        ? `/uploads/avatars/${post.author_avatar_upload_path}`
-                        : "")}
-                      alt={post.author}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-24 w-24 shrink-0 rounded-full object-cover"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <h3 className="mb-2 font-display text-2xl font-semibold">
-                      {post.author}
-                    </h3>
-                    {post.author_bio && (
-                      <p className="mb-4 text-muted-foreground">
-                        {post.author_bio}
-                      </p>
+                    {(post.author_avatar || post.author_avatar_upload_path) && (
+                      <img
+                        src={post.author_avatar || (post.author_avatar_upload_path
+                          ? `/uploads/avatars/${post.author_avatar_upload_path}`
+                          : "")}
+                        alt={post.author}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-24 w-24 shrink-0 rounded-full object-cover"
+                      />
                     )}
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to="/about">Все статьи автора</Link>
-                    </Button>
+                    <div className="flex-1">
+                      <h3 className="mb-2 font-display text-2xl font-semibold">
+                        {post.author}
+                      </h3>
+                      {post.author_bio && (
+                        <p className="mb-4 text-muted-foreground">
+                          {post.author_bio}
+                        </p>
+                      )}
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to="/about">Все статьи автора</Link>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>
           </FadeInOnScroll>
         </div>
       </section>
@@ -313,14 +325,14 @@ export default function BlogDetail() {
         <section className="py-12 lg:py-16">
           <div className="container">
             <FadeInOnScroll>
-            <div className="mb-12">
-              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                Похожие статьи
-              </h2>
-              <p className="text-muted-foreground">
-                Рекомендуем к прочтению
-              </p>
-            </div>
+              <div className="mb-12">
+                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                  Похожие статьи
+                </h2>
+                <p className="text-muted-foreground">
+                  Рекомендуем к прочтению
+                </p>
+              </div>
             </FadeInOnScroll>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -335,22 +347,22 @@ export default function BlogDetail() {
                 });
                 return (
                   <FadeInOnScroll key={relatedPost.id} delay={index * 100} className="h-full">
-                  <BlogCard
-                    id={relatedPost.slug}
-                    title={relatedPost.title}
-                    excerpt={relatedPost.excerpt}
-                    image={imageUrl}
-                    author={relatedPost.author}
-                    authorAvatar={
-                      relatedPost.author_avatar_upload_path
-                        ? `/uploads/avatars/${relatedPost.author_avatar_upload_path}`
-                        : relatedPost.author_avatar || undefined
-                    }
-                    date={formattedDate}
-                    readTime={relatedPost.read_time}
-                    category={relatedPost.category}
-                    featured={relatedPost.featured}
-                  />
+                    <BlogCard
+                      id={relatedPost.slug}
+                      title={relatedPost.title}
+                      excerpt={relatedPost.excerpt}
+                      image={imageUrl}
+                      author={relatedPost.author}
+                      authorAvatar={
+                        relatedPost.author_avatar_upload_path
+                          ? `/uploads/avatars/${relatedPost.author_avatar_upload_path}`
+                          : relatedPost.author_avatar || undefined
+                      }
+                      date={formattedDate}
+                      readTime={relatedPost.read_time}
+                      category={relatedPost.category}
+                      featured={relatedPost.featured}
+                    />
                   </FadeInOnScroll>
                 );
               })}
@@ -363,29 +375,29 @@ export default function BlogDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
-              Хотите узнать больше?
-            </h2>
-            <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
-              Присоединяйтесь к нашим курсам и станьте профессиональным мастером маникюра
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="lg" asChild>
-                <Link to="/courses">
-                  Посмотреть курсы
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                asChild
-              >
-                <Link to="/blog">Больше статей</Link>
-              </Button>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
+                Хотите узнать больше?
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
+                Присоединяйтесь к нашим курсам и станьте профессиональным мастером маникюра
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="lg" asChild>
+                  <Link to="/courses">
+                    Посмотреть курсы
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  asChild
+                >
+                  <Link to="/blog">Больше статей</Link>
+                </Button>
+              </div>
             </div>
-          </div>
           </FadeInOnScroll>
         </div>
       </section>

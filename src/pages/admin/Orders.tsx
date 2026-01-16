@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Search, ShoppingCart, DollarSign, TrendingUp, Calendar } from 'lucide-react';
-import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   Select,
@@ -22,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { supabase } from '@/lib/supabase';
 
 interface Order {
   id: number;
@@ -65,16 +65,69 @@ export default function AdminOrders() {
   const loadOrders = async () => {
     try {
       setIsLoading(true);
-      const response = await api.getOrders({
-        search: searchQuery || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        payment_status: 'paid',
-        limit: 50,
-        offset: 0,
+
+      let query = supabase
+        .from('enrollments')
+        .select(`
+            *,
+            user:users!inner(id, name, email),
+            course:courses(id, slug, title, image_url),
+            tariff:course_tariffs(id, name, tariff_type, price)
+        `, { count: 'exact' })
+        .eq('payment_status', 'paid')
+        .order('created_at', { ascending: false });
+
+      if (statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      if (searchQuery) {
+        // Note: Full text search across relations is tricky. 
+        // We can try to filter by fields if possible, or use simple filter.
+        // Using !inner on user allows filtering.
+        // syntax: user.email.ilike.%q%
+        // BUT .or() with nested columns is limited.
+        // For now, let's search by user email OR name.
+        // Supabase allows: .or('email.ilike.%idx%,name.ilike.%idx%', { foreignTable: 'users' }) ? No.
+        // Filter embedding: .filter('user.name', 'ilike', `%${searchQuery}%`) works if inner joined.
+        // But OR is hard across tables.
+        // Let's rely on basic email search or ID search if possible.
+        // Actually, let's try to fetch normally and filter if complex, OR just search user email.
+        query = query.ilike('user.email', `%${searchQuery}%`);
+      }
+
+      const { data, count, error } = await query;
+
+      if (error) throw error;
+
+      // Transform data to match Order interface
+      const formattedOrders: Order[] = (data || []).map((item: any) => {
+        return {
+          id: item.id,
+          purchased_at: item.purchased_at || item.created_at,
+          payment_status: item.payment_status,
+          amount_paid: item.amount_paid,
+          payment_id: item.payment_id,
+          enrollment_status: item.status,
+          user: item.user,
+          course: item.course,
+          tariff: item.tariff ? {
+            id: item.tariff.id,
+            name: item.tariff.name,
+            type: item.tariff.tariff_type || 'unknown',
+            price: item.tariff.price
+          } : {
+            id: 0,
+            name: 'Unknown',
+            type: 'unknown',
+            price: item.amount_paid || 0
+          }
+        };
       });
-      setOrders(response.orders);
-      setTotal(response.total);
-    } catch (error) {
+
+      setOrders(formattedOrders);
+      setTotal(count || 0);
+    } catch (error: any) {
       console.error('Failed to load orders:', error);
       toast.error('Ошибка при загрузке заказов');
     } finally {
@@ -84,8 +137,48 @@ export default function AdminOrders() {
 
   const loadStats = async () => {
     try {
-      const statsData = await api.getOrdersStats();
-      setStats(statsData);
+      // Fetch all paid enrollments (lightweight)
+      const { data, error } = await supabase
+        .from('enrollments')
+        .select('amount_paid, created_at')
+        .eq('payment_status', 'paid');
+
+      if (error) throw error;
+
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      let totalRevenue = 0;
+      let totalOrders = data?.length || 0;
+      let todayOrders = 0;
+      let todayRevenue = 0;
+      let weekOrders = 0;
+      let weekRevenue = 0;
+
+      data?.forEach(order => {
+        const amount = Number(order.amount_paid) || 0;
+        const date = new Date(order.created_at);
+
+        totalRevenue += amount;
+
+        if (date >= startOfToday) {
+          todayOrders++;
+          todayRevenue += amount;
+        }
+        if (date >= startOfWeek) {
+          weekOrders++;
+          weekRevenue += amount;
+        }
+      });
+
+      setStats({
+        totalOrders,
+        totalRevenue,
+        today: { orders: todayOrders, revenue: todayRevenue },
+        week: { orders: weekOrders, revenue: weekRevenue }
+      });
+
     } catch (error) {
       console.error('Failed to load stats:', error);
     }
@@ -104,7 +197,7 @@ export default function AdminOrders() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ru-RU', {
       style: 'currency',
-      currency: 'EUR',
+      currency: 'EUR', // Assuming EUR based on previous code
     }).format(amount);
   };
 
@@ -184,7 +277,7 @@ export default function AdminOrders() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Поиск по пользователю, email или курсу..."
+                  placeholder="Поиск по email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -242,15 +335,15 @@ export default function AdminOrders() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{order.user.name}</div>
+                          <div className="font-medium">{order.user?.name || 'Unknown'}</div>
                           <div className="text-sm text-muted-foreground">
-                            {order.user.email}
+                            {order.user?.email || 'Unknown'}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          {order.course.image_url ? (
+                          {order.course?.image_url ? (
                             <img
                               src={order.course.image_url}
                               alt={order.course.title}
@@ -265,15 +358,15 @@ export default function AdminOrders() {
                             </div>
                           )}
                           <div>
-                            <div className="font-medium">{order.course.title}</div>
+                            <div className="font-medium">{order.course?.title || 'Unknown'}</div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{order.tariff.name}</Badge>
+                        <Badge variant="outline">{order.tariff?.name || 'Unknown'}</Badge>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(order.amount_paid || order.tariff.price)}
+                        {formatCurrency(order.amount_paid || order.tariff?.price || 0)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -281,15 +374,15 @@ export default function AdminOrders() {
                             order.enrollment_status === 'active'
                               ? 'default'
                               : order.enrollment_status === 'completed'
-                              ? 'secondary'
-                              : 'destructive'
+                                ? 'secondary'
+                                : 'destructive'
                           }
                         >
                           {order.enrollment_status === 'active'
                             ? 'Активен'
                             : order.enrollment_status === 'completed'
-                            ? 'Завершен'
-                            : order.enrollment_status}
+                              ? 'Завершен'
+                              : order.enrollment_status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground font-mono">

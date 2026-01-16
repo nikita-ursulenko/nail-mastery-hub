@@ -45,7 +45,7 @@ export function CourseCard({
   isNew,
 }: CourseCardProps) {
   // Fallback изображение, если нет загруженного
-  const imageSrc = image || "https://via.placeholder.com/400x300?text=Course";
+  const imageSrc = image || `https://placehold.co/400x300?text=${encodeURIComponent(title)}`;
 
   return (
     <Card variant="course" className="group flex h-full flex-col">
@@ -58,7 +58,7 @@ export function CourseCard({
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
           onError={(e) => {
             // Если изображение не загрузилось, используем placeholder
-            (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x300?text=Course";
+            (e.target as HTMLImageElement).src = `https://placehold.co/400x300?text=${encodeURIComponent(title)}`;
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />

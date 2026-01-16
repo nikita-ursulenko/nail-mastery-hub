@@ -1,7 +1,4 @@
-import { Pool } from 'pg';
-import { getDatabaseConfig } from '../../database/config';
-
-const pool = new Pool(getDatabaseConfig());
+import { supabase } from '../../database/config';
 
 /**
  * Генерирует случайный реферальный код из 8 символов (буквы + цифры)
@@ -10,11 +7,11 @@ const pool = new Pool(getDatabaseConfig());
 export function generateReferralCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let code = '';
-  
+
   for (let i = 0; i < 8; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  
+
   return code;
 }
 
@@ -27,7 +24,7 @@ export function validateReferralCode(code: string): boolean {
   if (!code || code.length !== 8) {
     return false;
   }
-  
+
   const regex = /^[A-Z0-9]{8}$/;
   return regex.test(code);
 }
@@ -39,11 +36,17 @@ export function validateReferralCode(code: string): boolean {
  */
 export async function checkCodeUniqueness(code: string): Promise<boolean> {
   try {
-    const result = await pool.query(
-      'SELECT id FROM referral_partners WHERE referral_code = $1',
-      [code]
-    );
-    return result.rows.length === 0;
+    const { data, error } = await supabase
+      .from('referral_partners')
+      .select('id')
+      .eq('referral_code', code);
+
+    if (error) {
+      console.error('Supabase error checking uniqueness:', error);
+      return false; // Assume not unique on error to be safe? Or valid? assume occupied to prompt retry.
+    }
+
+    return !data || data.length === 0;
   } catch (error) {
     console.error('Error checking code uniqueness:', error);
     return false;
@@ -60,12 +63,12 @@ export async function generateUniqueReferralCode(maxAttempts: number = 10): Prom
   for (let i = 0; i < maxAttempts; i++) {
     const code = generateReferralCode();
     const isUnique = await checkCodeUniqueness(code);
-    
+
     if (isUnique) {
       return code;
     }
   }
-  
+
   // Если не удалось сгенерировать за maxAttempts попыток, выбрасываем ошибку
   throw new Error('Не удалось сгенерировать уникальный реферальный код');
 }

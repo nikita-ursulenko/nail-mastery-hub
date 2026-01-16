@@ -1,14 +1,11 @@
 import { Request, Response } from 'express';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
 import { generateUniqueReferralCode } from '../utils/referralCodeGenerator';
-import { calculatePartnerLevel } from '../utils/referralLevel';
 
-const pool = new Pool(getDatabaseConfig());
 const REFERRAL_JWT_SECRET = process.env.REFERRAL_JWT_SECRET || process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 interface RegisterBody {
@@ -39,12 +36,13 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
   }
 
   // Проверка, существует ли партнер
-  const existingPartner = await pool.query(
-    'SELECT id FROM referral_partners WHERE email = $1',
-    [email]
-  );
-  
-  if (existingPartner.rows.length > 0) {
+  const { data: existingPartner } = await supabase
+    .from('referral_partners')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existingPartner) {
     throw new AppError('Партнер с таким email уже существует', 409);
   }
 
@@ -55,15 +53,22 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
   const referralCode = await generateUniqueReferralCode();
 
   // Создание партнера
-  const result = await pool.query(
-    `INSERT INTO referral_partners (email, password_hash, name, phone, referral_code, level)
-     VALUES ($1, $2, $3, $4, $5, 'novice')
-     RETURNING id, email, name, phone, referral_code, total_earnings, current_balance, 
-               withdrawn_amount, is_active, level, created_at`,
-    [email, passwordHash, name, phone || null, referralCode]
-  );
+  const { data: partner, error } = await supabase
+    .from('referral_partners')
+    .insert([
+      {
+        email,
+        password_hash: passwordHash,
+        name,
+        phone: phone || null,
+        referral_code: referralCode,
+        level: 'novice'
+      }
+    ])
+    .select('id, email, name, phone, referral_code, total_earnings, current_balance, withdrawn_amount, is_active, level, created_at')
+    .single();
 
-  const partner = result.rows[0];
+  if (error || !partner) throw error;
 
   // Генерация JWT токена
   const token = jwt.sign(
@@ -75,16 +80,10 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
   res.status(201).json({
     token,
     partner: {
-      id: partner.id,
-      email: partner.email,
-      name: partner.name,
-      phone: partner.phone,
-      referral_code: partner.referral_code,
-      total_earnings: parseFloat(partner.total_earnings),
-      current_balance: parseFloat(partner.current_balance),
-      withdrawn_amount: parseFloat(partner.withdrawn_amount),
-      is_active: partner.is_active,
-      level: partner.level,
+      ...partner,
+      total_earnings: parseFloat(partner.total_earnings as any),
+      current_balance: parseFloat(partner.current_balance as any),
+      withdrawn_amount: parseFloat(partner.withdrawn_amount as any),
     },
   });
 });
@@ -100,18 +99,15 @@ export const login = asyncHandler(async (req: Request<{}, {}, LoginBody>, res: R
   }
 
   // Поиск партнера
-  const result = await pool.query(
-    `SELECT id, email, password_hash, name, phone, referral_code, total_earnings, 
-            current_balance, withdrawn_amount, is_active, level 
-     FROM referral_partners WHERE email = $1`,
-    [email]
-  );
+  const { data: partner, error } = await supabase
+    .from('referral_partners')
+    .select('id, email, password_hash, name, phone, referral_code, total_earnings, current_balance, withdrawn_amount, is_active, level')
+    .eq('email', email)
+    .maybeSingle();
 
-  if (result.rows.length === 0) {
+  if (error || !partner) {
     throw new AppError('Неверный email или пароль', 401);
   }
-
-  const partner = result.rows[0];
 
   // Проверка активности
   if (!partner.is_active) {
@@ -134,16 +130,10 @@ export const login = asyncHandler(async (req: Request<{}, {}, LoginBody>, res: R
   res.json({
     token,
     partner: {
-      id: partner.id,
-      email: partner.email,
-      name: partner.name,
-      phone: partner.phone,
-      referral_code: partner.referral_code,
-      total_earnings: parseFloat(partner.total_earnings),
-      current_balance: parseFloat(partner.current_balance),
-      withdrawn_amount: parseFloat(partner.withdrawn_amount),
-      is_active: partner.is_active,
-      level: partner.level,
+      ...partner,
+      total_earnings: parseFloat(partner.total_earnings as any),
+      current_balance: parseFloat(partner.current_balance as any),
+      withdrawn_amount: parseFloat(partner.withdrawn_amount as any),
     },
   });
 });
@@ -152,8 +142,6 @@ export const login = asyncHandler(async (req: Request<{}, {}, LoginBody>, res: R
  * Проверка токена реферала
  */
 export const verifyToken = asyncHandler(async (req: Request, res: Response) => {
-  // Если middleware authenticateReferralToken прошел, значит токен валидный
-  // req.referral уже установлен в middleware
   const referral = (req as any).referral;
 
   if (!referral) {
@@ -161,32 +149,23 @@ export const verifyToken = asyncHandler(async (req: Request, res: Response) => {
   }
 
   // Получаем полную информацию о партнере
-  const result = await pool.query(
-    `SELECT id, email, name, phone, referral_code, total_earnings, 
-            current_balance, withdrawn_amount, is_active, level 
-     FROM referral_partners WHERE id = $1`,
-    [referral.id]
-  );
+  const { data: partner, error } = await supabase
+    .from('referral_partners')
+    .select('id, email, name, phone, referral_code, total_earnings, current_balance, withdrawn_amount, is_active, level')
+    .eq('id', referral.id)
+    .single();
 
-  if (result.rows.length === 0) {
+  if (error || !partner) {
     throw new AppError('Партнер не найден', 404);
   }
-
-  const partner = result.rows[0];
 
   res.json({
     valid: true,
     partner: {
-      id: partner.id,
-      email: partner.email,
-      name: partner.name,
-      phone: partner.phone,
-      referral_code: partner.referral_code,
-      total_earnings: parseFloat(partner.total_earnings),
-      current_balance: parseFloat(partner.current_balance),
-      withdrawn_amount: parseFloat(partner.withdrawn_amount),
-      is_active: partner.is_active,
-      level: partner.level,
+      ...partner,
+      total_earnings: parseFloat(partner.total_earnings as any),
+      current_balance: parseFloat(partner.current_balance as any),
+      withdrawn_amount: parseFloat(partner.withdrawn_amount as any),
     },
   });
 });

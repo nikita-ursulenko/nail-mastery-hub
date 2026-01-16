@@ -1,46 +1,49 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
-
-const pool = new Pool(getDatabaseConfig());
 
 // Получить курсы пользователя
 export const getUserEnrollments = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
-  
-  const result = await pool.query(
-    `SELECT 
-      e.id as enrollment_id,
-      e.status,
-      e.progress_percent,
-      e.lessons_completed,
-      e.total_lessons,
-      e.purchased_at,
-      e.payment_status,
-      e.amount_paid,
-      c.id as course_id,
-      c.slug,
-      c.title,
-      c.subtitle,
-      c.image_url,
-      c.image_upload_path,
-      ct.id as tariff_id,
-      ct.name as tariff_name,
-      ct.tariff_type,
-      ct.price
-    FROM enrollments e
-    JOIN courses c ON e.course_id = c.id
-    JOIN course_tariffs ct ON e.tariff_id = ct.id
-    WHERE e.user_id = $1
-    ORDER BY e.purchased_at DESC`,
-    [userId]
-  );
 
-  const enrollments = result.rows.map((row: any) => ({
-    enrollment_id: row.enrollment_id,
+  const { data: enrollments, error } = await supabase
+    .from('enrollments')
+    .select(`
+      id,
+      status,
+      progress_percent,
+      lessons_completed,
+      total_lessons,
+      purchased_at,
+      payment_status,
+      amount_paid,
+      course:courses (
+        id,
+        slug,
+        title,
+        subtitle,
+        image_url,
+        image_upload_path
+      ),
+      tariff:course_tariffs (
+        id,
+        name,
+        tariff_type,
+        price
+      )
+    `)
+    .eq('user_id', userId)
+    .order('purchased_at', { ascending: false });
+
+  if (error) {
+    console.error('Supabase error fetching enrollments:', error);
+    throw new AppError('Ошибка при получении курсов пользователя', 500);
+  }
+
+  const formattedEnrollments = (enrollments || []).map((row: any) => ({
+    enrollment_id: row.id,
     status: row.status,
     progress_percent: row.progress_percent,
     lessons_completed: row.lessons_completed,
@@ -49,31 +52,28 @@ export const getUserEnrollments = asyncHandler(async (req: AuthRequest, res: Res
     payment_status: row.payment_status,
     amount_paid: row.amount_paid,
     course: {
-      id: row.course_id,
-      slug: row.slug,
-      title: row.title,
-      subtitle: row.subtitle,
+      id: row.course.id,
+      slug: row.course.slug,
+      title: row.course.title,
+      subtitle: row.course.subtitle,
       image_url: (() => {
-        if (row.image_upload_path) {
-          // Если путь уже полный (начинается с /uploads/), используем как есть
-          if (row.image_upload_path.startsWith('/uploads/')) {
-            return row.image_upload_path;
-          }
-          // Если путь неполный (только имя файла), добавляем префикс /uploads/
-          return `/uploads/${row.image_upload_path}`;
+        const path = row.course.image_upload_path;
+        if (path) {
+          if (path.startsWith('/uploads/')) return path;
+          return `/uploads/${path}`;
         }
-        return row.image_url || null;
+        return row.course.image_url || null;
       })(),
     },
     tariff: {
-      id: row.tariff_id,
-      name: row.tariff_name,
-      type: row.tariff_type,
-      price: row.price,
+      id: row.tariff.id,
+      name: row.tariff.name,
+      type: row.tariff.tariff_type,
+      price: row.tariff.price,
     },
   }));
 
-  res.json({ enrollments });
+  res.json({ enrollments: formattedEnrollments });
 });
 
 // Добавить курс пользователю
@@ -86,70 +86,109 @@ export const addUserEnrollment = asyncHandler(async (req: AuthRequest, res: Resp
   }
 
   // Проверяем, что пользователь существует
-  const userCheck = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
-  if (userCheck.rows.length === 0) {
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !user) {
     throw new AppError('Пользователь не найден', 404);
   }
 
-  // Проверяем, что курс и тариф существуют
-  const courseCheck = await pool.query(
-    'SELECT id FROM courses WHERE id = $1 AND is_active = TRUE',
-    [courseId]
-  );
-  if (courseCheck.rows.length === 0) {
+  // Проверяем, что курс существует
+  const { data: course, error: courseError } = await supabase
+    .from('courses')
+    .select('id')
+    .eq('id', courseId)
+    .eq('is_active', true)
+    .single();
+
+  if (courseError || !course) {
     throw new AppError('Курс не найден', 404);
   }
 
-  const tariffCheck = await pool.query(
-    'SELECT id, price FROM course_tariffs WHERE id = $1 AND course_id = $2 AND is_active = TRUE',
-    [tariffId, courseId]
-  );
-  if (tariffCheck.rows.length === 0) {
+  // Проверяем тариф
+  const { data: tariff, error: tariffError } = await supabase
+    .from('course_tariffs')
+    .select('id, price')
+    .eq('id', tariffId)
+    .eq('course_id', courseId)
+    .eq('is_active', true)
+    .single();
+
+  if (tariffError || !tariff) {
     throw new AppError('Тариф не найден', 404);
   }
 
-  const tariff = tariffCheck.rows[0];
-
-  // Проверяем, не существует ли уже enrollment
-  const existingEnrollment = await pool.query(
-    'SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2',
-    [userId, courseId]
-  );
+  // Проверяем существование enrollment
+  const { data: existingEnrollment } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .single();
 
   // Получаем количество уроков
-  const lessonsResult = await pool.query(
-    `SELECT COUNT(*) as total
-     FROM course_lessons cl
-     JOIN course_modules cm ON cl.module_id = cm.id
-     WHERE cm.course_id = $1`,
-    [courseId]
-  );
-  const totalLessons = parseInt(lessonsResult.rows[0]?.total || '0');
+  const { count: totalLessons } = await supabase
+    .from('course_lessons')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_preview', false); // Approximation if modules not linked directly in supbase query easily
+  // Better logic: replicate join Logic
 
-  if (existingEnrollment.rows.length > 0) {
-    // Обновляем существующий enrollment
-    await pool.query(
-      `UPDATE enrollments 
-       SET tariff_id = $1,
-           payment_status = 'paid',
-           amount_paid = $2,
-           status = 'active',
-           purchased_at = NOW(),
-           started_at = NOW(),
-           updated_at = NOW()
-       WHERE user_id = $3 AND course_id = $4`,
-      [tariffId, tariff.price, userId, courseId]
-    );
+  // Alternative for total lessons query:
+  // Using direct SQL replacement is hard. Let's simplify or skip exact count if not critical, 
+  // OR fetch all modules and sum lessons.
+
+  const { data: modules } = await supabase
+    .from('course_modules')
+    .select('id')
+    .eq('course_id', courseId);
+
+  let calculatedTotal = 0;
+  if (modules && modules.length > 0) {
+    const moduleIds = modules.map(m => m.id);
+    const { count } = await supabase
+      .from('course_lessons')
+      .select('id', { count: 'exact', head: true })
+      .in('module_id', moduleIds);
+    calculatedTotal = count || 0;
+  }
+
+  if (existingEnrollment) {
+    // Update
+    const { error: updateError } = await supabase
+      .from('enrollments')
+      .update({
+        tariff_id: tariffId,
+        payment_status: 'paid',
+        amount_paid: tariff.price,
+        status: 'active',
+        purchased_at: new Date().toISOString(),
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .eq('course_id', courseId);
+
+    if (updateError) throw new AppError('Ошибка при обновлении курса', 500);
   } else {
-    // Создаем новый enrollment
-    await pool.query(
-      `INSERT INTO enrollments (
-        user_id, course_id, tariff_id,
-        payment_status, amount_paid,
-        status, purchased_at, started_at, total_lessons
-      ) VALUES ($1, $2, $3, 'paid', $4, 'active', NOW(), NOW(), $5)`,
-      [userId, courseId, tariffId, tariff.price, totalLessons]
-    );
+    // Insert
+    const { error: insertError } = await supabase
+      .from('enrollments')
+      .insert({
+        user_id: userId,
+        course_id: courseId,
+        tariff_id: tariffId,
+        payment_status: 'paid',
+        amount_paid: tariff.price,
+        status: 'active',
+        purchased_at: new Date().toISOString(),
+        started_at: new Date().toISOString(),
+        total_lessons: calculatedTotal
+      });
+
+    if (insertError) throw new AppError('Ошибка при добавлении курса', 500);
   }
 
   res.json({ message: 'Курс успешно добавлен пользователю' });
@@ -159,16 +198,15 @@ export const addUserEnrollment = asyncHandler(async (req: AuthRequest, res: Resp
 export const removeUserEnrollment = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { userId, enrollmentId } = req.params;
 
-  // Проверяем, что enrollment принадлежит пользователю
-  const enrollmentCheck = await pool.query(
-    'SELECT id FROM enrollments WHERE id = $1 AND user_id = $2',
-    [enrollmentId, userId]
-  );
-  if (enrollmentCheck.rows.length === 0) {
-    throw new AppError('Запись на курс не найдена', 404);
-  }
+  const { error } = await supabase
+    .from('enrollments')
+    .delete()
+    .eq('id', enrollmentId)
+    .eq('user_id', userId);
 
-  await pool.query('DELETE FROM enrollments WHERE id = $1', [enrollmentId]);
+  if (error) {
+    throw new AppError('Ошибка при удалении курса', 500);
+  }
 
   res.json({ message: 'Курс успешно удален у пользователя' });
 });
@@ -182,37 +220,46 @@ export const updateUserEnrollmentTariff = asyncHandler(async (req: AuthRequest, 
     throw new AppError('tariffId обязателен', 400);
   }
 
-  // Проверяем, что enrollment принадлежит пользователю
-  const enrollmentCheck = await pool.query(
-    'SELECT course_id FROM enrollments WHERE id = $1 AND user_id = $2',
-    [enrollmentId, userId]
-  );
-  if (enrollmentCheck.rows.length === 0) {
+  // Get current enrollment to find course_id
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('enrollments')
+    .select('course_id')
+    .eq('id', enrollmentId)
+    .eq('user_id', userId)
+    .single();
+
+  if (enrollmentError || !enrollment) {
     throw new AppError('Запись на курс не найдена', 404);
   }
 
-  const courseId = enrollmentCheck.rows[0].course_id;
+  const courseId = enrollment.course_id;
 
-  // Проверяем, что тариф существует и принадлежит курсу
-  const tariffCheck = await pool.query(
-    'SELECT id, price FROM course_tariffs WHERE id = $1 AND course_id = $2 AND is_active = TRUE',
-    [tariffId, courseId]
-  );
-  if (tariffCheck.rows.length === 0) {
+  // Check tariff
+  const { data: tariff, error: tariffError } = await supabase
+    .from('course_tariffs')
+    .select('id, price')
+    .eq('id', tariffId)
+    .eq('course_id', courseId)
+    .eq('is_active', true)
+    .single();
+
+  if (tariffError || !tariff) {
     throw new AppError('Тариф не найден', 404);
   }
 
-  const tariff = tariffCheck.rows[0];
+  // Update
+  const { error: updateError } = await supabase
+    .from('enrollments')
+    .update({
+      tariff_id: tariffId,
+      amount_paid: tariff.price,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', enrollmentId);
 
-  // Обновляем тариф
-  await pool.query(
-    `UPDATE enrollments 
-     SET tariff_id = $1,
-         amount_paid = $2,
-         updated_at = NOW()
-     WHERE id = $3`,
-    [tariffId, tariff.price, enrollmentId]
-  );
+  if (updateError) {
+    throw new AppError('Ошибка при обновлении тарифа', 500);
+  }
 
   res.json({ message: 'Тариф успешно изменен' });
 });

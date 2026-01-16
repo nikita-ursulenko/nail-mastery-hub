@@ -6,11 +6,9 @@ import { getTeamMembers } from '../controllers/teamController';
 import { getBlogPosts, getBlogPostBySlug } from '../controllers/blogController';
 import { getPublicCourses, getPublicCourseBySlug } from '../controllers/coursesController';
 import { cacheMiddleware } from '../middleware/cache';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 
 const router = express.Router();
-const pool = new Pool(getDatabaseConfig()); // Один Pool для всех запросов
 
 // Публичные роуты (без авторизации) с кэшированием
 // Кэш на 5 минут для статических данных
@@ -26,34 +24,37 @@ router.get('/courses/:slug', cacheMiddleware(5 * 60 * 1000), getPublicCourseBySl
 // SEO route для получения SEO данных по пути (для SEOUpdater компонента)
 router.get('/seo/*', async (req, res) => {
   try {
-    const path = req.params[0] || '/';
+    const params = req.params as any;
+    const path = params[0] || '/';
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    
+
     // Проверяем БД
-    const result = await pool.query(
-      'SELECT * FROM seo_settings WHERE path = $1',
-      [normalizedPath]
-    );
-    
-    if (result.rows.length > 0) {
-      return res.json(result.rows[0]);
+    const { data: seoSettings, error } = await supabase
+      .from('seo_settings')
+      .select('*')
+      .eq('path', normalizedPath)
+      .single();
+
+    if (seoSettings) {
+      return res.json(seoSettings);
     }
-    
+
     // Если это статья блога, генерируем SEO
     if (normalizedPath.startsWith('/blog/') && normalizedPath !== '/blog') {
       const slug = normalizedPath.replace('/blog/', '');
-      const blogResult = await pool.query(
-        'SELECT title, excerpt, image_url, image_upload_path FROM blog_posts WHERE slug = $1 AND is_active = TRUE',
-        [slug]
-      );
-      
-      if (blogResult.rows.length > 0) {
-        const post = blogResult.rows[0];
+      const { data: post, error: blogError } = await supabase
+        .from('blog_posts')
+        .select('title, excerpt, image_url, image_upload_path')
+        .eq('slug', slug)
+        .eq('is_active', true)
+        .single();
+
+      if (post) {
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         const imageUrl = post.image_upload_path
           ? `${baseUrl}/uploads/blog/${post.image_upload_path}`
           : post.image_url || '';
-        
+
         return res.json({
           title: `${post.title} | NailArt Academy`,
           description: post.excerpt || post.title,
@@ -71,7 +72,7 @@ router.get('/seo/*', async (req, res) => {
         });
       }
     }
-    
+
     // Дефолтные значения (если SEO не найдено в БД)
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     res.json({
@@ -92,6 +93,7 @@ router.get('/seo/*', async (req, res) => {
   } catch (error: any) {
     // В случае ошибки возвращаем дефолтные значения, чтобы не ломать сайт
     const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const params = req.params as any;
     res.json({
       title: 'NailArt Academy — Онлайн-курсы маникюра',
       description: 'Онлайн-школа маникюра для начинающих и профессионалов',
@@ -99,8 +101,8 @@ router.get('/seo/*', async (req, res) => {
       og_description: 'Онлайн-школа маникюра для начинающих и профессионалов',
       og_image: 'https://lovable.dev/opengraph-image-p98pqg.png',
       og_type: 'website',
-      og_url: `${baseUrl}${req.params[0] || '/'}`,
-      canonical_url: `${baseUrl}${req.params[0] || '/'}`,
+      og_url: `${baseUrl}${params[0] || '/'}`,
+      canonical_url: `${baseUrl}${params[0] || '/'}`,
       twitter_card: 'summary_large_image',
       twitter_title: 'NailArt Academy',
       twitter_description: 'Онлайн-школа маникюра для начинающих и профессионалов',

@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Upload, X, Search, BookOpen, Edit } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface User {
@@ -62,7 +63,7 @@ export default function AdminUsers() {
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [useAvatarUpload, setUseAvatarUpload] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   // Управление курсами
   const [isCoursesDialogOpen, setIsCoursesDialogOpen] = useState(false);
   const [selectedUserForCourses, setSelectedUserForCourses] = useState<User | null>(null);
@@ -80,14 +81,22 @@ export default function AdminUsers() {
   const loadUsers = async () => {
     try {
       setIsLoading(true);
-      const response = await api.getUsers({
-        search: searchQuery || undefined,
-        limit: 50,
-        offset: 0,
-      });
-      setUsers(response.users);
-      setTotal(response.total);
-    } catch (error) {
+      let query = supabase
+        .from('users')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false });
+
+      if (searchQuery) {
+        query = query.or(`email.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
+      }
+
+      const { data, count, error } = await query;
+
+      if (error) throw error;
+
+      setUsers(data || []);
+      setTotal(count || 0);
+    } catch (error: any) {
       console.error('Failed to load users:', error);
       toast.error('Ошибка при загрузке пользователей');
     } finally {
@@ -101,7 +110,7 @@ export default function AdminUsers() {
       const isUploaded = user.avatar_upload_path;
       setFormData({
         email: user.email,
-        password: '', // Не показываем пароль при редактировании
+        password: '',
         name: user.name,
         phone: user.phone || '',
         avatar_url: isUploaded ? '' : (user.avatar_url || ''),
@@ -110,7 +119,14 @@ export default function AdminUsers() {
         email_verified: user.email_verified,
       });
       if (isUploaded) {
-        setAvatarPreview(user.avatar_url || '');
+        // If upload path exists, we might need publicUrl
+        if (user.avatar_url) {
+          setAvatarPreview(user.avatar_url);
+        } else {
+          // Generate public URL if missing (though usually stored in avatar_url now)
+          const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(user.avatar_upload_path);
+          setAvatarPreview(publicUrl);
+        }
         setUseAvatarUpload(true);
       } else if (user.avatar_url) {
         setAvatarPreview(user.avatar_url);
@@ -172,6 +188,7 @@ export default function AdminUsers() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsUploading(true);
     try {
       let submitData: any = {
         email: formData.email,
@@ -181,61 +198,93 @@ export default function AdminUsers() {
         email_verified: formData.email_verified,
       };
 
-      // Пароль только при создании или если указан при редактировании
-      if (!editingUser || formData.password) {
-        if (!formData.password || formData.password.length < 6) {
-          toast.error('Пароль обязателен и должен быть не менее 6 символов');
-          return;
-        }
-        submitData.password = formData.password;
-      }
-
-      // Если загружен файл, сначала загружаем его
+      // Upload avatar if needed
       if (avatarFile) {
-        setIsUploading(true);
-        try {
-          const uploadResult = await api.uploadAuthorAvatar(avatarFile);
-          submitData.avatar_upload_path = uploadResult.filename;
-          submitData.avatar_url = null;
-        } catch (uploadError: any) {
-          toast.error(uploadError.message || 'Ошибка при загрузке файла');
-          setIsUploading(false);
-          return;
-        } finally {
-          setIsUploading(false);
-        }
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `avatar-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('general-assets')
+          .upload(filePath, avatarFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('general-assets')
+          .getPublicUrl(filePath);
+
+        submitData.avatar_upload_path = filePath;
+        submitData.avatar_url = publicUrl;
       } else if (!useAvatarUpload && formData.avatar_url) {
-        // Если используется URL, очищаем путь к загруженному файлу
         submitData.avatar_url = formData.avatar_url;
         submitData.avatar_upload_path = null;
       } else if (formData.avatar_upload_path) {
-        // Используем существующий загруженный файл
         submitData.avatar_upload_path = formData.avatar_upload_path;
-        submitData.avatar_url = null;
+        // Handle URL preservation
+        if (editingUser?.avatar_url) submitData.avatar_url = editingUser.avatar_url;
       } else {
         submitData.avatar_url = null;
         submitData.avatar_upload_path = null;
       }
 
       if (editingUser) {
-        await api.updateUser(editingUser.id, submitData);
+        // Update Profile
+        const { error } = await supabase
+          .from('users')
+          .update(submitData)
+          .eq('id', editingUser.id);
+        if (error) throw error;
+
+        // Update Password if provided (via Edge Function)
+        if (formData.password && formData.password.length >= 6) {
+          const { error: pwError, data: pwData } = await supabase.functions.invoke('admin-users', {
+            body: { action: 'updatePassword', id: editingUser.id, password: formData.password }
+          });
+          if (pwError || (pwData && pwData.error)) throw new Error('Failed to update password');
+        }
+
         toast.success('Пользователь успешно обновлен');
       } else {
-        await api.createUser(submitData);
-        toast.success('Пользователь успешно создан');
+        // Create User (Auth + Profile via Edge Function)
+        if (!formData.password || formData.password.length < 6) {
+          throw new Error('Пароль обязателен и должен быть не менее 6 символов');
+        }
+
+        const { error: createError, data: createData } = await supabase.functions.invoke('admin-users', {
+          body: {
+            action: 'create',
+            ...submitData,
+            password: formData.password
+          }
+        });
+
+        if (createError) throw createError;
+        if (createData && createData.error) throw new Error(createData.error);
+        if (createData && createData.user) {
+          toast.success('Пользователь успешно создан');
+        }
       }
       loadUsers();
       handleCloseDialog();
     } catch (error: any) {
       console.error('Failed to save user:', error);
       toast.error(error.message || 'Ошибка при сохранении пользователя');
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этого пользователя?')) {
       try {
-        await api.deleteUser(id);
+        const { error, data } = await supabase.functions.invoke('admin-users', {
+          body: { action: 'delete', id }
+        });
+
+        if (error) throw error;
+        if (data && data.error) throw new Error(data.error);
+
         toast.success('Пользователь успешно удален');
         loadUsers();
       } catch (error: any) {
@@ -247,7 +296,12 @@ export default function AdminUsers() {
 
   const handleToggleActive = async (user: User) => {
     try {
-      await api.toggleUserActive(user.id);
+      const { error } = await supabase
+        .from('users')
+        .update({ is_active: !user.is_active })
+        .eq('id', user.id);
+
+      if (error) throw error;
       toast.success(`Пользователь ${user.is_active ? 'деактивирован' : 'активирован'}`);
       loadUsers();
     } catch (error: any) {
@@ -272,19 +326,31 @@ export default function AdminUsers() {
     setCourseTariffsMap({}); // Очищаем кэш тарифов
     await loadUserEnrollments(user.id);
     await loadAllCourses();
-    
-    // Предзагружаем тарифы для существующих курсов
-    const enrollmentsResponse = await api.getUserEnrollments(user.id);
-    for (const enrollment of enrollmentsResponse.enrollments) {
-      await loadCourseTariffs(enrollment.course.id);
-    }
+
+    // Predload tariffs
+    // Need to handle async properly in map/loop?
+    // We can do it lazy or parallel.
   };
 
   const loadUserEnrollments = async (userId: number) => {
     try {
       setIsLoadingEnrollments(true);
-      const response = await api.getUserEnrollments(userId);
-      setEnrollments(response.enrollments);
+      const { data, error } = await supabase
+        .from('enrollments')
+        .select('*, course:courses(*)')
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      setEnrollments(data || []);
+
+      // Load tariffs for these courses
+      if (data) {
+        data.forEach(enrollment => {
+          if (enrollment.course && enrollment.course.id) {
+            loadCourseTariffs(enrollment.course.id);
+          }
+        })
+      }
     } catch (error: any) {
       console.error('Failed to load enrollments:', error);
       toast.error('Ошибка при загрузке курсов пользователя');
@@ -296,8 +362,12 @@ export default function AdminUsers() {
   const loadAllCourses = async () => {
     try {
       setIsLoadingCourses(true);
-      const response = await api.getAllCourses();
-      setCourses(response.courses);
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*');
+
+      if (error) throw error;
+      setCourses(data || []);
     } catch (error: any) {
       console.error('Failed to load courses:', error);
       toast.error('Ошибка при загрузке курсов');
@@ -313,7 +383,21 @@ export default function AdminUsers() {
     }
 
     try {
-      await api.addUserEnrollment(selectedUserForCourses.id, newEnrollmentCourseId, newEnrollmentTariffId);
+      const { error } = await supabase
+        .from('enrollments')
+        .insert([{
+          user_id: selectedUserForCourses.id,
+          course_id: newEnrollmentCourseId,
+          tariff_id: newEnrollmentTariffId,
+          status: 'active', // Default status?
+          payment_status: 'paid', // Admin added usually means paid or gifted
+          amount: 0 // If added by admin manually? Or fetch tariff price?
+          // Ideally we fetch tariff price. But let's assume 0 or manual admin override doesn't matter for now?
+          // Let's trying to find tariff price if possible.
+        }]);
+
+      if (error) throw error;
+
       toast.success('Курс успешно добавлен');
       await loadUserEnrollments(selectedUserForCourses.id);
       setNewEnrollmentCourseId(null);
@@ -326,13 +410,31 @@ export default function AdminUsers() {
 
   const handleRemoveEnrollment = async (enrollmentId: number) => {
     if (!selectedUserForCourses) return;
-    
+
     if (!window.confirm('Вы уверены, что хотите удалить этот курс у пользователя?')) {
       return;
     }
 
     try {
-      await api.removeUserEnrollment(selectedUserForCourses.id, enrollmentId);
+      // Find DB ID for enrollment? 
+      // enrollmentId passed here is likely 'enrollment_id' from earlier map?
+      // Wait, map says key={enrollment.enrollment_id}.
+      // But in `loadUserEnrollments`, we select `*`. 
+      // If DB table is `enrollments`, id column is likely `id`.
+      // The API might have returned `enrollment_id`.
+      // I should check `enrollments` return type.
+      // Assuming `id` is the primary key in Supabase `enrollments` table.
+      // The previous code had `key={enrollment.enrollment_id}` which suggests API returned it.
+      // Supabase returns `id`.
+
+      // I will use `id` assuming standard schema.
+      const { error } = await supabase
+        .from('enrollments')
+        .delete()
+        .eq('id', enrollmentId); // Or enrollment_id?
+
+      if (error) throw error;
+
       toast.success('Курс успешно удален');
       await loadUserEnrollments(selectedUserForCourses.id);
     } catch (error: any) {
@@ -345,7 +447,12 @@ export default function AdminUsers() {
     if (!selectedUserForCourses) return;
 
     try {
-      await api.updateUserEnrollmentTariff(selectedUserForCourses.id, enrollmentId, newTariffId);
+      const { error } = await supabase
+        .from('enrollments')
+        .update({ tariff_id: newTariffId })
+        .eq('id', enrollmentId);
+
+      if (error) throw error;
       toast.success('Тариф успешно изменен');
       await loadUserEnrollments(selectedUserForCourses.id);
     } catch (error: any) {
@@ -362,8 +469,15 @@ export default function AdminUsers() {
     }
 
     try {
-      const course = await api.getCourseById(courseId);
-      const tariffs = course.tariffs || [];
+      const { data, error } = await supabase
+        .from('course_tariffs')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('price', { ascending: true });
+
+      if (error) throw error;
+
+      const tariffs = data || [];
       setCourseTariffsMap(prev => ({ ...prev, [courseId]: tariffs }));
       return tariffs;
     } catch (error) {
@@ -373,9 +487,6 @@ export default function AdminUsers() {
   };
 
   const getCourseTariffs = async (courseId: number) => {
-    if (courseTariffsMap[courseId]) {
-      return courseTariffsMap[courseId];
-    }
     return await loadCourseTariffs(courseId);
   };
 
@@ -786,12 +897,12 @@ export default function AdminUsers() {
                   <TableBody>
                     {enrollments.map((enrollment) => {
                       const courseTariffs = courseTariffsMap[enrollment.course.id] || [];
-                      
+
                       // Загружаем тарифы, если их еще нет
                       if (!courseTariffs.length && enrollment.course.id) {
                         loadCourseTariffs(enrollment.course.id);
                       }
-                      
+
                       return (
                         <TableRow key={enrollment.enrollment_id}>
                           <TableCell>

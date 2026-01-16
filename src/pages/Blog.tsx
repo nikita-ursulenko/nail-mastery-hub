@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { Helmet } from "react-helmet-async";
 
 interface BlogPost {
@@ -62,50 +62,83 @@ export default function Blog() {
     } else {
       setIsLoadingMore(true);
     }
-    
+
     try {
-      const params: any = {
-        limit: POSTS_PER_PAGE,
-        offset: offsetRef.current,
-      };
+      // Base query for active posts
+      let query = supabase
+        .from('blog_posts')
+        .select('*', { count: 'exact' })
+        .eq('is_active', true)
+        .order('date', { ascending: false });
+
+      // Apply category filter
       if (selectedCategory !== "all") {
-        params.category = selectedCategory;
+        query = query.eq('category', selectedCategory);
       }
+
+      // Apply search filter
       if (searchQuery) {
-        params.search = searchQuery;
+        query = query.ilike('title', `%${searchQuery}%`);
       }
-      const response = await api.getPublicBlogPosts(params);
-      
+
+      // Pagination
+      const from = offsetRef.current;
+      const to = offsetRef.current + POSTS_PER_PAGE - 1;
+
+      const { data, error, count } = await query.range(from, to);
+
+      if (error) throw error;
+
+      const posts: BlogPost[] = data || [];
+      const totalPosts = count || 0;
+
       if (reset) {
         // При сбросе разделяем featured и обычные посты
-        const featured = response.posts.filter((post: BlogPost) => post.featured);
-        const regular = response.posts.filter((post: BlogPost) => !post.featured);
+        // Note: For simplicity with Supabase pagination, we might need a separate query for featured
+        // or just client-side filter if dataset is small. 
+        // Better approach: separate query for featured posts if we want them always on top irrespective of pagination
+
+        // Fetch featured posts separately if on first page and no search/filter
+        let featured: BlogPost[] = [];
+        if (selectedCategory === "all" && !searchQuery) {
+          const { data: featuredData } = await supabase
+            .from('blog_posts')
+            .select('*')
+            .eq('is_active', true)
+            .eq('featured', true)
+            .order('date', { ascending: false });
+          featured = featuredData || [];
+        }
+
+        const regular = posts.filter(p => !p.featured);
+
         setFeaturedPosts(featured);
-        
+
         // Показываем посты в основной сетке
         if (selectedCategory === "all" && !searchQuery) {
-          // Без фильтров: показываем только не-featured в основной сетке
+          // Без фильтров: показываем только не-featured в основной сетке (deduplicated from featured)
           setBlogPosts(regular);
         } else {
           // С фильтрами: показываем все посты
-          setBlogPosts(response.posts);
+          setBlogPosts(posts);
         }
-        offsetRef.current = response.posts.length;
+        offsetRef.current = posts.length;
       } else {
         // При подгрузке добавляем посты
         if (selectedCategory === "all" && !searchQuery) {
-          // Без фильтров: добавляем только не-featured
-          const regular = response.posts.filter((post: BlogPost) => !post.featured);
+          // Filter out if already in featured (client side check might be needed or trusted source)
+          const regular = posts.filter(p => !p.featured);
           setBlogPosts((prev) => [...prev, ...regular]);
         } else {
-          // С фильтрами: добавляем все
-          setBlogPosts((prev) => [...prev, ...response.posts]);
+          setBlogPosts((prev) => [...prev, ...posts]);
         }
-        offsetRef.current += response.posts.length;
+        offsetRef.current += posts.length;
       }
-      
-      setHasMore(response.hasMore);
-      setTotal(response.total);
+
+      // Has more calculation
+      // Simplistic check: if we got less than requested, no more
+      setHasMore(posts.length === POSTS_PER_PAGE);
+      setTotal(totalPosts);
     } catch (error) {
       console.error("Failed to load blog posts:", error);
       if (reset) {
@@ -201,16 +234,16 @@ export default function Blog() {
         <section className="py-16 lg:py-24">
           <div className="container">
             <FadeInOnScroll>
-            <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                  Рекомендуем к прочтению
-                </h2>
-                <p className="max-w-2xl text-muted-foreground">
-                  Самые популярные и актуальные статьи от наших экспертов
-                </p>
+              <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                    Рекомендуем к прочтению
+                  </h2>
+                  <p className="max-w-2xl text-muted-foreground">
+                    Самые популярные и актуальные статьи от наших экспертов
+                  </p>
+                </div>
               </div>
-            </div>
             </FadeInOnScroll>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -225,18 +258,18 @@ export default function Blog() {
                 });
                 return (
                   <FadeInOnScroll key={post.id} delay={index * 150} className="h-full">
-                  <BlogCard
-                    id={post.slug}
-                    title={post.title}
-                    excerpt={post.excerpt}
-                    image={imageUrl}
-                    author={post.author}
-                    authorAvatar={post.author_avatar || undefined}
-                    date={formattedDate}
-                    readTime={post.read_time}
-                    category={post.category}
-                    featured={post.featured}
-                  />
+                    <BlogCard
+                      id={post.slug}
+                      title={post.title}
+                      excerpt={post.excerpt}
+                      image={imageUrl}
+                      author={post.author}
+                      authorAvatar={post.author_avatar || undefined}
+                      date={formattedDate}
+                      readTime={post.read_time}
+                      category={post.category}
+                      featured={post.featured}
+                    />
                   </FadeInOnScroll>
                 );
               })}
@@ -342,26 +375,26 @@ export default function Blog() {
               </div>
             </div>
           ) : filteredPosts.length > 0 || featuredPosts.length > 0 ? (
-              <>
-                <FadeInOnScroll>
+            <>
+              <FadeInOnScroll>
                 <div className="mb-8 flex items-center justify-between">
                   <p className="text-muted-foreground">
                     Найдено статей: {total} {filteredPosts.length < total && `(показано ${filteredPosts.length + featuredPosts.length})`}
                   </p>
                 </div>
-                </FadeInOnScroll>
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredPosts.map((post, index) => {
-                    const imageUrl = post.image_upload_path
-                      ? `/uploads/blog/${post.image_upload_path}`
-                      : post.image_url || "";
-                    const formattedDate = new Date(post.date).toLocaleDateString('ru-RU', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    });
-                    return (
-                      <FadeInOnScroll key={post.id} delay={index * 50} className="h-full">
+              </FadeInOnScroll>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredPosts.map((post, index) => {
+                  const imageUrl = post.image_upload_path
+                    ? `/uploads/blog/${post.image_upload_path}`
+                    : post.image_url || "";
+                  const formattedDate = new Date(post.date).toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  });
+                  return (
+                    <FadeInOnScroll key={post.id} delay={index * 50} className="h-full">
                       <BlogCard
                         id={post.slug}
                         title={post.title}
@@ -374,19 +407,19 @@ export default function Blog() {
                         category={post.category}
                         featured={post.featured}
                       />
-                      </FadeInOnScroll>
-                    );
-                  })}
+                    </FadeInOnScroll>
+                  );
+                })}
+              </div>
+              {/* Элемент-триггер для infinite scroll */}
+              <div ref={observerTarget} className="h-10 w-full" />
+              {isLoadingMore && (
+                <div className="mt-8 flex justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                 </div>
-                {/* Элемент-триггер для infinite scroll */}
-                <div ref={observerTarget} className="h-10 w-full" />
-                {isLoadingMore && (
-                  <div className="mt-8 flex justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                  </div>
-                )}
-              </>
-            ) : (
+              )}
+            </>
+          ) : (
             <div className="py-16 text-center">
               <p className="mb-4 text-xl font-medium">Статьи не найдены</p>
               <p className="mb-6 text-muted-foreground">
@@ -404,29 +437,29 @@ export default function Blog() {
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-          <Card variant="elevated" className="overflow-hidden">
-            <CardContent className="p-8 lg:p-12">
-              <div className="mx-auto max-w-2xl text-center">
-                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                  Подпишитесь на рассылку
-                </h2>
-                <p className="mb-8 text-muted-foreground">
-                  Получайте новые статьи и полезные советы прямо на почту
-                </p>
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <Input
-                    type="email"
-                    placeholder="Ваш email"
-                    className="flex-1"
-                  />
-                  <Button size="lg" className="whitespace-nowrap">
-                    Подписаться
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+            <Card variant="elevated" className="overflow-hidden">
+              <CardContent className="p-8 lg:p-12">
+                <div className="mx-auto max-w-2xl text-center">
+                  <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                    Подпишитесь на рассылку
+                  </h2>
+                  <p className="mb-8 text-muted-foreground">
+                    Получайте новые статьи и полезные советы прямо на почту
+                  </p>
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    <Input
+                      type="email"
+                      placeholder="Ваш email"
+                      className="flex-1"
+                    />
+                    <Button size="lg" className="whitespace-nowrap">
+                      Подписаться
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           </FadeInOnScroll>
         </div>
       </section>

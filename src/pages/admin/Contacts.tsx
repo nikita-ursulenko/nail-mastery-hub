@@ -25,7 +25,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Phone, Mail, MapPin, Instagram } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface Contact {
   id: number;
@@ -84,10 +85,16 @@ export default function Contacts() {
 
   const loadContacts = async () => {
     try {
-      const data = await api.getContacts();
-      setContacts(data);
-    } catch (error) {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error: any) {
       console.error('Failed to load contacts:', error);
+      toast.error('Ошибка при загрузке контактов');
     } finally {
       setIsLoading(false);
     }
@@ -131,14 +138,25 @@ export default function Contacts() {
     e.preventDefault();
     try {
       if (editingContact) {
-        await api.updateContact(editingContact.id, formData);
+        const { error } = await supabase
+          .from('contacts')
+          .update(formData)
+          .eq('id', editingContact.id);
+
+        if (error) throw error;
+        toast.success('Контакт обновлен');
       } else {
-        await api.createContact(formData);
+        const { error } = await supabase
+          .from('contacts')
+          .insert([formData]);
+
+        if (error) throw error;
+        toast.success('Контакт создан');
       }
       await loadContacts();
       handleCloseDialog();
     } catch (error: any) {
-      alert(error.message || 'Ошибка при сохранении контакта');
+      toast.error(error.message || 'Ошибка при сохранении контакта');
     }
   };
 
@@ -147,10 +165,17 @@ export default function Contacts() {
       return;
     }
     try {
-      await api.deleteContact(id);
+      const { error } = await supabase
+        .from('contacts')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
       await loadContacts();
+      toast.success('Контакт удален');
     } catch (error: any) {
-      alert(error.message || 'Ошибка при удалении контакта');
+      toast.error(error.message || 'Ошибка при удалении контакта');
     }
   };
 

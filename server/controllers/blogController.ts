@@ -1,11 +1,8 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 import { getBlogImageUrl, getAvatarUrl } from '../middleware/upload';
 import { AppError } from '../middleware/errorHandler';
-
-const pool = new Pool(getDatabaseConfig());
 
 interface BlogPost {
   id?: number;
@@ -30,79 +27,52 @@ interface BlogPost {
 export const getBlogPosts = async (req: Request, res: Response) => {
   try {
     const { category, featured, search, limit, offset } = req.query;
-    
+
     const pageLimit = limit ? parseInt(limit as string) : 9;
     const pageOffset = offset ? parseInt(offset as string) : 0;
-    
-    let query = `
-      SELECT id, slug, title, excerpt, content, image_url, image_upload_path, 
-             author, author_id, author_avatar, author_avatar_upload_path, author_bio, date, read_time, category, 
-             tags, featured, is_active, created_at, updated_at
-      FROM blog_posts 
-      WHERE is_active = TRUE
-    `;
-    const params: any[] = [];
-    let paramIndex = 1;
+
+    let query = supabase
+      .from('blog_posts')
+      .select(`
+        *,
+        author_data:team_members (
+          name,
+          image_url,
+          image_upload_path,
+          bio
+        )
+      `, { count: 'exact' })
+      .eq('is_active', true);
 
     if (category && category !== 'all') {
-      query += ` AND category = $${paramIndex}`;
-      params.push(category);
-      paramIndex++;
+      query = query.eq('category', category);
     }
 
     if (featured === 'true') {
-      query += ` AND featured = TRUE`;
+      query = query.eq('featured', true);
     }
 
     if (search) {
-      query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(excerpt) LIKE $${paramIndex} OR LOWER(author) LIKE $${paramIndex})`;
-      params.push(`%${(search as string).toLowerCase()}%`);
-      paramIndex++;
+      query = query.or(`title.ilike.%${search}%,excerpt.ilike.%${search}%,author.ilike.%${search}%`);
     }
 
-    // Получаем общее количество для пагинации (до ORDER BY и LIMIT)
-    const countQuery = query.replace(
-      /SELECT[\s\S]*?FROM/,
-      'SELECT COUNT(*) as total FROM'
-    );
-    const countResult = await pool.query(countQuery, params);
-    const total = parseInt(countResult.rows[0].total);
+    const { data: postsData, count, error } = await query
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(pageOffset, pageOffset + pageLimit - 1);
 
-    // Добавляем ORDER BY, LIMIT и OFFSET
-    query += ` ORDER BY date DESC, created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-    params.push(pageLimit, pageOffset);
-
-    const result = await pool.query(query, params);
-    
-    // Получаем все author_id для загрузки данных из команды
-    const authorIds = result.rows
-      .filter((post: any) => post.author_id)
-      .map((post: any) => post.author_id);
-    
-    let teamMembersMap: { [key: number]: any } = {};
-    if (authorIds.length > 0) {
-      const teamMembersResult = await pool.query(
-        `SELECT id, name, image_url, image_upload_path, bio 
-         FROM team_members 
-         WHERE id = ANY($1) AND is_active = TRUE`,
-        [authorIds]
-      );
-      teamMembersResult.rows.forEach((member: any) => {
-        teamMembersMap[member.id] = member;
-      });
+    if (error) {
+      console.error('Supabase error:', error);
+      throw new AppError('Ошибка при получении статей блога', 500);
     }
-    
-    // Формируем правильные URL для аватаров
-    const posts = result.rows.map((post: any) => {
-      // Если есть author_id, берем аватар из команды
-      if (post.author_id && teamMembersMap[post.author_id]) {
-        const teamMember = teamMembersMap[post.author_id];
-        if (teamMember.image_upload_path) {
-          post.author_avatar = `/uploads/team/${teamMember.image_upload_path}`;
-        } else if (teamMember.image_url) {
-          post.author_avatar = teamMember.image_url;
-        }
-        // Также обновляем имя и био из команды (на случай если они изменились)
+
+    // Форматируем данные постов
+    const posts = (postsData || []).map((post: any) => {
+      if (post.author_data) {
+        const teamMember = post.author_data;
+        post.author_avatar = teamMember.image_upload_path
+          ? `/uploads/team/${teamMember.image_upload_path}`
+          : teamMember.image_url;
         post.author = teamMember.name;
         post.author_bio = teamMember.bio;
       } else if (post.author_avatar_upload_path) {
@@ -110,59 +80,48 @@ export const getBlogPosts = async (req: Request, res: Response) => {
       }
       return post;
     });
-    
+
     res.json({
       posts,
-      total,
-      hasMore: pageOffset + posts.length < total,
+      total: count || 0,
+      hasMore: pageOffset + posts.length < (count || 0),
     });
   } catch (error) {
     if (error instanceof AppError) {
-      throw error;
+      res.status(error.statusCode).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Ошибка при получении статей блога' });
     }
-    throw new AppError('Ошибка при получении статей блога', 500);
   }
 };
 
 export const getAllBlogPosts = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT id, slug, title, excerpt, content, image_url, image_upload_path, 
-             author, author_id, author_avatar, author_avatar_upload_path, author_bio, date, read_time, category, 
-             tags, featured, is_active, created_at, updated_at
-       FROM blog_posts
-       ORDER BY date DESC, created_at DESC`
-    );
+    const { data: postsData, error } = await supabase
+      .from('blog_posts')
+      .select(`
+        *,
+        author_data:team_members (
+          name,
+          image_url,
+          image_upload_path,
+          bio
+        )
+      `)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
 
-    // Получаем все author_id для загрузки данных из команды
-    const authorIds = result.rows
-      .filter((post: any) => post.author_id)
-      .map((post: any) => post.author_id);
-    
-    let teamMembersMap: { [key: number]: any } = {};
-    if (authorIds.length > 0) {
-      const teamMembersResult = await pool.query(
-        `SELECT id, name, image_url, image_upload_path, bio 
-         FROM team_members 
-         WHERE id = ANY($1) AND is_active = TRUE`,
-        [authorIds]
-      );
-      teamMembersResult.rows.forEach((member: any) => {
-        teamMembersMap[member.id] = member;
-      });
+    if (error) {
+      console.error('Supabase error:', error);
+      throw new AppError('Ошибка при получении статей блога', 500);
     }
-    
-    // Формируем правильные URL для аватаров
-    const posts = result.rows.map((post: any) => {
-      // Если есть author_id, берем аватар из команды
-      if (post.author_id && teamMembersMap[post.author_id]) {
-        const teamMember = teamMembersMap[post.author_id];
-        if (teamMember.image_upload_path) {
-          post.author_avatar = `/uploads/team/${teamMember.image_upload_path}`;
-        } else if (teamMember.image_url) {
-          post.author_avatar = teamMember.image_url;
-        }
-        // Также обновляем имя и био из команды
+
+    const posts = (postsData || []).map((post: any) => {
+      if (post.author_data) {
+        const teamMember = post.author_data;
+        post.author_avatar = teamMember.image_upload_path
+          ? `/uploads/team/${teamMember.image_upload_path}`
+          : teamMember.image_url;
         post.author = teamMember.name;
         post.author_bio = teamMember.bio;
       } else if (post.author_avatar_upload_path) {
@@ -181,41 +140,37 @@ export const getAllBlogPosts = async (req: AuthRequest, res: Response) => {
 export const getBlogPostBySlug = async (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const result = await pool.query(
-      `SELECT id, slug, title, excerpt, content, image_url, image_upload_path, 
-              author, author_id, author_avatar, author_avatar_upload_path, author_bio, date, read_time, category, 
-              tags, featured, is_active, created_at, updated_at
-       FROM blog_posts 
-       WHERE slug = $1 AND is_active = TRUE`,
-      [slug]
-    );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Статья не найдена' });
+    const { data: post, error } = await supabase
+      .from('blog_posts')
+      .select(`
+        *,
+        author_data:team_members (
+          name,
+          image_url,
+          image_upload_path,
+          bio
+        )
+      `)
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !post) {
+      if (error?.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Статья не найдена' });
+      }
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Ошибка при получении статьи' });
     }
 
-    const post = result.rows[0];
-    
-    // Если есть author_id, берем аватар из команды
-    if (post.author_id) {
-      const teamMemberResult = await pool.query(
-        `SELECT name, image_url, image_upload_path, bio 
-         FROM team_members 
-         WHERE id = $1 AND is_active = TRUE`,
-        [post.author_id]
-      );
-      
-      if (teamMemberResult.rows.length > 0) {
-        const teamMember = teamMemberResult.rows[0];
-        if (teamMember.image_upload_path) {
-          post.author_avatar = `/uploads/team/${teamMember.image_upload_path}`;
-        } else if (teamMember.image_url) {
-          post.author_avatar = teamMember.image_url;
-        }
-        // Обновляем имя и био из команды
-        post.author = teamMember.name;
-        post.author_bio = teamMember.bio;
-      }
+    if (post.author_data) {
+      const teamMember = post.author_data;
+      post.author_avatar = teamMember.image_upload_path
+        ? `/uploads/team/${teamMember.image_upload_path}`
+        : teamMember.image_url;
+      post.author = teamMember.name;
+      post.author_bio = teamMember.bio;
     } else if (post.author_avatar_upload_path) {
       post.author_avatar = `/uploads/avatars/${post.author_avatar_upload_path}`;
     }
@@ -244,7 +199,7 @@ export const getBlogPostById = async (req: AuthRequest, res: Response) => {
     }
 
     const post = result.rows[0];
-    
+
     // Если есть author_id, берем аватар из команды
     if (post.author_id) {
       const teamMemberResult = await pool.query(
@@ -253,7 +208,7 @@ export const getBlogPostById = async (req: AuthRequest, res: Response) => {
          WHERE id = $1 AND is_active = TRUE`,
         [post.author_id]
       );
-      
+
       if (teamMemberResult.rows.length > 0) {
         const teamMember = teamMemberResult.rows[0];
         if (teamMember.image_upload_path) {
@@ -313,7 +268,7 @@ export const createBlogPost = async (req: AuthRequest, res: Response) => {
         'SELECT name, image_url, image_upload_path, bio FROM team_members WHERE id = $1 AND is_active = TRUE',
         [author_id]
       );
-      
+
       if (teamMemberResult.rows.length > 0) {
         const teamMember = teamMemberResult.rows[0];
         finalAuthor = teamMember.name;
@@ -453,7 +408,7 @@ export const updateBlogPost = async (req: AuthRequest, res: Response) => {
         'SELECT name, image_url, image_upload_path, bio FROM team_members WHERE id = $1 AND is_active = TRUE',
         [author_id]
       );
-      
+
       if (teamMemberResult.rows.length > 0) {
         const teamMember = teamMemberResult.rows[0];
         finalAuthor = teamMember.name;
@@ -565,7 +520,7 @@ export const updateBlogPost = async (req: AuthRequest, res: Response) => {
 export const deleteBlogPost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    
+
     // Сначала получаем slug для удаления SEO
     const postResult = await pool.query(
       'SELECT slug FROM blog_posts WHERE id = $1',

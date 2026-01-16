@@ -1,10 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 import { getAvatarUrl } from '../middleware/upload';
-
-const pool = new Pool(getDatabaseConfig());
 
 interface Testimonial {
   id?: number;
@@ -17,14 +14,22 @@ interface Testimonial {
 
 export const getTestimonials = async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT id, name, role, 
-       COALESCE(avatar_upload_path, avatar) as avatar, 
-       text, rating, created_at, updated_at 
-       FROM testimonials ORDER BY created_at DESC`
-    );
+    const { data: testimonials, error } = await supabase
+      .from('testimonials')
+      .select('id, name, role, avatar, avatar_upload_path, text, rating, created_at, updated_at')
+      .order('created_at', { ascending: false });
 
-    res.json(result.rows);
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Ошибка при получении отзывов' });
+    }
+
+    const formattedTestimonials = (testimonials || []).map(t => ({
+      ...t,
+      avatar: t.avatar_upload_path || t.avatar
+    }));
+
+    res.json(formattedTestimonials);
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при получении отзывов' });
   }
@@ -34,19 +39,23 @@ export const getTestimonialById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
-      `SELECT id, name, role, 
-       COALESCE(avatar_upload_path, avatar) as avatar, 
-       text, rating, created_at, updated_at 
-       FROM testimonials WHERE id = $1`,
-      [id]
-    );
+    const { data: testimonial, error } = await supabase
+      .from('testimonials')
+      .select('id, name, role, avatar, avatar_upload_path, text, rating, created_at, updated_at')
+      .eq('id', id)
+      .single();
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Отзыв не найден' });
+    if (error || !testimonial) {
+      if (error?.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Отзыв не найден' });
+      }
+      return res.status(500).json({ error: 'Ошибка при получении отзыва' });
     }
 
-    res.json(result.rows[0]);
+    res.json({
+      ...testimonial,
+      avatar: testimonial.avatar_upload_path || testimonial.avatar
+    });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при получении отзыва' });
   }
@@ -81,20 +90,30 @@ export const createTestimonial = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Рейтинг должен быть от 1 до 5' });
     }
 
-    // Используем загруженный файл, если есть, иначе URL
-    const avatarPath = avatarUploadPath || null;
-    const avatarUrl = avatar || null;
+    const { data: newTestimonial, error } = await supabase
+      .from('testimonials')
+      .insert([
+        {
+          name,
+          role,
+          avatar: avatar || null,
+          avatar_upload_path: avatarUploadPath || null,
+          text,
+          rating
+        }
+      ])
+      .select('id, name, role, avatar, avatar_upload_path, text, rating, created_at, updated_at')
+      .single();
 
-    const result = await pool.query(
-      `INSERT INTO testimonials (name, role, avatar, avatar_upload_path, text, rating)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, name, role, 
-       COALESCE(avatar_upload_path, avatar) as avatar, 
-       text, rating, created_at, updated_at`,
-      [name, role, avatarUrl, avatarPath, text, rating]
-    );
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Ошибка при создании отзыва' });
+    }
 
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({
+      ...newTestimonial,
+      avatar: newTestimonial.avatar_upload_path || newTestimonial.avatar
+    });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при создании отзыва' });
   }
@@ -113,25 +132,30 @@ export const updateTestimonial = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Рейтинг должен быть от 1 до 5' });
     }
 
-    // Используем загруженный файл, если есть, иначе URL
-    const avatarPath = avatarUploadPath || null;
-    const avatarUrl = avatar || null;
+    const { data: updatedTestimonial, error } = await supabase
+      .from('testimonials')
+      .update({
+        name,
+        role,
+        avatar: avatar || null,
+        avatar_upload_path: avatarUploadPath || null,
+        text,
+        rating,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, name, role, avatar, avatar_upload_path, text, rating, created_at, updated_at')
+      .single();
 
-    const result = await pool.query(
-      `UPDATE testimonials
-       SET name = $1, role = $2, avatar = $3, avatar_upload_path = $4, text = $5, rating = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7
-       RETURNING id, name, role, 
-       COALESCE(avatar_upload_path, avatar) as avatar, 
-       text, rating, created_at, updated_at`,
-      [name, role, avatarUrl, avatarPath, text, rating, id]
-    );
-
-    if (result.rows.length === 0) {
+    if (error || !updatedTestimonial) {
+      console.error('Supabase error:', error);
       return res.status(404).json({ error: 'Отзыв не найден' });
     }
 
-    res.json(result.rows[0]);
+    res.json({
+      ...updatedTestimonial,
+      avatar: updatedTestimonial.avatar_upload_path || updatedTestimonial.avatar
+    });
   } catch (error) {
     res.status(500).json({ error: 'Ошибка при обновлении отзыва' });
   }
@@ -141,12 +165,13 @@ export const deleteTestimonial = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM testimonials WHERE id = $1 RETURNING id',
-      [id]
-    );
+    const { error } = await supabase
+      .from('testimonials')
+      .delete()
+      .eq('id', id);
 
-    if (result.rows.length === 0) {
+    if (error) {
+      console.error('Supabase error:', error);
       return res.status(404).json({ error: 'Отзыв не найден' });
     }
 

@@ -30,23 +30,17 @@ import {
   Download,
   History,
   Search,
-  Filter,
   Plus,
   Minus,
   Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
   BarChart3,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { maskEmail } from '@/utils/emailMask';
 import { maskPaymentDetails } from '@/utils/paymentMask';
 
-// TODO: Добавить типы после создания API
 interface ReferralStats {
   total_partners: number;
   active_partners: number;
@@ -72,7 +66,8 @@ interface Partner {
   email: string;
   referral_code: string;
   phone: string | null;
-  current_balance: number;
+  balance: number;
+  current_balance?: number; // For compatibility
   total_earnings: number;
   withdrawn: number;
   is_active: boolean;
@@ -83,8 +78,9 @@ interface Partner {
 interface Withdrawal {
   id: number;
   partner_id: number;
-  partner_name: string;
-  partner_email: string;
+  partner_name?: string;
+  partner_email?: string;
+  partner?: { name: string; email: string };
   amount: number;
   payment_details: string;
   telegram_tag: string | null;
@@ -97,11 +93,12 @@ interface Withdrawal {
 
 interface HistoryItem {
   id: number;
-  type: string;
-  operation_type: string;
+  type?: string;
+  operation_type: 'visit' | 'registration' | 'purchase' | 'manual' | 'withdrawal';
   partner_id: number;
-  partner_name: string;
-  partner_email: string;
+  partner_name?: string;
+  partner_email?: string;
+  partner?: { name: string; email: string };
   amount: number;
   description: string;
   status: string;
@@ -119,7 +116,7 @@ export default function AdminReferral() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Фильтры
+  // Filters
   const [partnerSearch, setPartnerSearch] = useState('');
   const [partnerStatusFilter, setPartnerStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState<'all' | 'pending' | 'approved' | 'paid' | 'rejected'>('all');
@@ -128,17 +125,15 @@ export default function AdminReferral() {
   const [historySearch, setHistorySearch] = useState('');
   const [withdrawalSearch, setWithdrawalSearch] = useState('');
 
-  // Модальные окна
+  // Modals
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [showPartnerStats, setShowPartnerStats] = useState(false);
-  const [partnerStats, setPartnerStats] = useState<any>(null);
-  const [isLoadingPartnerStats, setIsLoadingPartnerStats] = useState(false);
   const [showAddFunds, setShowAddFunds] = useState(false);
   const [showRemoveFunds, setShowRemoveFunds] = useState(false);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<Withdrawal | null>(null);
   const [showWithdrawalDetails, setShowWithdrawalDetails] = useState(false);
 
-  // Формы
+  // Forms
   const [fundsAmount, setFundsAmount] = useState('');
   const [fundsDescription, setFundsDescription] = useState('');
   const [withdrawalNotes, setWithdrawalNotes] = useState('');
@@ -147,87 +142,133 @@ export default function AdminReferral() {
     loadData();
   }, [activeTab, partnerSearch, partnerStatusFilter, withdrawalStatusFilter, withdrawalSearch, historyTypeFilter, historyStatusFilter, historySearch]);
 
-  // Загружаем общее количество партнеров и pending запросов при монтировании
-  useEffect(() => {
-    const loadCounts = async () => {
-      try {
-        const [partnersData, pendingData] = await Promise.all([
-          api.getAdminReferralPartners({ limit: 1, offset: 0 }),
-          api.getAdminReferralWithdrawals({ status: 'pending' }),
-        ]);
-        setPartnersTotal(partnersData.total);
-        setWithdrawalsPending(pendingData.withdrawals.length);
-      } catch (error) {
-        // Игнорируем ошибки для подсчета
-      }
-    };
-
-    loadCounts();
-  }, []);
-
   const loadData = async () => {
     try {
       setIsLoading(true);
-      
+
       if (activeTab === 'stats') {
-        const statsData = await api.getAdminReferralStats();
-        setStats(statsData);
-      } else if (activeTab === 'partners') {
-        const partnersData = await api.getAdminReferralPartners({
-          search: partnerSearch || undefined,
-          status: partnerStatusFilter !== 'all' ? partnerStatusFilter : undefined,
-        });
-        // Преобразуем числовые поля из строк в числа
-        setPartners(partnersData.partners.map((p: any) => ({
-          ...p,
-          current_balance: parseFloat(p.current_balance) || 0,
-          total_earnings: parseFloat(p.total_earnings) || 0,
-          withdrawn_amount: parseFloat(p.withdrawn_amount) || 0,
-        })));
-        setPartnersTotal(partnersData.total);
-      } else if (activeTab === 'withdrawals') {
-        const withdrawalsData = await api.getAdminReferralWithdrawals({
-          status: withdrawalStatusFilter !== 'all' ? withdrawalStatusFilter : undefined,
-          search: withdrawalSearch || undefined,
-        });
-        // Преобразуем числовые поля из строк в числа
-        setWithdrawals(withdrawalsData.withdrawals.map((w: any) => ({
-          ...w,
-          amount: parseFloat(w.amount) || 0,
-        })));
-      } else if (activeTab === 'history') {
-        // Для истории нужно передавать правильные параметры
-        const historyParams: any = {
-          status: historyStatusFilter !== 'all' ? historyStatusFilter : undefined,
+        const { data: statsData, error } = await supabase.rpc('get_admin_referral_stats');
+
+        if (error) throw error;
+
+        const result = statsData as any;
+        const conversions = {
+          registrations_to_visits: result.total_visits > 0 ? (result.total_registrations / result.total_visits) * 100 : 0,
+          purchases_to_registrations: result.total_registrations > 0 ? (result.total_purchases / result.total_registrations) * 100 : 0,
+          purchases_to_visits: result.total_visits > 0 ? (result.total_purchases / result.total_visits) * 100 : 0,
         };
-        // Если выбран тип операции (не 'withdrawal'), передаем его
-        // Для 'withdrawal' фильтруем на клиенте
-        if (historyTypeFilter !== 'all' && historyTypeFilter !== 'withdrawal') {
-          historyParams.type = historyTypeFilter;
+
+        setStats({
+          ...result,
+          new_partners_period: 0,
+          conversions
+        });
+      } else if (activeTab === 'partners') {
+        let query = supabase.from('referral_partners').select('*', { count: 'exact' });
+
+        if (partnerSearch) {
+          query = query.or(`name.ilike.%${partnerSearch}%,email.ilike.%${partnerSearch}%,referral_code.ilike.%${partnerSearch}%`);
         }
-        const historyData = await api.getAdminReferralHistory(historyParams);
-        // Преобразуем числовые поля из строк в числа и фильтруем
-        let filteredHistory = historyData.history.map((h: any) => ({
-          ...h,
-          amount: parseFloat(h.amount) || 0,
+        if (partnerStatusFilter !== 'all') {
+          query = query.eq('is_active', partnerStatusFilter === 'active');
+        }
+
+        const { data, count, error } = await query;
+        if (error) throw error;
+
+        setPartners((data || []).map((p: any) => ({
+          ...p,
+          current_balance: p.balance || 0,
+        })));
+        setPartnersTotal(count || 0);
+
+      } else if (activeTab === 'withdrawals') {
+        let query = supabase
+          .from('referral_withdrawals')
+          .select('*, partner:referral_partners(name, email)')
+          .order('requested_at', { ascending: false });
+
+        if (withdrawalStatusFilter !== 'all') {
+          query = query.eq('status', withdrawalStatusFilter);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        let filtered = (data || []).map((w: any) => ({
+          ...w,
+          partner_name: w.partner?.name || 'Unknown',
+          partner_email: w.partner?.email || 'Unknown',
+          amount: Number(w.amount)
         }));
-        
-        // Фильтруем по типу операции на клиенте (для 'withdrawal')
-        if (historyTypeFilter === 'withdrawal') {
-          filteredHistory = filteredHistory.filter((h: HistoryItem) => h.operation_type === 'withdrawal');
-        }
-        
-        // Фильтруем по поиску на клиенте (по партнеру и описанию)
-        if (historySearch) {
-          const searchLower = historySearch.toLowerCase();
-          filteredHistory = filteredHistory.filter((h: HistoryItem) =>
-            h.partner_name.toLowerCase().includes(searchLower) ||
-            h.partner_email.toLowerCase().includes(searchLower) ||
-            (h.description && h.description.toLowerCase().includes(searchLower))
+
+        if (withdrawalSearch) {
+          const searchLower = withdrawalSearch.toLowerCase();
+          filtered = filtered.filter((w: any) =>
+            w.partner_name.toLowerCase().includes(searchLower) ||
+            w.partner_email.toLowerCase().includes(searchLower)
           );
         }
-        
-        setHistory(filteredHistory);
+
+        setWithdrawals(filtered);
+        setWithdrawalsPending(filtered.filter((w: any) => w.status === 'pending').length);
+
+      } else if (activeTab === 'history') {
+        const [rewardsRes, withdrawalsRes] = await Promise.all([
+          supabase.from('referral_rewards').select('*, partner:referral_partners(name, email)').order('created_at', { ascending: false }).limit(100),
+          supabase.from('referral_withdrawals').select('*, partner:referral_partners(name, email)').order('requested_at', { ascending: false }).limit(100)
+        ]);
+
+        if (rewardsRes.error) throw rewardsRes.error;
+        if (withdrawalsRes.error) throw withdrawalsRes.error;
+
+        const rewardsItems: HistoryItem[] = (rewardsRes.data || []).map((r: any) => ({
+          id: r.id,
+          operation_type: r.reward_type === 'commission' ? 'purchase' : 'manual',
+          type: r.reward_type,
+          partner_id: r.partner_id,
+          partner_name: r.partner?.name,
+          partner_email: r.partner?.email,
+          amount: Number(r.amount),
+          description: r.description || (r.reward_type === 'commission' ? 'Комиссия с продажи' : 'Начисление'),
+          status: r.status || 'completed',
+          created_at: r.created_at,
+          created_by: null
+        }));
+
+        const withdrawalItems: HistoryItem[] = (withdrawalsRes.data || []).map((w: any) => ({
+          id: w.id,
+          operation_type: 'withdrawal',
+          partner_id: w.partner_id,
+          partner_name: w.partner?.name,
+          partner_email: w.partner?.email,
+          amount: Number(w.amount),
+          description: 'Вывод средств',
+          status: w.status,
+          created_at: w.requested_at,
+          created_by: w.processed_by
+        }));
+
+        let combined = [...rewardsItems, ...withdrawalItems].sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        if (historyTypeFilter !== 'all') {
+          combined = combined.filter(h => h.operation_type === historyTypeFilter);
+        }
+        if (historyStatusFilter !== 'all') {
+          combined = combined.filter(h => h.status === historyStatusFilter);
+        }
+        if (historySearch) {
+          const searchLower = historySearch.toLowerCase();
+          combined = combined.filter(h =>
+            (h.partner_name || '').toLowerCase().includes(searchLower) ||
+            (h.partner_email || '').toLowerCase().includes(searchLower) ||
+            (h.description || '').toLowerCase().includes(searchLower)
+          );
+        }
+
+        setHistory(combined);
       }
     } catch (error: any) {
       console.error('Failed to load data:', error);
@@ -250,15 +291,22 @@ export default function AdminReferral() {
     }
 
     try {
-      await api.addAdminReferralPartnerFunds(selectedPartner.id, amount, fundsDescription);
+      const { error } = await supabase.functions.invoke('admin-referrals', {
+        body: {
+          action: 'add_funds',
+          partnerId: selectedPartner.id,
+          amount,
+          description: fundsDescription
+        }
+      });
+
+      if (error) throw error;
+
       toast.success('Средства начислены');
       setShowAddFunds(false);
       setFundsAmount('');
       setFundsDescription('');
       await loadData();
-      // Обновляем количество партнеров
-      const partnersData = await api.getAdminReferralPartners({ limit: 1, offset: 0 });
-      setPartnersTotal(partnersData.total);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при начислении');
     }
@@ -276,21 +324,28 @@ export default function AdminReferral() {
       return;
     }
 
-    if (amount > selectedPartner.current_balance) {
+    if (amount > (selectedPartner.balance || selectedPartner.current_balance || 0)) {
       toast.error('Недостаточно средств на балансе');
       return;
     }
 
     try {
-      await api.removeAdminReferralPartnerFunds(selectedPartner.id, amount, fundsDescription);
+      const { error } = await supabase.functions.invoke('admin-referrals', {
+        body: {
+          action: 'remove_funds',
+          partnerId: selectedPartner.id,
+          amount,
+          description: fundsDescription
+        }
+      });
+
+      if (error) throw error;
+
       toast.success('Средства списаны');
       setShowRemoveFunds(false);
       setFundsAmount('');
       setFundsDescription('');
       await loadData();
-      // Обновляем количество партнеров
-      const partnersData = await api.getAdminReferralPartners({ limit: 1, offset: 0 });
-      setPartnersTotal(partnersData.total);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при списании');
     }
@@ -298,12 +353,16 @@ export default function AdminReferral() {
 
   const handleTogglePartnerStatus = async (partner: Partner) => {
     try {
-      await api.toggleAdminReferralPartnerStatus(partner.id);
+      const { error } = await supabase.functions.invoke('admin-referrals', {
+        body: {
+          action: 'toggle_status',
+          id: partner.id
+        }
+      });
+      if (error) throw error;
+
       toast.success(`Партнер ${partner.is_active ? 'заблокирован' : 'активирован'}`);
       await loadData();
-      // Обновляем количество партнеров
-      const partnersData = await api.getAdminReferralPartners({ limit: 1, offset: 0 });
-      setPartnersTotal(partnersData.total);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при изменении статуса');
     }
@@ -313,7 +372,14 @@ export default function AdminReferral() {
     if (!selectedWithdrawal) return;
 
     try {
-      await api.approveAdminReferralWithdrawal(selectedWithdrawal.id);
+      const { error } = await supabase.functions.invoke('admin-referrals', {
+        body: {
+          action: 'approve_withdrawal',
+          id: selectedWithdrawal.id
+        }
+      });
+      if (error) throw error;
+
       toast.success('Запрос одобрен');
       setShowWithdrawalDetails(false);
       await loadData();
@@ -329,14 +395,19 @@ export default function AdminReferral() {
     }
 
     try {
-      await api.rejectAdminReferralWithdrawal(selectedWithdrawal.id, withdrawalNotes);
+      const { error } = await supabase.functions.invoke('admin-referrals', {
+        body: {
+          action: 'reject_withdrawal',
+          id: selectedWithdrawal.id,
+          notes: withdrawalNotes
+        }
+      });
+      if (error) throw error;
+
       toast.success('Запрос отклонен');
       setShowWithdrawalDetails(false);
       setWithdrawalNotes('');
       await loadData();
-      // Обновляем количество pending запросов
-      const pendingData = await api.getAdminReferralWithdrawals({ status: 'pending' });
-      setWithdrawalsPending(pendingData.withdrawals.length);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при отклонении');
     }
@@ -346,13 +417,17 @@ export default function AdminReferral() {
     if (!selectedWithdrawal) return;
 
     try {
-      await api.markAdminReferralWithdrawalPaid(selectedWithdrawal.id);
+      const { error } = await supabase.functions.invoke('admin-referrals', {
+        body: {
+          action: 'mark_paid',
+          id: selectedWithdrawal.id
+        }
+      });
+      if (error) throw error;
+
       toast.success('Запрос помечен как выплаченный');
       setShowWithdrawalDetails(false);
       await loadData();
-      // Обновляем количество pending запросов
-      const pendingData = await api.getAdminReferralWithdrawals({ status: 'pending' });
-      setWithdrawalsPending(pendingData.withdrawals.length);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при обновлении статуса');
     }
@@ -384,27 +459,8 @@ export default function AdminReferral() {
     );
   };
 
-  const filteredPartners = partners.filter((partner) => {
-    const matchesSearch =
-      partner.name.toLowerCase().includes(partnerSearch.toLowerCase()) ||
-      partner.email.toLowerCase().includes(partnerSearch.toLowerCase()) ||
-      partner.referral_code.toLowerCase().includes(partnerSearch.toLowerCase());
-    
-    const matchesStatus =
-      partnerStatusFilter === 'all' ||
-      (partnerStatusFilter === 'active' && partner.is_active) ||
-      (partnerStatusFilter === 'inactive' && !partner.is_active);
-
-    return matchesSearch && matchesStatus;
-  });
-
-  const filteredWithdrawals = withdrawals.filter((withdrawal) => {
-    const matchesStatus = withdrawalStatusFilter === 'all' || withdrawal.status === withdrawalStatusFilter;
-    const matchesSearch = !withdrawalSearch || 
-      withdrawal.partner_name.toLowerCase().includes(withdrawalSearch.toLowerCase()) ||
-      withdrawal.partner_email.toLowerCase().includes(withdrawalSearch.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const filteredPartners = partners;
+  const filteredWithdrawals = withdrawals;
 
   return (
     <AdminLayout>
@@ -418,15 +474,15 @@ export default function AdminReferral() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-4 h-auto p-1 gap-1 md:gap-0">
-            <TabsTrigger 
-              value="stats" 
+            <TabsTrigger
+              value="stats"
               className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
             >
               <BarChart3 className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
               <span className="hidden lg:inline">Статистика</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="partners" 
+            <TabsTrigger
+              value="partners"
               className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
             >
               <Users className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
@@ -436,8 +492,8 @@ export default function AdminReferral() {
                 <span className="hidden lg:inline">({partnersTotal})</span>
               </span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="withdrawals" 
+            <TabsTrigger
+              value="withdrawals"
               className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
             >
               <Download className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
@@ -447,8 +503,8 @@ export default function AdminReferral() {
                 <span className="hidden lg:inline">({withdrawalsPending})</span>
               </span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="history" 
+            <TabsTrigger
+              value="history"
               className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-1 md:px-3 py-2 md:py-1.5 h-auto md:h-auto min-h-[56px] md:min-h-0 text-[10px] md:text-sm"
             >
               <History className="h-5 w-5 md:h-4 md:w-4 shrink-0" />
@@ -456,7 +512,7 @@ export default function AdminReferral() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Статистика */}
+          {/* Stats Content */}
           <TabsContent value="stats" className="space-y-4">
             {isLoading ? (
               <div className="text-center py-12">
@@ -466,6 +522,7 @@ export default function AdminReferral() {
             ) : stats ? (
               <>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  {/* Stats Cards */}
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Партнеры</CardTitle>
@@ -478,7 +535,6 @@ export default function AdminReferral() {
                       </p>
                     </CardContent>
                   </Card>
-
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Посещения</CardTitle>
@@ -491,7 +547,6 @@ export default function AdminReferral() {
                       </p>
                     </CardContent>
                   </Card>
-
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Покупки</CardTitle>
@@ -504,7 +559,6 @@ export default function AdminReferral() {
                       </p>
                     </CardContent>
                   </Card>
-
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <CardTitle className="text-sm font-medium">Начисления</CardTitle>
@@ -548,7 +602,7 @@ export default function AdminReferral() {
             )}
           </TabsContent>
 
-          {/* Партнеры */}
+          {/* Partners Tab */}
           <TabsContent value="partners" className="space-y-4">
             <Card>
               <CardHeader>
@@ -597,7 +651,7 @@ export default function AdminReferral() {
                           </div>
                           <p className="text-sm text-muted-foreground">{partner.email}</p>
                           <p className="text-xs text-muted-foreground">
-                            Код: {partner.referral_code} | Баланс: {partner.current_balance.toFixed(2)}€
+                            Код: {partner.referral_code} | Баланс: {(partner.balance || partner.current_balance || 0).toFixed(2)}€
                           </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -608,16 +662,7 @@ export default function AdminReferral() {
                             onClick={async () => {
                               setSelectedPartner(partner);
                               setShowPartnerStats(true);
-                              setIsLoadingPartnerStats(true);
-                              try {
-                                const stats = await api.getAdminReferralPartnerStats(partner.id);
-                                setPartnerStats(stats);
-                              } catch (error: any) {
-                                console.error('Failed to load partner stats:', error);
-                                toast.error(error.message || 'Ошибка при загрузке статистики');
-                              } finally {
-                                setIsLoadingPartnerStats(false);
-                              }
+                              toast.info("Детальная статистика партнера временно недоступна");
                             }}
                           >
                             <Eye className="h-4 w-4 mr-1" />
@@ -664,7 +709,7 @@ export default function AdminReferral() {
             </Card>
           </TabsContent>
 
-          {/* Запросы на вывод */}
+          {/* Withdrawals Tab */}
           <TabsContent value="withdrawals" className="space-y-4">
             <Card>
               <CardHeader>
@@ -741,7 +786,7 @@ export default function AdminReferral() {
             </Card>
           </TabsContent>
 
-          {/* История */}
+          {/* History Tab */}
           <TabsContent value="history" className="space-y-4">
             <Card>
               <CardHeader>
@@ -780,7 +825,7 @@ export default function AdminReferral() {
                       <SelectTrigger className="w-full sm:w-40">
                         <SelectValue />
                       </SelectTrigger>
-                        <SelectContent>
+                      <SelectContent>
                         <SelectItem value="all">Все статусы</SelectItem>
                         <SelectItem value="pending">В обработке</SelectItem>
                         <SelectItem value="approved">Одобрено</SelectItem>
@@ -798,230 +843,54 @@ export default function AdminReferral() {
                     История пуста
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {history.map((item) => {
-                      const getTypeLabel = (type: string, operationType: string) => {
-                        if (operationType === 'withdrawal') return 'Вывод';
-                        switch (type) {
-                          case 'visit': return 'Посещение';
-                          case 'registration': return 'Регистрация';
-                          case 'purchase': return 'Покупка';
-                          case 'manual': return 'Ручная операция';
-                          default: return type;
-                        }
-                      };
-
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="outline">{getTypeLabel(item.type, item.operation_type)}</Badge>
-                              <span className="font-medium">{item.partner_name}</span>
-                              {getStatusBadge(item.status)}
-                            </div>
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {format(new Date(item.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-                              {item.created_by && ' • Ручная операция'}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className={`font-bold text-lg ${item.operation_type === 'withdrawal' ? 'text-red-600' : 'text-green-600'}`}>
-                              {item.operation_type === 'withdrawal' ? '-' : '+'}{item.amount.toFixed(2)}€
-                            </div>
-                          </div>
+                  <div className="space-y-4">
+                    {history.map((item) => (
+                      <div
+                        key={`${item.operation_type}-${item.id}`}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium">{item.description}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.partner_name} ({item.partner_email})
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(item.created_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+                          </p>
                         </div>
-                      );
-                    })}
+                        <div className="text-right">
+                          <p className={cn(
+                            "font-bold",
+                            item.operation_type === 'withdrawal' ? "text-red-500" : "text-green-500"
+                          )}>
+                            {item.operation_type === 'withdrawal' ? '-' : '+'}{item.amount.toFixed(2)}€
+                          </p>
+                          <Badge variant="outline">{item.status}</Badge>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>
             </Card>
           </TabsContent>
+
         </Tabs>
 
-        {/* Модальное окно статистики партнера */}
-        <Dialog 
-          open={showPartnerStats} 
-          onOpenChange={(open) => {
-            setShowPartnerStats(open);
-            if (!open) {
-              setPartnerStats(null);
-            }
-          }}
-        >
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Modal Definitions */}
+        {/* Partner Stats Modal */}
+        <Dialog open={showPartnerStats} onOpenChange={setShowPartnerStats}>
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>Статистика партнера</DialogTitle>
-              <DialogDescription>
-                {selectedPartner?.name} ({selectedPartner?.email})
-              </DialogDescription>
+              <DialogTitle>Статистика партнера: {selectedPartner?.name}</DialogTitle>
             </DialogHeader>
-            {isLoadingPartnerStats ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-                  <p className="text-muted-foreground">Загрузка статистики...</p>
-                </div>
-              </div>
-            ) : partnerStats ? (
-              <div className="space-y-6">
-                {/* Финансы */}
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Текущий баланс</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {parseFloat(partnerStats.partner.current_balance || 0).toFixed(2)}€
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Всего заработано</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {parseFloat(partnerStats.partner.total_earnings || 0).toFixed(2)}€
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Выведено</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold">
-                        {parseFloat(partnerStats.partner.withdrawn_amount || 0).toFixed(2)}€
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Посещения */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Посещения</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Всего посещений</p>
-                        <p className="text-2xl font-bold">{partnerStats.visits.total}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Уникальных</p>
-                        <p className="text-2xl font-bold">{partnerStats.visits.unique}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Регистрации */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Регистрации</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Всего регистраций</p>
-                        <p className="text-2xl font-bold">{partnerStats.registrations.total}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Конверсия</p>
-                        <p className="text-2xl font-bold">{partnerStats.registrations.conversion.toFixed(2)}%</p>
-                        <p className="text-xs text-muted-foreground">от посещений</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Покупки */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Покупки</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4 md:grid-cols-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Всего покупок</p>
-                        <p className="text-2xl font-bold">{partnerStats.purchases.total}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Общая сумма</p>
-                        <p className="text-2xl font-bold">{partnerStats.purchases.total_amount.toFixed(2)}€</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Средний чек</p>
-                        <p className="text-2xl font-bold">{partnerStats.purchases.avg_amount.toFixed(2)}€</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Конверсия</p>
-                        <p className="text-2xl font-bold">{partnerStats.purchases.conversion.toFixed(2)}%</p>
-                        <p className="text-xs text-muted-foreground">от регистраций</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Список рефералов */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Рефералы</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {partnerStats.referrals && partnerStats.referrals.length > 0 ? (
-                      <div className="space-y-2">
-                        {partnerStats.referrals.map((referral: any, index: number) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border rounded-lg"
-                          >
-                            <div className="flex-1">
-                              <p className="font-medium">{maskEmail(referral.email || '')}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {referral.registered_at 
-                                  ? format(new Date(referral.registered_at), 'dd MMMM yyyy', { locale: ru })
-                                  : 'Дата неизвестна'}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground">Покупки</p>
-                                <p className="font-medium">
-                                  {parseFloat(referral.total_purchases || 0).toFixed(2)}€
-                                </p>
-                              </div>
-                              <Badge variant={referral.status === 'purchased' ? 'default' : 'secondary'}>
-                                {referral.status === 'purchased' ? 'Купил' : 'Зарегистрирован'}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Пока нет рефералов
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Не удалось загрузить статистику
-              </p>
-            )}
+            <div className="py-4 text-center">
+              <p>Детальная статистика в разработке</p>
+            </div>
           </DialogContent>
         </Dialog>
 
-        {/* Модальное окно начисления средств */}
+        {/* Add Funds Modal */}
         <Dialog open={showAddFunds} onOpenChange={setShowAddFunds}>
           <DialogContent>
             <DialogHeader>
@@ -1030,26 +899,22 @@ export default function AdminReferral() {
                 Партнер: {selectedPartner?.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="add-amount">Сумма (EUR)</Label>
+                <Label>Сумма (€)</Label>
                 <Input
-                  id="add-amount"
                   type="number"
-                  step="0.01"
-                  min="0.01"
+                  placeholder="0.00"
                   value={fundsAmount}
                   onChange={(e) => setFundsAmount(e.target.value)}
-                  placeholder="0.00"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="add-description">Причина/Описание *</Label>
+                <Label>Описание</Label>
                 <Input
-                  id="add-description"
+                  placeholder="Причина начисления"
                   value={fundsDescription}
                   onChange={(e) => setFundsDescription(e.target.value)}
-                  placeholder="Описание начисления"
                 />
               </div>
             </div>
@@ -1062,36 +927,31 @@ export default function AdminReferral() {
           </DialogContent>
         </Dialog>
 
-        {/* Модальное окно списания средств */}
+        {/* Remove Funds Modal */}
         <Dialog open={showRemoveFunds} onOpenChange={setShowRemoveFunds}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Списать средства</DialogTitle>
               <DialogDescription>
-                Партнер: {selectedPartner?.name} (Баланс: {selectedPartner?.current_balance.toFixed(2)}€)
+                Партнер: {selectedPartner?.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="remove-amount">Сумма (EUR)</Label>
+                <Label>Сумма (€)</Label>
                 <Input
-                  id="remove-amount"
                   type="number"
-                  step="0.01"
-                  min="0.01"
-                  max={selectedPartner?.current_balance}
+                  placeholder="0.00"
                   value={fundsAmount}
                   onChange={(e) => setFundsAmount(e.target.value)}
-                  placeholder="0.00"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="remove-description">Причина/Описание *</Label>
+                <Label>Описание</Label>
                 <Input
-                  id="remove-description"
+                  placeholder="Причина списания"
                   value={fundsDescription}
                   onChange={(e) => setFundsDescription(e.target.value)}
-                  placeholder="Описание списания"
                 />
               </div>
             </div>
@@ -1106,89 +966,74 @@ export default function AdminReferral() {
           </DialogContent>
         </Dialog>
 
-        {/* Модальное окно деталей запроса на вывод */}
+        {/* Withdrawal Details Modal */}
         <Dialog open={showWithdrawalDetails} onOpenChange={setShowWithdrawalDetails}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Детали запроса на вывод</DialogTitle>
+              <DialogTitle>Запрос на вывод</DialogTitle>
               <DialogDescription>
-                Партнер: {selectedWithdrawal?.partner_name}
+                ID: {selectedWithdrawal?.id}
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Сумма</Label>
-                <p className="text-lg font-bold">{selectedWithdrawal?.amount.toFixed(2)}€</p>
+            {selectedWithdrawal && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Партнер</Label>
+                    <p className="font-medium">{selectedWithdrawal.partner_name}</p>
+                    <p className="text-sm text-muted-foreground">{selectedWithdrawal.partner_email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Сумма</Label>
+                    <p className="font-bold text-xl">{selectedWithdrawal.amount.toFixed(2)}€</p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground">Реквизиты</Label>
+                    <p className="font-mono bg-muted p-2 rounded text-sm">
+                      {selectedWithdrawal.payment_details}
+                    </p>
+                  </div>
+                  {selectedWithdrawal.telegram_tag && (
+                    <div className="col-span-2">
+                      <Label className="text-muted-foreground">Telegram</Label>
+                      <p className="text-sm">@{selectedWithdrawal.telegram_tag.replace('@', '')}</p>
+                    </div>
+                  )}
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground">Дата запроса</Label>
+                    <p className="text-sm">
+                      {format(new Date(selectedWithdrawal.requested_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedWithdrawal.status === 'pending' && (
+                  <div className="space-y-2">
+                    <Label>Комментарий при отказе</Label>
+                    <Input
+                      placeholder="Причина отказа..."
+                      value={withdrawalNotes}
+                      onChange={(e) => setWithdrawalNotes(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
-              <div>
-                <Label>Номер карты/счета</Label>
-                <p className="text-sm">{selectedWithdrawal?.payment_details}</p>
-              </div>
-              {selectedWithdrawal?.telegram_tag && (
-                <div>
-                  <Label>Telegram</Label>
-                  <p className="text-sm">{selectedWithdrawal.telegram_tag}</p>
-                </div>
-              )}
-              <div>
-                <Label>Статус</Label>
-                <div className="mt-1">
-                  {getStatusBadge(selectedWithdrawal?.status || '')}
-                </div>
-              </div>
-              {selectedWithdrawal?.processed_at && (
-                <div>
-                  <Label>Дата обработки</Label>
-                  <p className="text-sm">
-                    {format(new Date(selectedWithdrawal.processed_at), 'dd MMMM yyyy, HH:mm', { locale: ru })}
-                  </p>
-                </div>
-              )}
-              {selectedWithdrawal?.admin_notes && (
-                <div>
-                  <Label>Заметки администратора</Label>
-                  <p className="text-sm text-muted-foreground">{selectedWithdrawal.admin_notes}</p>
-                </div>
-              )}
-              {selectedWithdrawal?.status === 'pending' && (
-                <div>
-                  <Label>Заметки администратора</Label>
-                  <Input
-                    value={withdrawalNotes}
-                    onChange={(e) => setWithdrawalNotes(e.target.value)}
-                    placeholder="Добавить заметки (при отклонении обязательно)..."
-                  />
-                </div>
-              )}
-            </div>
-            <DialogFooter className="flex gap-2">
-              {selectedWithdrawal?.status === 'pending' && (
+            )}
+            <DialogFooter className="gap-2 sm:gap-0">
+              {selectedWithdrawal?.status === 'pending' ? (
                 <>
-                  <Button variant="outline" onClick={() => setShowWithdrawalDetails(false)}>
-                    Отмена
-                  </Button>
                   <Button variant="destructive" onClick={handleWithdrawalReject}>
-                    <XCircle className="h-4 w-4 mr-1" />
                     Отклонить
                   </Button>
                   <Button onClick={handleWithdrawalApprove}>
-                    <CheckCircle className="h-4 w-4 mr-1" />
                     Одобрить
                   </Button>
                 </>
-              )}
-              {selectedWithdrawal?.status === 'approved' && (
-                <>
-                  <Button variant="outline" onClick={() => setShowWithdrawalDetails(false)}>
-                    Закрыть
-                  </Button>
-                  <Button onClick={handleWithdrawalMarkPaid}>
-                    <CheckCircle className="h-4 w-4 mr-1" />
-                    Пометить как выплачено
-                  </Button>
-                </>
-              )}
-              {selectedWithdrawal?.status !== 'pending' && selectedWithdrawal?.status !== 'approved' && (
+              ) : selectedWithdrawal?.status === 'approved' ? (
+                <Button onClick={handleWithdrawalMarkPaid}>
+                  Пометить как выплачено
+                </Button>
+              ) : (
                 <Button variant="outline" onClick={() => setShowWithdrawalDetails(false)}>
                   Закрыть
                 </Button>

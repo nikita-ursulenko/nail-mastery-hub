@@ -1,13 +1,11 @@
 import { Request, Response } from 'express';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
 import { getAvatarUrl } from '../middleware/upload';
 
-const pool = new Pool(getDatabaseConfig());
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 interface RegisterBody {
@@ -37,8 +35,13 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
   }
 
   // Проверка, существует ли пользователь
-  const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-  if (existingUser.rows.length > 0) {
+  const { data: existingUser, error: checkError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (existingUser) {
     throw new AppError('Пользователь с таким email уже существует', 409);
   }
 
@@ -46,14 +49,18 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
   const passwordHash = await bcrypt.hash(password, 10);
 
   // Создание пользователя
-  const result = await pool.query(
-    `INSERT INTO users (email, password_hash, name, phone)
-     VALUES ($1, $2, $3, $4)
-     RETURNING id, email, name, phone, avatar_url, avatar_upload_path, created_at`,
-    [email, passwordHash, name, phone || null]
-  );
+  const { data: user, error: insertError } = await supabase
+    .from('users')
+    .insert([
+      { email, password_hash: passwordHash, name, phone: phone || null }
+    ])
+    .select('id, email, name, phone, avatar_url, avatar_upload_path, created_at')
+    .single();
 
-  const user = result.rows[0];
+  if (insertError || !user) {
+    console.error('Supabase error:', insertError);
+    throw new AppError('Ошибка при регистрации пользователя', 500);
+  }
 
   // Обработка реферального кода (если передан)
   if (req.body.referral_code) {
@@ -63,8 +70,8 @@ export const register = asyncHandler(async (req: Request<{}, {}, RegisterBody>, 
       // Вызываем напрямую логику отслеживания
       await trackRegistration(
         { body: { referral_code: req.body.referral_code, user_id: user.id } } as any,
-        { json: () => {}, status: () => ({ json: () => {} }) } as any,
-        () => {}
+        { json: () => { }, status: () => ({ json: () => { } }) } as any,
+        () => { }
       );
     } catch (error) {
       // Не прерываем регистрацию, если ошибка с реферальным кодом
@@ -101,16 +108,15 @@ export const login = asyncHandler(async (req: Request<{}, {}, LoginBody>, res: R
   }
 
   // Поиск пользователя
-  const result = await pool.query(
-    'SELECT id, email, password_hash, name, phone, avatar_url, avatar_upload_path, is_active FROM users WHERE email = $1',
-    [email]
-  );
+  const { data: user, error: findError } = await supabase
+    .from('users')
+    .select('id, email, password_hash, name, phone, avatar_url, avatar_upload_path, is_active')
+    .eq('email', email)
+    .single();
 
-  if (result.rows.length === 0) {
+  if (findError || !user) {
     throw new AppError('Неверный email или пароль', 401);
   }
-
-  const user = result.rows[0];
 
   // Проверка активности
   if (!user.is_active) {
@@ -145,7 +151,6 @@ export const login = asyncHandler(async (req: Request<{}, {}, LoginBody>, res: R
 
 // Проверка токена пользователя
 export const verifyToken = asyncHandler(async (req: Request, res: Response) => {
-  // Если middleware authenticateUserToken прошел, значит токен валиден
   // Получаем пользователя из req.user (будет установлено в middleware)
   const userId = (req as any).user?.id;
 
@@ -153,18 +158,20 @@ export const verifyToken = asyncHandler(async (req: Request, res: Response) => {
     throw new AppError('Токен недействителен', 401);
   }
 
-  const result = await pool.query(
-    'SELECT id, email, name, phone, avatar_url, avatar_upload_path FROM users WHERE id = $1 AND is_active = TRUE',
-    [userId]
-  );
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('id, email, name, phone, avatar_url, avatar_upload_path')
+    .eq('id', userId)
+    .eq('is_active', true)
+    .single();
 
-  if (result.rows.length === 0) {
+  if (error || !user) {
     throw new AppError('Пользователь не найден', 404);
   }
 
   res.json({
     valid: true,
-    user: result.rows[0],
+    user: user,
   });
 });
 
@@ -178,64 +185,57 @@ export const updateProfile = asyncHandler(async (req: Request, res: Response) =>
   const { name, email, phone, avatar_url, avatar_upload_path } = req.body;
 
   // Проверка существования пользователя
-  const existingUser = await pool.query('SELECT id, email FROM users WHERE id = $1', [userId]);
-  if (existingUser.rows.length === 0) {
+  const { data: existingUser, error: findError } = await supabase
+    .from('users')
+    .select('id, email')
+    .eq('id', userId)
+    .single();
+
+  if (findError || !existingUser) {
     throw new AppError('Пользователь не найден', 404);
   }
 
   // Проверка уникальности email (если изменился)
-  if (email && email !== existingUser.rows[0].email) {
-    const emailCheck = await pool.query(
-      'SELECT id FROM users WHERE email = $1 AND id != $2',
-      [email, userId]
-    );
-    if (emailCheck.rows.length > 0) {
+  if (email && email !== existingUser.email) {
+    const { data: emailCheck } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .neq('id', userId)
+      .maybeSingle();
+
+    if (emailCheck) {
       throw new AppError('Пользователь с таким email уже существует', 409);
     }
   }
 
-  // Формируем запрос на обновление
-  const updates: string[] = [];
-  const values: any[] = [];
-  let paramIndex = 1;
+  // Формируем объект обновлений
+  const updates: any = {};
+  if (name) updates.name = name;
+  if (email) updates.email = email;
+  if (phone !== undefined) updates.phone = phone;
+  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+  if (avatar_upload_path !== undefined) updates.avatar_upload_path = avatar_upload_path;
 
-  if (name) {
-    updates.push(`name = $${paramIndex++}`);
-    values.push(name);
-  }
-  if (email) {
-    updates.push(`email = $${paramIndex++}`);
-    values.push(email);
-  }
-  if (phone !== undefined) {
-    updates.push(`phone = $${paramIndex++}`);
-    values.push(phone);
-  }
-  if (avatar_url !== undefined) {
-    updates.push(`avatar_url = $${paramIndex++}`);
-    values.push(avatar_url);
-  }
-  if (avatar_upload_path !== undefined) {
-    updates.push(`avatar_upload_path = $${paramIndex++}`);
-    values.push(avatar_upload_path);
-  }
-
-  if (updates.length === 0) {
+  if (Object.keys(updates).length === 0) {
     throw new AppError('Нет данных для обновления', 400);
   }
 
-  updates.push(`updated_at = CURRENT_TIMESTAMP`);
-  values.push(userId);
+  updates.updated_at = new Date().toISOString();
 
-  const result = await pool.query(
-    `UPDATE users 
-     SET ${updates.join(', ')}
-     WHERE id = $${paramIndex}
-     RETURNING id, email, name, phone, avatar_url, avatar_upload_path, created_at, updated_at`,
-    values
-  );
+  const { data: user, error: updateError } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId)
+    .select('id, email, name, phone, avatar_url, avatar_upload_path, created_at, updated_at')
+    .single();
 
-  res.json({ user: result.rows[0] });
+  if (updateError) {
+    console.error('Supabase error:', updateError);
+    throw new AppError('Ошибка при обновлении профиля', 500);
+  }
+
+  res.json({ user });
 });
 
 // Смена пароля пользователя
@@ -256,17 +256,18 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   }
 
   // Получаем текущий пароль
-  const result = await pool.query(
-    'SELECT password_hash FROM users WHERE id = $1',
-    [userId]
-  );
+  const { data: user, error: findError } = await supabase
+    .from('users')
+    .select('password_hash')
+    .eq('id', userId)
+    .single();
 
-  if (result.rows.length === 0) {
+  if (findError || !user) {
     throw new AppError('Пользователь не найден', 404);
   }
 
   // Проверяем старый пароль
-  const isPasswordValid = await bcrypt.compare(oldPassword, result.rows[0].password_hash);
+  const isPasswordValid = await bcrypt.compare(oldPassword, user.password_hash);
   if (!isPasswordValid) {
     throw new AppError('Неверный старый пароль', 401);
   }
@@ -275,12 +276,15 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
   // Обновляем пароль
-  await pool.query(
-    `UPDATE users 
-     SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $2`,
-    [newPasswordHash, userId]
-  );
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ password_hash: newPasswordHash, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+
+  if (updateError) {
+    console.error('Supabase error:', updateError);
+    throw new AppError('Ошибка при смене пароля', 500);
+  }
 
   res.json({ message: 'Пароль успешно изменен' });
 });
@@ -300,12 +304,19 @@ export const uploadUserAvatar = asyncHandler(async (req: Request, res: Response)
   const avatarUrl = getAvatarUrl(filename);
 
   // Обновляем путь к аватару в БД
-  await pool.query(
-    `UPDATE users 
-     SET avatar_upload_path = $1, avatar_url = NULL, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $2`,
-    [filename, userId]
-  );
+  const { error } = await supabase
+    .from('users')
+    .update({
+      avatar_upload_path: filename,
+      avatar_url: null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Supabase error:', error);
+    throw new AppError('Ошибка при сохранении аватара', 500);
+  }
 
   res.json({ filename, url: avatarUrl });
 });

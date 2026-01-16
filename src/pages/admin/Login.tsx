@@ -13,12 +13,14 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = 'Admin panel';
-  }, []);
+    if (isAuthenticated) {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,10 +29,10 @@ export default function Login() {
 
     try {
       await login(email.trim().toLowerCase(), password);
-      navigate('/admin/dashboard');
+      // Navigation happens in useEffect
     } catch (err: any) {
+      console.error(err);
       setError(err.message || 'Ошибка при входе в систему');
-    } finally {
       setIsLoading(false);
     }
   };

@@ -622,9 +622,9 @@ class ApiClient {
   }
 
   // Public Blog Posts API (без авторизации)
-  async getPublicBlogPosts(params?: { 
-    category?: string; 
-    featured?: boolean; 
+  async getPublicBlogPosts(params?: {
+    category?: string;
+    featured?: boolean;
     search?: string;
     limit?: number;
     offset?: number;
@@ -635,7 +635,7 @@ class ApiClient {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.offset) queryParams.append('offset', params.offset.toString());
-    
+
     const url = `${API_BASE_URL}/public/blog${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
     const response = await fetch(url, {
       cache: 'default', // Используем браузерное кэширование
@@ -909,39 +909,6 @@ class ApiClient {
   }
 
   // User Courses API (требуют user_token)
-  private async userRequest<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const token = this.getUserToken();
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Ошибка запроса';
-      try {
-        const error: ApiError = await response.json();
-        errorMessage = error.error || errorMessage;
-      } catch (e) {
-        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    return response.json();
-  }
-
   async getUserCourses(): Promise<any> {
     return this.userRequest<any>('/user/courses');
   }
@@ -972,18 +939,18 @@ class ApiClient {
     });
   }
 
-  async getPaymentStatus(sessionId: string): Promise<{ 
-    status: string; 
-    sessionId: string; 
-    customerEmail?: string; 
+  async getPaymentStatus(sessionId: string): Promise<{
+    status: string;
+    sessionId: string;
+    customerEmail?: string;
     enrollmentActivated?: boolean;
     course?: { id: number; title: string; slug: string };
     amount?: number;
   }> {
-    return this.userRequest<{ 
-      status: string; 
-      sessionId: string; 
-      customerEmail?: string; 
+    return this.userRequest<{
+      status: string;
+      sessionId: string;
+      customerEmail?: string;
       enrollmentActivated?: boolean;
       course?: { id: number; title: string; slug: string };
       amount?: number;
@@ -1150,15 +1117,7 @@ class ApiClient {
     return this.referralRequest<any>('/referral/dashboard/stats');
   }
 
-  async getReferralRewards(): Promise<{ rewards: any[] }> {
-    const stats = await this.referralRequest<any>('/referral/dashboard/stats');
-    return { rewards: stats.rewardsHistory || [] };
-  }
 
-  async getReferralReferrals(): Promise<{ referrals: any[] }> {
-    const stats = await this.referralRequest<any>('/referral/dashboard/stats');
-    return { referrals: stats.referredUsers || [] };
-  }
 
   async getReferralWithdrawals(): Promise<{ withdrawals: any[] }> {
     return this.referralRequest<{ withdrawals: any[] }>('/referral/withdrawals/history');
@@ -1196,7 +1155,7 @@ class ApiClient {
       });
     }
     const query = queryParams.toString();
-    return this.referralRequest<{ rewards: any[] }>(`/referral/dashboard/rewards${query ? `?${query}` : ''}`);
+    return this.referralRequest<{ rewards: any[]; total: number }>(`/referral/dashboard/rewards${query ? `?${query}` : ''}`);
   }
 
   async getReferralReferrals(): Promise<{ referrals: any[] }> {

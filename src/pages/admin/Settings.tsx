@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Moon, Sun, Save } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface Settings {
   theme?: {
@@ -31,15 +31,29 @@ export default function AdminSettings() {
   const loadSettings = async () => {
     try {
       setIsLoading(true);
-      const response = await api.getSettings();
-      setSettings(response.settings);
-      
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('*');
+
+      if (error) throw error;
+
+      const settingsMap: Settings = {};
+      (data || []).forEach((item: any) => {
+        settingsMap[item.setting_key] = {
+          value: item.setting_value,
+          type: item.setting_type,
+          description: item.description
+        };
+      });
+
+      setSettings(settingsMap);
+
       // Устанавливаем текущую тему
-      if (response.settings.theme?.value) {
-        setTheme(response.settings.theme.value);
-        applyTheme(response.settings.theme.value);
+      if (settingsMap.theme?.value) {
+        setTheme(settingsMap.theme.value);
+        applyTheme(settingsMap.theme.value);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load settings:', error);
       toast.error('Ошибка при загрузке настроек');
     } finally {
@@ -59,14 +73,33 @@ export default function AdminSettings() {
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     applyTheme(newTheme);
+    // Optimistic update
+    setSettings(prev => ({
+      ...prev,
+      theme: {
+        value: newTheme,
+        type: 'string',
+        description: prev.theme?.description
+      }
+    }));
   };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await api.updateSettings({
-        theme: theme,
-      });
+
+      // Update theme setting
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert({
+          setting_key: 'theme',
+          setting_value: theme,
+          setting_type: 'string',
+          description: settings.theme?.description || 'Тема оформления админ-панели'
+        }, { onConflict: 'setting_key' });
+
+      if (error) throw error;
+
       toast.success('Настройки успешно сохранены');
     } catch (error: any) {
       console.error('Failed to save settings:', error);

@@ -24,7 +24,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Star, Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface Testimonial {
   id: number;
@@ -35,6 +36,7 @@ interface Testimonial {
   rating: number;
   created_at?: string;
   updated_at?: string;
+  avatar_upload_path?: string | null;
 }
 
 export default function Testimonials() {
@@ -61,10 +63,16 @@ export default function Testimonials() {
 
   const loadTestimonials = async () => {
     try {
-      const data = await api.getTestimonials();
-      setTestimonials(data);
-    } catch (error) {
-      console.error('Failed to load testimonials:', error);
+      const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setTestimonials(data || []);
+    } catch (error: any) {
+      toast.error('Ошибка при загрузке отзывов');
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +87,7 @@ export default function Testimonials() {
         name: testimonial.name,
         role: testimonial.role,
         avatar: isUploaded ? '' : (testimonial.avatar || ''),
-        avatarUploadPath: isUploaded ? testimonial.avatar : '',
+        avatarUploadPath: isUploaded ? (testimonial.avatar_upload_path || '') : '', // Fixed mapping
         text: testimonial.text,
         rating: testimonial.rating,
       });
@@ -142,39 +150,85 @@ export default function Testimonials() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      let submitData = { ...formData };
+      // Prepare data for DB (snake_case)
+      const submitPayload: any = {
+        name: formData.name,
+        role: formData.role,
+        text: formData.text,
+        rating: formData.rating,
+        avatar: formData.avatar,
+        avatar_upload_path: formData.avatarUploadPath
+      };
 
       // Если загружен файл, сначала загружаем его
       if (avatarFile) {
         setIsUploading(true);
-        try {
-          const uploadResult = await api.uploadAvatar(avatarFile);
-          submitData.avatarUploadPath = uploadResult.url;
-          submitData.avatar = ''; // Очищаем URL, если был
-        } catch (uploadError: any) {
-          alert(uploadError.message || 'Ошибка при загрузке файла');
-          setIsUploading(false);
-          return;
-        } finally {
-          setIsUploading(false);
-        }
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('testimonials')
+          .upload(filePath, avatarFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('testimonials')
+          .getPublicUrl(filePath);
+
+        submitPayload.avatar_upload_path = filePath;
+        submitPayload.avatar = publicUrl;
       } else if (!useUpload && formData.avatar) {
-        // Если используется URL, очищаем путь к загруженному файлу
-        submitData.avatarUploadPath = '';
+        // Если используется URL
+        submitPayload.avatar_upload_path = null;
+      } else if (editingTestimonial?.avatar_upload_path && !formData.avatar) {
+        // Keep existing upload path if not changed (and not explicitly cleared via URL mode)
+        // Actually logic is: if we are in URL mode and field is empty, avatar is empty.
+        // If we are in upload mode but no new file, we keep old file?
+        // No, UI handles it.
+        // Re-using logic:
+        if (editingTestimonial.avatar_upload_path) {
+          submitPayload.avatar_upload_path = editingTestimonial.avatar_upload_path;
+          if (!submitPayload.avatar) submitPayload.avatar = editingTestimonial.avatar;
+        }
+      }
+
+      // Clean up logic:
+      if (!useUpload) {
+        submitPayload.avatar_upload_path = null;
+        submitPayload.avatar = formData.avatar;
       }
 
       if (editingTestimonial) {
-        const updated = await api.updateTestimonial(editingTestimonial.id, submitData);
+        const { error } = await supabase
+          .from('testimonials')
+          .update(submitPayload)
+          .eq('id', editingTestimonial.id);
+
+        if (error) throw error;
+
         setTestimonials(
-          testimonials.map((t) => (t.id === editingTestimonial.id ? updated : t))
+          testimonials.map((t) => (t.id === editingTestimonial.id ? { ...t, ...submitPayload } : t))
         );
+        toast.success('Отзыв обновлен');
       } else {
-        const newTestimonial = await api.createTestimonial(submitData);
-        setTestimonials([newTestimonial, ...testimonials]);
+        const { data, error } = await supabase
+          .from('testimonials')
+          .insert([submitPayload])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setTestimonials([data, ...testimonials]);
+        toast.success('Отзыв добавлен');
       }
       handleCloseDialog();
     } catch (error: any) {
-      alert(error.message || 'Ошибка при сохранении отзыва');
+      toast.error(error.message || 'Ошибка при сохранении отзыва');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -182,10 +236,17 @@ export default function Testimonials() {
     if (!confirm('Вы уверены, что хотите удалить этот отзыв?')) return;
 
     try {
-      await api.deleteTestimonial(id);
+      const { error } = await supabase
+        .from('testimonials')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
       setTestimonials(testimonials.filter((t) => t.id !== id));
+      toast.success('Отзыв удален');
     } catch (error: any) {
-      alert(error.message || 'Ошибка при удалении отзыва');
+      toast.error(error.message || 'Ошибка при удалении отзыва');
     }
   };
 
@@ -372,11 +433,10 @@ export default function Testimonials() {
                           className="focus:outline-none"
                         >
                           <Star
-                            className={`h-6 w-6 ${
-                              rating <= formData.rating
-                                ? 'fill-yellow-400 text-yellow-400'
-                                : 'text-muted-foreground'
-                            }`}
+                            className={`h-6 w-6 ${rating <= formData.rating
+                              ? 'fill-yellow-400 text-yellow-400'
+                              : 'text-muted-foreground'
+                              }`}
                           />
                         </button>
                       ))}
@@ -394,8 +454,8 @@ export default function Testimonials() {
                     {isUploading
                       ? 'Загрузка...'
                       : editingTestimonial
-                      ? 'Сохранить'
-                      : 'Добавить'}
+                        ? 'Сохранить'
+                        : 'Добавить'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -463,11 +523,10 @@ export default function Testimonials() {
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star
                               key={i}
-                              className={`h-4 w-4 ${
-                                i < testimonial.rating
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-muted-foreground'
-                              }`}
+                              className={`h-4 w-4 ${i < testimonial.rating
+                                ? 'fill-yellow-400 text-yellow-400'
+                                : 'text-muted-foreground'
+                                }`}
                             />
                           ))}
                         </div>

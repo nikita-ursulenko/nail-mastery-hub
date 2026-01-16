@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Компонент для обновления SEO мета-тегов при навигации в SPA
@@ -16,23 +17,25 @@ export function SEOUpdater() {
 
     // Увеличиваем задержку, чтобы дать серверу время запуститься
     const timeoutId = setTimeout(() => {
-      const updateSEO = async (retryCount = 0) => {
+      const updateSEO = async () => {
         try {
-          // Получаем SEO данные для текущего пути
           const path = location.pathname;
-          const response = await fetch(`/api/public/seo${path}`, {
-            signal: AbortSignal.timeout(3000), // Таймаут 3 секунды
-          });
-          
-          if (!response.ok) {
-            // Если сервер еще не готов, пробуем еще раз (максимум 2 попытки)
-            if (retryCount < 2 && response.status >= 500) {
-              setTimeout(() => updateSEO(retryCount + 1), 1000);
-            }
+
+          const { data: seo, error } = await supabase
+            .from('seo_settings')
+            .select('*')
+            .eq('path', path)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error loading SEO settings:', error);
             return;
           }
 
-          const seo = await response.json();
+          if (!seo) {
+            // No custom SEO settings for this page, use defaults or skip
+            return;
+          }
 
           // Обновляем title
           if (seo.title) {
@@ -42,7 +45,7 @@ export function SEOUpdater() {
           // Функция для обновления или создания meta тега
           const updateMetaTag = (name: string, content: string, attribute: string = 'name') => {
             if (!content) return;
-            
+
             let element = document.querySelector(`meta[${attribute}="${name}"]`) as HTMLMetaElement;
             if (!element) {
               element = document.createElement('meta');
@@ -79,13 +82,8 @@ export function SEOUpdater() {
           }
           canonical.setAttribute('href', seo.canonical_url || window.location.href);
 
-        } catch (error: any) {
-          // Если это ошибка подключения и еще есть попытки, пробуем еще раз
-          if (retryCount < 2 && (error.name === 'AbortError' || error.message?.includes('ECONNREFUSED'))) {
-            setTimeout(() => updateSEO(retryCount + 1), 1000);
-            return;
-          }
-          // Игнорируем остальные ошибки - не критично для работы сайта
+        } catch (error) {
+          console.error('Unexpected error updating SEO:', error);
         }
       };
 

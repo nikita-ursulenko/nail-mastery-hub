@@ -27,7 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp, Upload } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface Course {
@@ -128,7 +128,7 @@ export default function AdminCourses() {
   const [courseDetails, setCourseDetails] = useState<any>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
-  
+
   // Диалоги для модулей, уроков, тарифов, материалов
   const [isModuleDialogOpen, setIsModuleDialogOpen] = useState(false);
   const [editingModule, setEditingModule] = useState<Module | null>(null);
@@ -214,12 +214,14 @@ export default function AdminCourses() {
   const loadCourses = async () => {
     try {
       setIsLoading(true);
-      const response = await api.getAllCourses();
-      if (response && response.courses) {
-        setCourses(response.courses);
-      } else {
-        toast.error('Неверный формат ответа от сервера');
-      }
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+
+      setCourses(data || []);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при загрузке курсов');
     } finally {
@@ -229,8 +231,14 @@ export default function AdminCourses() {
 
   const loadTeamMembers = async () => {
     try {
-      const members = await api.getTeamMembers();
-      setTeamMembers(members);
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+
+      if (error) throw error;
+      setTeamMembers(data || []);
     } catch (error) {
       console.error('Failed to load team members:', error);
     }
@@ -238,8 +246,35 @@ export default function AdminCourses() {
 
   const loadCourseDetails = async (courseId: number) => {
     try {
-      const details = await api.getCourseById(courseId);
-      setCourseDetails(details);
+      const { data, error } = await supabase
+        .from('courses')
+        .select(`
+          *,
+          modules:course_modules(
+            *,
+            lessons:course_lessons(*)
+          ),
+          tariffs:course_tariffs(*),
+          materials:course_materials(*)
+        `)
+        .eq('id', courseId)
+        .single();
+
+      if (error) throw error;
+
+      // Sort nested arrays manually since deep sort in select is complex
+      if (data) {
+        if (data.modules) {
+          data.modules.sort((a: any, b: any) => a.order_index - b.order_index);
+          data.modules.forEach((m: any) => {
+            if (m.lessons) m.lessons.sort((a: any, b: any) => a.order_index - b.order_index);
+          });
+        }
+        if (data.tariffs) data.tariffs.sort((a: any, b: any) => a.display_order - b.display_order);
+        if (data.materials) data.materials.sort((a: any, b: any) => a.display_order - b.display_order);
+      }
+
+      setCourseDetails(data);
     } catch (error: any) {
       toast.error(error.message || 'Ошибка при загрузке деталей курса');
     }
@@ -351,8 +386,8 @@ export default function AdminCourses() {
 
   const handleTitleChange = (title: string) => {
     setFormData((prev) => {
-      const newSlug = !prev.slug || prev.slug === generateSlug(prev.title) 
-        ? generateSlug(title) 
+      const newSlug = !prev.slug || prev.slug === generateSlug(prev.title)
+        ? generateSlug(title)
         : prev.slug;
       return { ...prev, title, slug: newSlug };
     });
@@ -385,45 +420,60 @@ export default function AdminCourses() {
 
       // Если есть файл изображения, загружаем его
       if (imageFile) {
-        const imageFormData = new FormData();
-        imageFormData.append('image', imageFile);
-        
-        try {
-          const uploadResponse = await fetch('/api/admin/upload/course-image', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('admin_token')}`,
-            },
-            body: imageFormData,
-          });
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${fileName}`;
 
-          if (!uploadResponse.ok) {
-            throw new Error('Ошибка при загрузке изображения');
-          }
+        const { error: uploadError } = await supabase.storage
+          .from('course-content')
+          .upload(filePath, imageFile);
 
-          const uploadData = await uploadResponse.json();
-          submitData.image_upload_path = uploadData.path;
-          submitData.image_url = null;
-        } catch (uploadError: any) {
-          toast.error(uploadError.message || 'Ошибка при загрузке изображения');
-          return;
+        if (uploadError) {
+          throw new Error('Ошибка при загрузке изображения: ' + uploadError.message);
         }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('course-content')
+          .getPublicUrl(filePath);
+
+        submitData.image_upload_path = filePath;
+        submitData.image_url = publicUrl;
       } else if (!useImageUpload && formData.image_url) {
         submitData.image_url = formData.image_url;
         submitData.image_upload_path = null;
       } else if (formData.image_upload_path) {
         submitData.image_upload_path = formData.image_upload_path;
-        submitData.image_url = null;
+        // Keep existing URL if we are keeping the uploaded path
+        // The image_url should already be in formData if it was an uploaded image
+        // and we are not changing it.
       } else {
         submitData.image_url = null;
         submitData.image_upload_path = null;
       }
 
+      // Cleanup undefined/null fields that Supabase might complain about if not valid
+      // But upsert handles it well usually.
+      // Need to handle `slug` uniqueness manually if needed, or let DB error catch it.
+
+      // Ensure numeric fields are numbers or null
+      if (submitData.instructor_id === "") submitData.instructor_id = null;
+
       if (editingCourse) {
-        await api.updateCourse(editingCourse.id, submitData);
+        const { error } = await supabase
+          .from('courses')
+          .update(submitData)
+          .eq('id', editingCourse.id);
+
+        if (error) throw error;
         toast.success('Курс успешно обновлен');
       } else {
-        await api.createCourse(submitData);
+        // Remove id for new insertion
+        const { id, ...newCourseData } = submitData;
+        const { error } = await supabase
+          .from('courses')
+          .insert([newCourseData]);
+
+        if (error) throw error;
         toast.success('Курс успешно создан');
       }
       loadCourses();
@@ -436,7 +486,13 @@ export default function AdminCourses() {
   const handleDelete = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этот курс? Все связанные модули, уроки, тарифы и материалы также будут удалены.')) {
       try {
-        await api.deleteCourse(id);
+        const { error } = await supabase
+          .from('courses')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+
         toast.success('Курс успешно удален');
         loadCourses();
         if (selectedCourse?.id === id) {
@@ -476,8 +532,8 @@ export default function AdminCourses() {
       });
     } else {
       setEditingModule(null);
-      const maxOrder = courseDetails?.modules?.length 
-        ? Math.max(...courseDetails.modules.map((m: Module) => m.order_index)) + 1 
+      const maxOrder = courseDetails?.modules?.length
+        ? Math.max(...courseDetails.modules.map((m: Module) => m.order_index)) + 1
         : 1;
       setModuleFormData({
         title: '',
@@ -498,13 +554,20 @@ export default function AdminCourses() {
     if (!selectedCourse) return;
     try {
       if (editingModule) {
-        await api.updateModule(editingModule.id, moduleFormData);
+        const { error } = await supabase
+          .from('course_modules')
+          .update(moduleFormData)
+          .eq('id', editingModule.id);
+        if (error) throw error;
         toast.success('Модуль успешно обновлен');
       } else {
-        await api.createModule({
-          ...moduleFormData,
-          course_id: selectedCourse.id,
-        });
+        const { error } = await supabase
+          .from('course_modules')
+          .insert([{
+            ...moduleFormData,
+            course_id: selectedCourse.id,
+          }]);
+        if (error) throw error;
         toast.success('Модуль успешно создан');
       }
       loadCourseDetails(selectedCourse.id);
@@ -517,7 +580,11 @@ export default function AdminCourses() {
   const handleDeleteModule = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этот модуль? Все уроки в модуле также будут удалены.')) {
       try {
-        await api.deleteModule(id);
+        const { error } = await supabase
+          .from('course_modules')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
         toast.success('Модуль успешно удален');
         if (selectedCourse) {
           loadCourseDetails(selectedCourse.id);
@@ -544,8 +611,8 @@ export default function AdminCourses() {
     } else {
       setEditingLesson(null);
       const module = courseDetails?.modules?.find((m: Module) => m.id === moduleId);
-      const maxOrder = module?.lessons?.length 
-        ? Math.max(...module.lessons.map((l: Lesson) => l.order_index)) + 1 
+      const maxOrder = module?.lessons?.length
+        ? Math.max(...module.lessons.map((l: Lesson) => l.order_index)) + 1
         : 1;
       setLessonFormData({
         title: '',
@@ -570,13 +637,20 @@ export default function AdminCourses() {
     if (!selectedModuleId) return;
     try {
       if (editingLesson) {
-        await api.updateLesson(editingLesson.id, lessonFormData);
+        const { error } = await supabase
+          .from('course_lessons')
+          .update(lessonFormData)
+          .eq('id', editingLesson.id);
+        if (error) throw error;
         toast.success('Урок успешно обновлен');
       } else {
-        await api.createLesson({
-          ...lessonFormData,
-          module_id: selectedModuleId,
-        });
+        const { error } = await supabase
+          .from('course_lessons')
+          .insert([{
+            ...lessonFormData,
+            module_id: selectedModuleId,
+          }]);
+        if (error) throw error;
         toast.success('Урок успешно создан');
       }
       if (selectedCourse) {
@@ -591,7 +665,11 @@ export default function AdminCourses() {
   const handleDeleteLesson = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этот урок?')) {
       try {
-        await api.deleteLesson(id);
+        const { error } = await supabase
+          .from('course_lessons')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
         toast.success('Урок успешно удален');
         if (selectedCourse) {
           loadCourseDetails(selectedCourse.id);
@@ -626,8 +704,8 @@ export default function AdminCourses() {
       });
     } else {
       setEditingTariff(null);
-      const maxOrder = courseDetails?.tariffs?.length 
-        ? Math.max(...courseDetails.tariffs.map((t: Tariff) => t.display_order)) + 1 
+      const maxOrder = courseDetails?.tariffs?.length
+        ? Math.max(...courseDetails.tariffs.map((t: Tariff) => t.display_order)) + 1
         : 1;
       setTariffFormData({
         tariff_type: 'self',
@@ -691,13 +769,20 @@ export default function AdminCourses() {
     if (!selectedCourse) return;
     try {
       if (editingTariff) {
-        await api.updateTariff(editingTariff.id, tariffFormData);
+        const { error } = await supabase
+          .from('course_tariffs')
+          .update(tariffFormData)
+          .eq('id', editingTariff.id);
+        if (error) throw error;
         toast.success('Тариф успешно обновлен');
       } else {
-        await api.createTariff({
-          ...tariffFormData,
-          course_id: selectedCourse.id,
-        });
+        const { error } = await supabase
+          .from('course_tariffs')
+          .insert([{
+            ...tariffFormData,
+            course_id: selectedCourse.id,
+          }]);
+        if (error) throw error;
         toast.success('Тариф успешно создан');
       }
       loadCourseDetails(selectedCourse.id);
@@ -710,7 +795,11 @@ export default function AdminCourses() {
   const handleDeleteTariff = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этот тариф?')) {
       try {
-        await api.deleteTariff(id);
+        const { error } = await supabase
+          .from('course_tariffs')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
         toast.success('Тариф успешно удален');
         if (selectedCourse) {
           loadCourseDetails(selectedCourse.id);
@@ -737,8 +826,8 @@ export default function AdminCourses() {
       });
     } else {
       setEditingMaterial(null);
-      const maxOrder = courseDetails?.materials?.length 
-        ? Math.max(...courseDetails.materials.map((m: Material) => m.display_order)) + 1 
+      const maxOrder = courseDetails?.materials?.length
+        ? Math.max(...courseDetails.materials.map((m: Material) => m.display_order)) + 1
         : 1;
       setMaterialFormData({
         name: '',
@@ -760,13 +849,20 @@ export default function AdminCourses() {
     if (!selectedCourse) return;
     try {
       if (editingMaterial) {
-        await api.updateMaterial(editingMaterial.id, materialFormData);
+        const { error } = await supabase
+          .from('course_materials')
+          .update(materialFormData)
+          .eq('id', editingMaterial.id);
+        if (error) throw error;
         toast.success('Материал успешно обновлен');
       } else {
-        await api.createMaterial({
-          ...materialFormData,
-          course_id: selectedCourse.id,
-        });
+        const { error } = await supabase
+          .from('course_materials')
+          .insert([{
+            ...materialFormData,
+            course_id: selectedCourse.id,
+          }]);
+        if (error) throw error;
         toast.success('Материал успешно создан');
       }
       loadCourseDetails(selectedCourse.id);
@@ -779,7 +875,11 @@ export default function AdminCourses() {
   const handleDeleteMaterial = async (id: number) => {
     if (window.confirm('Вы уверены, что хотите удалить этот материал?')) {
       try {
-        await api.deleteMaterial(id);
+        const { error } = await supabase
+          .from('course_materials')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
         toast.success('Материал успешно удален');
         if (selectedCourse) {
           loadCourseDetails(selectedCourse.id);
@@ -809,310 +909,310 @@ export default function AdminCourses() {
         {/* Диалог для курса */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingCourse ? 'Редактировать курс' : 'Добавить курс'}
-                </DialogTitle>
-                <DialogDescription>
-                  Заполните информацию о курсе
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit}>
-                <div className="space-y-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Название *</Label>
-                      <Input
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => handleTitleChange(e.target.value)}
-                        required
-                        placeholder="Базовый курс маникюра"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="slug">Slug (URL) *</Label>
-                      <Input
-                        id="slug"
-                        value={formData.slug}
-                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                        required
-                        placeholder="basic-manicure"
-                      />
-                    </div>
-                  </div>
-
+            <DialogHeader>
+              <DialogTitle>
+                {editingCourse ? 'Редактировать курс' : 'Добавить курс'}
+              </DialogTitle>
+              <DialogDescription>
+                Заполните информацию о курсе
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="subtitle">Подзаголовок</Label>
+                    <Label htmlFor="title">Название *</Label>
                     <Input
-                      id="subtitle"
-                      value={formData.subtitle}
-                      onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                      placeholder="От новичка до профессионала за 4 недели"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Описание *</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => handleTitleChange(e.target.value)}
                       required
-                      rows={4}
-                      placeholder="Подробное описание курса..."
+                      placeholder="Базовый курс маникюра"
                     />
                   </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="level">Уровень *</Label>
-                      <Select
-                        value={formData.level}
-                        onValueChange={(value) => setFormData({ ...formData, level: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {levels.map((level) => (
-                            <SelectItem key={level} value={level}>
-                              {levelLabels[level]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Категория *</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) => setFormData({ ...formData, category: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat} value={cat}>
-                              {categoryLabels[cat]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="duration">Длительность *</Label>
-                      <Input
-                        id="duration"
-                        value={formData.duration}
-                        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                        required
-                        placeholder="4 недели"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Изображение курса</Label>
-                      <div className="space-y-3">
-                        <div className="flex gap-4">
-                          <Button
-                            type="button"
-                            variant={!useImageUpload ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => {
-                              setUseImageUpload(false);
-                              setImageFile(null);
-                              setImagePreview(formData.image_url || '');
-                              setFormData({ ...formData, image_upload_path: '' });
-                            }}
-                          >
-                            URL
-                          </Button>
-                          <Button
-                            type="button"
-                            variant={useImageUpload ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => {
-                              setUseImageUpload(true);
-                              setFormData({ ...formData, image_url: '' });
-                            }}
-                          >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Загрузить файл
-                          </Button>
-                        </div>
-
-                        {!useImageUpload && (
-                          <Input
-                            id="image_url"
-                            value={formData.image_url}
-                            onChange={(e) => {
-                              setFormData({ ...formData, image_url: e.target.value });
-                              setImagePreview(e.target.value);
-                            }}
-                            placeholder="https://example.com/image.jpg"
-                          />
-                        )}
-
-                        {useImageUpload && (
-                          <div className="space-y-2">
-                            <input
-                              id="course_image_file"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleImageFileChange}
-                              className="hidden"
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                document.getElementById('course_image_file')?.click();
-                              }}
-                              className="w-full"
-                            >
-                              <Upload className="mr-2 h-4 w-4" />
-                              {imageFile ? imageFile.name : 'Выберите файл'}
-                            </Button>
-                          </div>
-                        )}
-
-                        {imagePreview && (
-                          <div className="relative inline-block">
-                            <img
-                              src={imagePreview}
-                              alt="Course Preview"
-                              className="h-48 w-full rounded-lg object-cover border"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                              onClick={handleRemoveImageFile}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="video_preview_url">Превью видео (URL)</Label>
-                      <Input
-                        id="video_preview_url"
-                        value={formData.video_preview_url}
-                        onChange={(e) => setFormData({ ...formData, video_preview_url: e.target.value })}
-                        placeholder="https://youtube.com/watch?v=..."
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="instructor_id">Преподаватель</Label>
+                    <Label htmlFor="slug">Slug (URL) *</Label>
+                    <Input
+                      id="slug"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                      required
+                      placeholder="basic-manicure"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subtitle">Подзаголовок</Label>
+                  <Input
+                    id="subtitle"
+                    value={formData.subtitle}
+                    onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                    placeholder="От новичка до профессионала за 4 недели"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="description">Описание *</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    required
+                    rows={4}
+                    placeholder="Подробное описание курса..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="level">Уровень *</Label>
                     <Select
-                      value={formData.instructor_id?.toString() || 'none'}
-                      onValueChange={(value) => setFormData({ ...formData, instructor_id: value === 'none' ? null : parseInt(value) })}
+                      value={formData.level}
+                      onValueChange={(value) => setFormData({ ...formData, level: value })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Выберите преподавателя" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">Без преподавателя</SelectItem>
-                        {teamMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id.toString()}>
-                            {member.name} - {member.role}
+                        {levels.map((level) => (
+                          <SelectItem key={level} value={level}>
+                            {levelLabels[level]}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
-                    <Label>Что входит в курс</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={formData.includeInput}
-                        onChange={(e) => setFormData({ ...formData, includeInput: e.target.value })}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddInclude();
-                          }
-                        }}
-                        placeholder="32 видеоурока в HD качестве"
-                      />
-                      <Button type="button" onClick={handleAddInclude}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {formData.includes.map((item, index) => (
-                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                          {item}
-                          <X
-                            className="h-3 w-3 cursor-pointer"
-                            onClick={() => handleRemoveInclude(index)}
-                          />
-                        </Badge>
-                      ))}
-                    </div>
+                    <Label htmlFor="category">Категория *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {categoryLabels[cat]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_featured"
-                        checked={formData.is_featured}
-                        onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
-                      />
-                      <Label htmlFor="is_featured">Рекомендуемый</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_new"
-                        checked={formData.is_new}
-                        onCheckedChange={(checked) => setFormData({ ...formData, is_new: checked })}
-                      />
-                      <Label htmlFor="is_new">Новый</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_active"
-                        checked={formData.is_active}
-                        onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                      />
-                      <Label htmlFor="is_active">Активен</Label>
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="display_order">Порядок отображения</Label>
+                    <Label htmlFor="duration">Длительность *</Label>
                     <Input
-                      id="display_order"
-                      type="number"
-                      value={formData.display_order}
-                      onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
+                      id="duration"
+                      value={formData.duration}
+                      onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                      required
+                      placeholder="4 недели"
                     />
                   </div>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                    Отмена
-                  </Button>
-                  <Button type="submit">
-                    {editingCourse ? 'Сохранить' : 'Создать'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Изображение курса</Label>
+                    <div className="space-y-3">
+                      <div className="flex gap-4">
+                        <Button
+                          type="button"
+                          variant={!useImageUpload ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            setUseImageUpload(false);
+                            setImageFile(null);
+                            setImagePreview(formData.image_url || '');
+                            setFormData({ ...formData, image_upload_path: '' });
+                          }}
+                        >
+                          URL
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={useImageUpload ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            setUseImageUpload(true);
+                            setFormData({ ...formData, image_url: '' });
+                          }}
+                        >
+                          <Upload className="mr-2 h-4 w-4" />
+                          Загрузить файл
+                        </Button>
+                      </div>
+
+                      {!useImageUpload && (
+                        <Input
+                          id="image_url"
+                          value={formData.image_url}
+                          onChange={(e) => {
+                            setFormData({ ...formData, image_url: e.target.value });
+                            setImagePreview(e.target.value);
+                          }}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      )}
+
+                      {useImageUpload && (
+                        <div className="space-y-2">
+                          <input
+                            id="course_image_file"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageFileChange}
+                            className="hidden"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              document.getElementById('course_image_file')?.click();
+                            }}
+                            className="w-full"
+                          >
+                            <Upload className="mr-2 h-4 w-4" />
+                            {imageFile ? imageFile.name : 'Выберите файл'}
+                          </Button>
+                        </div>
+                      )}
+
+                      {imagePreview && (
+                        <div className="relative inline-block">
+                          <img
+                            src={imagePreview}
+                            alt="Course Preview"
+                            className="h-48 w-full rounded-lg object-cover border"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                            onClick={handleRemoveImageFile}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="video_preview_url">Превью видео (URL)</Label>
+                    <Input
+                      id="video_preview_url"
+                      value={formData.video_preview_url}
+                      onChange={(e) => setFormData({ ...formData, video_preview_url: e.target.value })}
+                      placeholder="https://youtube.com/watch?v=..."
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="instructor_id">Преподаватель</Label>
+                  <Select
+                    value={formData.instructor_id?.toString() || 'none'}
+                    onValueChange={(value) => setFormData({ ...formData, instructor_id: value === 'none' ? null : parseInt(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Выберите преподавателя" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Без преподавателя</SelectItem>
+                      {teamMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id.toString()}>
+                          {member.name} - {member.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Что входит в курс</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={formData.includeInput}
+                      onChange={(e) => setFormData({ ...formData, includeInput: e.target.value })}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddInclude();
+                        }
+                      }}
+                      placeholder="32 видеоурока в HD качестве"
+                    />
+                    <Button type="button" onClick={handleAddInclude}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.includes.map((item, index) => (
+                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                        {item}
+                        <X
+                          className="h-3 w-3 cursor-pointer"
+                          onClick={() => handleRemoveInclude(index)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="is_featured"
+                      checked={formData.is_featured}
+                      onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+                    />
+                    <Label htmlFor="is_featured">Рекомендуемый</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="is_new"
+                      checked={formData.is_new}
+                      onCheckedChange={(checked) => setFormData({ ...formData, is_new: checked })}
+                    />
+                    <Label htmlFor="is_new">Новый</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="is_active"
+                      checked={formData.is_active}
+                      onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                    />
+                    <Label htmlFor="is_active">Активен</Label>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="display_order">Порядок отображения</Label>
+                  <Input
+                    id="display_order"
+                    type="number"
+                    value={formData.display_order}
+                    onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={handleCloseDialog}>
+                  Отмена
+                </Button>
+                <Button type="submit">
+                  {editingCourse ? 'Сохранить' : 'Создать'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {isLoading ? (
           <div className="text-center py-12">
@@ -1132,11 +1232,10 @@ export default function AdminCourses() {
                     {courses.map((course) => (
                       <div
                         key={course.id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                          selectedCourse?.id === course.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-muted'
-                        }`}
+                        className={`p-3 rounded-lg border cursor-pointer transition-colors ${selectedCourse?.id === course.id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-muted'
+                          }`}
                         onClick={() => setSelectedCourse(course)}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -1238,15 +1337,15 @@ export default function AdminCourses() {
                                     </Badge>
                                   </div>
                                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <Button 
-                                      variant="ghost" 
+                                    <Button
+                                      variant="ghost"
                                       size="sm"
                                       onClick={() => handleOpenModuleDialog(module)}
                                     >
                                       <Pencil className="h-4 w-4" />
                                     </Button>
-                                    <Button 
-                                      variant="ghost" 
+                                    <Button
+                                      variant="ghost"
                                       size="sm"
                                       onClick={() => handleDeleteModule(module.id)}
                                     >
@@ -1263,15 +1362,15 @@ export default function AdminCourses() {
                                       >
                                         <span className="text-sm">{lesson.title}</span>
                                         <div className="flex gap-1">
-                                          <Button 
-                                            variant="ghost" 
+                                          <Button
+                                            variant="ghost"
                                             size="sm"
                                             onClick={() => handleOpenLessonDialog(module.id, lesson)}
                                           >
                                             <Pencil className="h-4 w-4" />
                                           </Button>
-                                          <Button 
-                                            variant="ghost" 
+                                          <Button
+                                            variant="ghost"
                                             size="sm"
                                             onClick={() => handleDeleteLesson(lesson.id)}
                                           >
@@ -1335,15 +1434,15 @@ export default function AdminCourses() {
                                     </p>
                                   </div>
                                   <div className="flex gap-1">
-                                    <Button 
-                                      variant="ghost" 
+                                    <Button
+                                      variant="ghost"
                                       size="sm"
                                       onClick={() => handleOpenTariffDialog(tariff)}
                                     >
                                       <Pencil className="h-4 w-4" />
                                     </Button>
-                                    <Button 
-                                      variant="ghost" 
+                                    <Button
+                                      variant="ghost"
                                       size="sm"
                                       onClick={() => handleDeleteTariff(tariff.id)}
                                     >
@@ -1394,15 +1493,15 @@ export default function AdminCourses() {
                                   )}
                                 </div>
                                 <div className="flex gap-1">
-                                  <Button 
-                                    variant="ghost" 
+                                  <Button
+                                    variant="ghost"
                                     size="sm"
                                     onClick={() => handleOpenMaterialDialog(material)}
                                   >
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button 
-                                    variant="ghost" 
+                                  <Button
+                                    variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteMaterial(material.id)}
                                   >

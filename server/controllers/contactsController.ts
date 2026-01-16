@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
-
-const pool = new Pool(getDatabaseConfig());
+import { supabase } from '../../database/config';
 
 interface Contact {
   id?: number;
@@ -19,29 +16,41 @@ interface Contact {
 
 export const getContacts = async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT id, type, title, content, href, subtitle, icon, display_order, is_active, created_at, updated_at 
-       FROM contacts 
-       WHERE is_active = true 
-       ORDER BY display_order ASC, created_at ASC`
-    );
+    const { data: contacts, error } = await supabase
+      .from('contacts')
+      .select('id, type, title, content, href, subtitle, icon, display_order, is_active, created_at, updated_at')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: true });
 
-    res.json(result.rows);
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Ошибка при получении контактов' });
+    }
+
+    res.json(contacts);
   } catch (error) {
+    console.error('Error fetching contacts:', error);
     res.status(500).json({ error: 'Ошибка при получении контактов' });
   }
 };
 
 export const getAllContacts = async (req: AuthRequest, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT id, type, title, content, href, subtitle, icon, display_order, is_active, created_at, updated_at 
-       FROM contacts 
-       ORDER BY display_order ASC, created_at ASC`
-    );
+    const { data: contacts, error } = await supabase
+      .from('contacts')
+      .select('id, type, title, content, href, subtitle, icon, display_order, is_active, created_at, updated_at')
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: true });
 
-    res.json(result.rows);
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Ошибка при получении контактов' });
+    }
+
+    res.json(contacts);
   } catch (error) {
+    console.error('Error fetching all contacts:', error);
     res.status(500).json({ error: 'Ошибка при получении контактов' });
   }
 };
@@ -49,18 +58,22 @@ export const getAllContacts = async (req: AuthRequest, res: Response) => {
 export const getContactById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const { data: contact, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-    const result = await pool.query(
-      'SELECT * FROM contacts WHERE id = $1',
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Контакт не найден' });
+    if (error || !contact) {
+      if (error?.code === 'PGRST116') {
+        return res.status(404).json({ error: 'Контакт не найден' });
+      }
+      return res.status(500).json({ error: 'Ошибка при получении контакта' });
     }
 
-    res.json(result.rows[0]);
+    res.json(contact);
   } catch (error) {
+    console.error('Error fetching contact by id:', error);
     res.status(500).json({ error: 'Ошибка при получении контакта' });
   }
 };
@@ -73,15 +86,31 @@ export const createContact = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Все обязательные поля должны быть заполнены' });
     }
 
-    const result = await pool.query(
-      `INSERT INTO contacts (type, title, content, href, subtitle, icon, display_order, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [type, title, content, href || null, subtitle || null, icon, display_order || 0, is_active !== undefined ? is_active : true]
-    );
+    const { data: contact, error } = await supabase
+      .from('contacts')
+      .insert([
+        {
+          type,
+          title,
+          content,
+          href: href || null,
+          subtitle: subtitle || null,
+          icon,
+          display_order: display_order || 0,
+          is_active: is_active !== undefined ? is_active : true
+        }
+      ])
+      .select()
+      .single();
 
-    res.status(201).json(result.rows[0]);
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({ error: 'Ошибка при создании контакта' });
+    }
+
+    res.status(201).json(contact);
   } catch (error) {
+    console.error('Error creating contact:', error);
     res.status(500).json({ error: 'Ошибка при создании контакта' });
   }
 };
@@ -95,21 +124,31 @@ export const updateContact = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Все обязательные поля должны быть заполнены' });
     }
 
-    const result = await pool.query(
-      `UPDATE contacts
-       SET type = $1, title = $2, content = $3, href = $4, subtitle = $5, icon = $6, 
-           display_order = $7, is_active = $8, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $9
-       RETURNING *`,
-      [type, title, content, href || null, subtitle || null, icon, display_order || 0, is_active !== undefined ? is_active : true, id]
-    );
+    const { data: contact, error } = await supabase
+      .from('contacts')
+      .update({
+        type,
+        title,
+        content,
+        href: href || null,
+        subtitle: subtitle || null,
+        icon,
+        display_order: display_order || 0,
+        is_active: is_active !== undefined ? is_active : true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    if (result.rows.length === 0) {
+    if (error || !contact) {
+      console.error('Supabase error:', error);
       return res.status(404).json({ error: 'Контакт не найден' });
     }
 
-    res.json(result.rows[0]);
+    res.json(contact);
   } catch (error) {
+    console.error('Error updating contact:', error);
     res.status(500).json({ error: 'Ошибка при обновлении контакта' });
   }
 };
@@ -118,17 +157,19 @@ export const deleteContact = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
-      'DELETE FROM contacts WHERE id = $1 RETURNING id',
-      [id]
-    );
+    const { error } = await supabase
+      .from('contacts')
+      .delete()
+      .eq('id', id);
 
-    if (result.rows.length === 0) {
+    if (error) {
+      console.error('Supabase error:', error);
       return res.status(404).json({ error: 'Контакт не найден' });
     }
 
     res.json({ message: 'Контакт успешно удален' });
   } catch (error) {
+    console.error('Error deleting contact:', error);
     res.status(500).json({ error: 'Ошибка при удалении контакта' });
   }
 };

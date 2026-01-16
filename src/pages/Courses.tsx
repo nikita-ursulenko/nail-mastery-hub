@@ -8,7 +8,7 @@ import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { Helmet } from "react-helmet-async";
 
 const categories = [
@@ -43,13 +43,31 @@ export default function Courses() {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.getPublicCourses({
-        category: selectedCategory !== "all" ? selectedCategory : undefined,
-        level: selectedLevel !== "all" ? selectedLevel : undefined,
-        search: searchQuery || undefined,
-        limit: 50,
-      });
-      setCourses(response.courses);
+
+      let query = supabase
+        .from('courses')
+        .select('*')
+        .eq('is_active', true);
+
+      if (selectedCategory !== "all") {
+        query = query.eq('category', selectedCategory);
+      }
+
+      if (selectedLevel !== "all") {
+        query = query.eq('level', selectedLevel);
+      }
+
+      if (searchQuery) {
+        query = query.ilike('title', `%${searchQuery}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      setCourses(data || []);
     } catch (err: any) {
       setError(err.message || "Ошибка при загрузке курсов");
       console.error("Error loading courses:", err);
@@ -248,9 +266,9 @@ export default function Courses() {
           ) : filteredCourses.length > 0 ? (
             <>
               <FadeInOnScroll>
-              <p className="mb-8 text-muted-foreground">
-                Найдено курсов: {filteredCourses.length}
-              </p>
+                <p className="mb-8 text-muted-foreground">
+                  Найдено курсов: {filteredCourses.length}
+                </p>
               </FadeInOnScroll>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredCourses.map((course, index) => {
@@ -265,24 +283,24 @@ export default function Courses() {
                     imageUrl = course.image_url;
                   } else {
                     // Fallback изображение (можно использовать placeholder)
-                    imageUrl = "https://via.placeholder.com/400x300?text=Course";
+                    imageUrl = `https://placehold.co/400x300?text=${encodeURIComponent(course.title)}`;
                   }
 
                   return (
                     <FadeInOnScroll key={course.id || course.slug} delay={index * 50} className="h-full">
-                    <CourseCard
-                      id={course.slug}
-                      title={course.title || "Без названия"}
-                      description={course.description || ""}
-                      image={imageUrl}
-                      price={course.price || 0}
-                      oldPrice={course.oldPrice}
-                      duration={course.duration || ""}
-                      students={course.students || 0}
-                      rating={course.rating || 0}
-                      level={course.level || "beginner"}
-                      isNew={course.isNew}
-                    />
+                      <CourseCard
+                        id={course.slug}
+                        title={course.title || "Без названия"}
+                        description={course.description || ""}
+                        image={imageUrl}
+                        price={course.price || 0}
+                        oldPrice={course.oldPrice}
+                        duration={course.duration || ""}
+                        students={course.students || 0}
+                        rating={course.rating || 0}
+                        level={course.level || "beginner"}
+                        isNew={course.isNew}
+                      />
                     </FadeInOnScroll>
                   );
                 })}

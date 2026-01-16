@@ -1,12 +1,9 @@
 import { Response } from 'express';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
+import { supabase } from '../../database/config';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
 import { ReferralAuthRequest } from '../middleware/referralAuth';
 import { calculatePartnerLevel } from '../utils/referralLevel';
-
-const pool = new Pool(getDatabaseConfig());
 
 /**
  * Получение общей статистики партнера
@@ -14,79 +11,99 @@ const pool = new Pool(getDatabaseConfig());
 export const getDashboardStats = asyncHandler(async (req: ReferralAuthRequest, res: Response) => {
   const partnerId = req.referral!.id;
 
-  // Получаем базовую информацию о партнере
-  const partnerResult = await pool.query(
-    `SELECT id, referral_code, total_earnings, current_balance, withdrawn_amount, level
-     FROM referral_partners WHERE id = $1`,
-    [partnerId]
-  );
+  // 1. Получаем базовую информацию о партнере
+  const { data: partner, error: partnerError } = await supabase
+    .from('referral_partners')
+    .select('id, referral_code, total_earnings, current_balance, withdrawn_amount, level')
+    .eq('id', partnerId)
+    .single();
 
-  if (partnerResult.rows.length === 0) {
+  if (partnerError || !partner) {
     throw new AppError('Партнер не найден', 404);
   }
 
-  const partner = partnerResult.rows[0];
+  // 2. Статистика посещений
+  const { count: visits, error: visitsError } = await supabase
+    .from('referral_tracking')
+    .select('id', { count: 'exact', head: true })
+    .eq('partner_id', partnerId)
+    .not('visited_at', 'is', null);
 
-  // Статистика посещений (считаем все записи с visited_at, независимо от статуса)
-  const visitsResult = await pool.query(
-    `SELECT COUNT(*) as total, 
-            COUNT(DISTINCT visitor_ip) as unique_visits
-     FROM referral_tracking 
-     WHERE partner_id = $1 AND visited_at IS NOT NULL`,
-    [partnerId]
-  );
+  const { data: uniqueVisitsData, error: uniqueVisitsError } = await supabase
+    .from('referral_tracking')
+    .select('visitor_ip')
+    .eq('partner_id', partnerId)
+    .not('visited_at', 'is', null);
 
-  // Статистика регистраций
-  const registrationsResult = await pool.query(
-    `SELECT COUNT(*) as total
-     FROM referral_tracking 
-     WHERE partner_id = $1 AND status IN ('registered', 'purchased')`,
-    [partnerId]
-  );
+  const uniqueVisits = new Set(uniqueVisitsData?.map(v => v.visitor_ip)).size;
 
-  // Статистика покупок
-  const purchasesResult = await pool.query(
-    `SELECT COUNT(*) as total, 
-            COALESCE(SUM(e.amount_paid), 0) as total_amount,
-            COALESCE(AVG(e.amount_paid), 0) as avg_amount
-     FROM referral_tracking rt
-     JOIN enrollments e ON rt.user_id = e.user_id
-     WHERE rt.partner_id = $1 AND rt.status = 'purchased' AND e.payment_status = 'paid'`,
-    [partnerId]
-  );
+  // 3. Статистика регистраций
+  const { count: registrations, error: regsError } = await supabase
+    .from('referral_tracking')
+    .select('id', { count: 'exact', head: true })
+    .eq('partner_id', partnerId)
+    .in('status', ['registered', 'purchased']);
 
-  // Статистика начислений
-  const rewardsResult = await pool.query(
-    `SELECT 
-       COUNT(*) as total,
-       COALESCE(SUM(CASE WHEN reward_type = 'visit' THEN amount ELSE 0 END), 0) as visit_rewards,
-       COALESCE(SUM(CASE WHEN reward_type = 'registration' THEN amount ELSE 0 END), 0) as registration_rewards,
-       COALESCE(SUM(CASE WHEN reward_type = 'purchase' THEN amount ELSE 0 END), 0) as purchase_rewards,
-       COALESCE(SUM(amount), 0) as total_rewards
-     FROM referral_rewards
-     WHERE partner_id = $1`,
-    [partnerId]
-  );
+  // 4. Статистика покупок
+  const { data: purchaseTrackings, error: trackError } = await supabase
+    .from('referral_tracking')
+    .select('user_id')
+    .eq('partner_id', partnerId)
+    .eq('status', 'purchased');
 
-  // Запросы на вывод в обработке
-  const pendingWithdrawalsResult = await pool.query(
-    `SELECT COALESCE(SUM(amount), 0) as pending_amount
-     FROM referral_withdrawals
-     WHERE partner_id = $1 AND status = 'pending'`,
-    [partnerId]
-  );
+  const userIds = purchaseTrackings?.map(t => t.user_id).filter(id => id !== null) || [];
 
-  const visits = parseInt(visitsResult.rows[0].total) || 0;
-  const uniqueVisits = parseInt(visitsResult.rows[0].unique_visits) || 0;
-  const registrations = parseInt(registrationsResult.rows[0].total) || 0;
-  const purchases = parseInt(purchasesResult.rows[0].total) || 0;
-  const totalPurchaseAmount = parseFloat(purchasesResult.rows[0].total_amount) || 0;
-  const avgPurchaseAmount = parseFloat(purchasesResult.rows[0].avg_amount) || 0;
-  const pendingWithdrawals = parseFloat(pendingWithdrawalsResult.rows[0].pending_amount) || 0;
+  let totalPurchaseAmount = 0;
+  let purchases = 0;
+  let avgPurchaseAmount = 0;
+
+  if (userIds.length > 0) {
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select('amount_paid')
+      .eq('payment_status', 'paid')
+      .in('user_id', userIds);
+
+    if (!enrollError && enrollments) {
+      purchases = enrollments.length;
+      totalPurchaseAmount = enrollments.reduce((sum, e) => sum + (parseFloat(e.amount_paid as any) || 0), 0);
+      avgPurchaseAmount = purchases > 0 ? totalPurchaseAmount / purchases : 0;
+    }
+  }
+
+  // 5. Статистика начислений
+  const { data: rewards, error: rewardsError } = await supabase
+    .from('referral_rewards')
+    .select('reward_type, amount')
+    .eq('partner_id', partnerId);
+
+  const rewardsStats = {
+    visit: 0,
+    registration: 0,
+    purchase: 0,
+    total: 0
+  };
+
+  rewards?.forEach(r => {
+    const amount = parseFloat(r.amount as any) || 0;
+    rewardsStats.total += amount;
+    if (r.reward_type === 'visit') rewardsStats.visit += amount;
+    else if (r.reward_type === 'registration') rewardsStats.registration += amount;
+    else if (r.reward_type === 'purchase') rewardsStats.purchase += amount;
+  });
+
+  // 6. Запросы на вывод в обработке
+  const { data: withdrawals, error: withError } = await supabase
+    .from('referral_withdrawals')
+    .select('amount')
+    .eq('partner_id', partnerId)
+    .eq('status', 'pending');
+
+  const pendingWithdrawals = withdrawals?.reduce((sum, w) => sum + (parseFloat(w.amount as any) || 0), 0) || 0;
 
   // Конверсии
-  const registrationConversion = visits > 0 ? (registrations / visits) * 100 : 0;
-  const purchaseConversion = registrations > 0 ? (purchases / registrations) * 100 : 0;
+  const registrationConversion = (visits || 0) > 0 ? (registrations! / visits!) * 100 : 0;
+  const purchaseConversion = (registrations || 0) > 0 ? (purchases / registrations!) * 100 : 0;
 
   res.json({
     partner: {
@@ -95,11 +112,11 @@ export const getDashboardStats = asyncHandler(async (req: ReferralAuthRequest, r
     },
     stats: {
       visits: {
-        total: visits,
+        total: visits || 0,
         unique: uniqueVisits,
       },
       registrations: {
-        total: registrations,
+        total: registrations || 0,
         conversion: parseFloat(registrationConversion.toFixed(2)),
       },
       purchases: {
@@ -109,15 +126,15 @@ export const getDashboardStats = asyncHandler(async (req: ReferralAuthRequest, r
         conversion: parseFloat(purchaseConversion.toFixed(2)),
       },
       rewards: {
-        visit: parseFloat(rewardsResult.rows[0].visit_rewards),
-        registration: parseFloat(rewardsResult.rows[0].registration_rewards),
-        purchase: parseFloat(rewardsResult.rows[0].purchase_rewards),
-        total: parseFloat(rewardsResult.rows[0].total_rewards),
+        visit: rewardsStats.visit,
+        registration: rewardsStats.registration,
+        purchase: rewardsStats.purchase,
+        total: rewardsStats.total,
       },
       balance: {
-        total_earnings: parseFloat(partner.total_earnings),
-        current_balance: parseFloat(partner.current_balance),
-        withdrawn: parseFloat(partner.withdrawn_amount),
+        total_earnings: parseFloat(partner.total_earnings as any),
+        current_balance: parseFloat(partner.current_balance as any),
+        withdrawn: parseFloat(partner.withdrawn_amount as any),
         pending: pendingWithdrawals,
       },
     },
@@ -130,21 +147,21 @@ export const getDashboardStats = asyncHandler(async (req: ReferralAuthRequest, r
 export const getReferralLink = asyncHandler(async (req: ReferralAuthRequest, res: Response) => {
   const partnerId = req.referral!.id;
 
-  const result = await pool.query(
-    'SELECT referral_code FROM referral_partners WHERE id = $1',
-    [partnerId]
-  );
+  const { data: partner, error } = await supabase
+    .from('referral_partners')
+    .select('referral_code')
+    .eq('id', partnerId)
+    .single();
 
-  if (result.rows.length === 0) {
+  if (error || !partner) {
     throw new AppError('Партнер не найден', 404);
   }
 
-  // Получаем базовый URL из переменной окружения (frontend URL)
   const baseUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-  const referralLink = `${baseUrl}/?ref=${result.rows[0].referral_code}`;
+  const referralLink = `${baseUrl}/?ref=${partner.referral_code}`;
 
   res.json({
-    referral_code: result.rows[0].referral_code,
+    referral_code: partner.referral_code,
     referral_link: referralLink,
   });
 });
@@ -156,86 +173,31 @@ export const getRewardsHistory = asyncHandler(async (req: ReferralAuthRequest, r
   const partnerId = req.referral!.id;
   const { reward_type, status, start_date, end_date, limit = 50, offset = 0 } = req.query;
 
-  let query = `
-    SELECT id, reward_type, amount, status, description, created_at
-    FROM referral_rewards
-    WHERE partner_id = $1
-  `;
-  const params: any[] = [partnerId];
-  let paramIndex = 2;
+  let query = supabase
+    .from('referral_rewards')
+    .select('id, reward_type, amount, status, description, created_at', { count: 'exact' })
+    .eq('partner_id', partnerId);
 
-  if (reward_type) {
-    query += ` AND reward_type = $${paramIndex}`;
-    params.push(reward_type);
-    paramIndex++;
-  }
+  if (reward_type) query = query.eq('reward_type', reward_type);
+  if (status) query = query.eq('status', status);
+  if (start_date) query = query.gte('created_at', start_date);
+  if (end_date) query = query.lte('created_at', end_date);
 
-  if (status) {
-    query += ` AND status = $${paramIndex}`;
-    params.push(status);
-    paramIndex++;
-  }
+  const pageLimit = parseInt(limit as string);
+  const pageOffset = parseInt(offset as string);
 
-  if (start_date) {
-    query += ` AND created_at >= $${paramIndex}`;
-    params.push(start_date);
-    paramIndex++;
-  }
+  const { data: rewards, count: total, error } = await query
+    .order('created_at', { ascending: false })
+    .range(pageOffset, pageOffset + pageLimit - 1);
 
-  if (end_date) {
-    query += ` AND created_at <= $${paramIndex}`;
-    params.push(end_date);
-    paramIndex++;
-  }
-
-  query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-  params.push(parseInt(limit as string), parseInt(offset as string));
-
-  // Получаем общее количество для пагинации
-  let countQuery = `SELECT COUNT(*) as total FROM referral_rewards WHERE partner_id = $1`;
-  const countParams: any[] = [partnerId];
-  let countParamIndex = 2;
-
-  if (reward_type) {
-    countQuery += ` AND reward_type = $${countParamIndex}`;
-    countParams.push(reward_type);
-    countParamIndex++;
-  }
-
-  if (status) {
-    countQuery += ` AND status = $${countParamIndex}`;
-    countParams.push(status);
-    countParamIndex++;
-  }
-
-  if (start_date) {
-    countQuery += ` AND created_at >= $${countParamIndex}`;
-    countParams.push(start_date);
-    countParamIndex++;
-  }
-
-  if (end_date) {
-    countQuery += ` AND created_at <= $${countParamIndex}`;
-    countParams.push(end_date);
-  }
-
-  const [result, countResult] = await Promise.all([
-    pool.query(query, params),
-    pool.query(countQuery, countParams),
-  ]);
-
-  const total = parseInt(countResult.rows[0].total) || 0;
+  if (error) throw error;
 
   res.json({
-    rewards: result.rows.map((row) => ({
-      id: row.id,
-      reward_type: row.reward_type,
-      amount: parseFloat(row.amount),
-      status: row.status,
-      description: row.description,
-      created_at: row.created_at,
-    })),
-    total,
+    rewards: rewards?.map((row) => ({
+      ...row,
+      amount: parseFloat(row.amount as any),
+    })) || [],
+    total: total || 0,
   });
 });
 
@@ -245,23 +207,36 @@ export const getRewardsHistory = asyncHandler(async (req: ReferralAuthRequest, r
 export const getReferralsList = asyncHandler(async (req: ReferralAuthRequest, res: Response) => {
   const partnerId = req.referral!.id;
 
-  const result = await pool.query(
-    `SELECT 
-       rt.user_id,
-       rt.status,
-       rt.registered_at,
-       u.email,
-       COALESCE(SUM(e.amount_paid), 0) as total_purchases
-     FROM referral_tracking rt
-     LEFT JOIN users u ON rt.user_id = u.id
-     LEFT JOIN enrollments e ON rt.user_id = e.user_id AND e.payment_status = 'paid'
-     WHERE rt.partner_id = $1 AND rt.user_id IS NOT NULL
-     GROUP BY rt.user_id, rt.status, rt.registered_at, u.email
-     ORDER BY rt.registered_at DESC`,
-    [partnerId]
-  );
+  // В Supabase сложно сделать сложный GROUP BY с LEFT JOIN напрямую через SDK для агрегации вложенных данных
+  // Пойдем через rpc или ручную агрегацию
+  const { data: trackings, error } = await supabase
+    .from('referral_tracking')
+    .select(`
+      user_id,
+      status,
+      registered_at,
+      user:users(email)
+    `)
+    .eq('partner_id', partnerId)
+    .not('user_id', 'is', null)
+    .order('registered_at', { ascending: false });
 
-  // Функция для скрытия email
+  if (error) throw error;
+
+  const userIds = trackings.map(t => t.user_id).filter(id => id !== null);
+
+  // Получаем суммы покупок для этих пользователей
+  const { data: enrollments } = await supabase
+    .from('enrollments')
+    .select('user_id, amount_paid')
+    .eq('payment_status', 'paid')
+    .in('user_id', userIds);
+
+  const purchasesMap: { [key: number]: number } = {};
+  enrollments?.forEach(e => {
+    purchasesMap[e.user_id] = (purchasesMap[e.user_id] || 0) + (parseFloat(e.amount_paid as any) || 0);
+  });
+
   const maskEmail = (email: string): string => {
     if (!email) return '';
     const [local, domain] = email.split('@');
@@ -272,12 +247,12 @@ export const getReferralsList = asyncHandler(async (req: ReferralAuthRequest, re
   };
 
   res.json({
-    referrals: result.rows.map((row) => ({
+    referrals: trackings.map((row: any) => ({
       user_id: row.user_id,
-      email: maskEmail(row.email),
+      email: maskEmail(row.user?.email),
       status: row.status,
       registered_at: row.registered_at,
-      total_purchases: parseFloat(row.total_purchases),
+      total_purchases: purchasesMap[row.user_id] || 0,
     })),
   });
 });
@@ -288,36 +263,29 @@ export const getReferralsList = asyncHandler(async (req: ReferralAuthRequest, re
 export const getPartnerLevel = asyncHandler(async (req: ReferralAuthRequest, res: Response) => {
   const partnerId = req.referral!.id;
 
-  // Получаем количество рефералов и общий заработок
-  const statsResult = await pool.query(
-    `SELECT 
-       COUNT(DISTINCT rt.user_id) as referrals_count,
-       COALESCE(rp.total_earnings, 0) as total_earnings
-     FROM referral_partners rp
-     LEFT JOIN referral_tracking rt ON rp.id = rt.partner_id AND rt.user_id IS NOT NULL
-     WHERE rp.id = $1
-     GROUP BY rp.id, rp.total_earnings`,
-    [partnerId]
-  );
+  const { count: referralsCount } = await supabase
+    .from('referral_tracking')
+    .select('id', { count: 'exact', head: true })
+    .eq('partner_id', partnerId)
+    .not('user_id', 'is', null);
 
-  if (statsResult.rows.length === 0) {
-    throw new AppError('Партнер не найден', 404);
-  }
+  const { data: partner } = await supabase
+    .from('referral_partners')
+    .select('total_earnings')
+    .eq('id', partnerId)
+    .single();
 
-  const referralsCount = parseInt(statsResult.rows[0].referrals_count) || 0;
-  const totalEarnings = parseFloat(statsResult.rows[0].total_earnings) || 0;
+  const totalEarnings = parseFloat(partner?.total_earnings as any) || 0;
+  const level = calculatePartnerLevel(referralsCount || 0, totalEarnings);
 
-  const level = calculatePartnerLevel(referralsCount, totalEarnings);
-
-  // Обновляем уровень в БД, если изменился
-  await pool.query(
-    'UPDATE referral_partners SET level = $1 WHERE id = $2',
-    [level, partnerId]
-  );
+  await supabase
+    .from('referral_partners')
+    .update({ level, updated_at: new Date().toISOString() })
+    .eq('id', partnerId);
 
   res.json({
     level,
-    referrals_count: referralsCount,
+    referrals_count: referralsCount || 0,
     total_earnings: totalEarnings,
   });
 });

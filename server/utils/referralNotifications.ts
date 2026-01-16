@@ -1,7 +1,4 @@
-import { Pool } from 'pg';
-import { getDatabaseConfig } from '../../database/config';
-
-const pool = new Pool(getDatabaseConfig());
+import { supabase } from '../../database/config';
 
 interface CreateNotificationParams {
   partnerId: number;
@@ -18,20 +15,21 @@ interface CreateNotificationParams {
  */
 export async function createReferralNotification(params: CreateNotificationParams): Promise<void> {
   try {
-    await pool.query(
-      `INSERT INTO referral_notifications 
-       (partner_id, notification_type, title, message, related_user_id, related_enrollment_id, related_withdrawal_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        params.partnerId,
-        params.type,
-        params.title,
-        params.message,
-        params.relatedUserId || null,
-        params.relatedEnrollmentId || null,
-        params.relatedWithdrawalId || null,
-      ]
-    );
+    const { error } = await supabase
+      .from('referral_notifications')
+      .insert({
+        partner_id: params.partnerId,
+        notification_type: params.type,
+        title: params.title,
+        message: params.message,
+        related_user_id: params.relatedUserId || null,
+        related_enrollment_id: params.relatedEnrollmentId || null,
+        related_withdrawal_id: params.relatedWithdrawalId || null
+      });
+
+    if (error) {
+      console.error('Supabase error creating referral notification:', error);
+    }
   } catch (error) {
     console.error('Error creating referral notification:', error);
     // Не прерываем выполнение основной логики при ошибке создания уведомления
@@ -43,14 +41,14 @@ export async function createReferralNotification(params: CreateNotificationParam
  */
 function maskEmail(email: string): string {
   if (!email) return '';
-  
+
   const [local, domain] = email.split('@');
   if (!domain) return email;
-  
+
   // Показываем первые 3 символа
   const visibleChars = Math.min(3, local.length);
   const masked = local.substring(0, visibleChars) + '***';
-  
+
   return `${masked}@${domain}`;
 }
 

@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -18,7 +19,7 @@ import { CourseCard } from "@/components/courses/CourseCard";
 import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
 import { FounderSection } from "@/components/founder/FounderSection";
 import { FadeInOnScroll } from "@/components/FadeInOnScroll";
-import { api } from "@/lib/api";
+
 import { StructuredData, createOrganizationSchema } from "@/components/seo/StructuredData";
 import { Helmet } from "react-helmet-async";
 
@@ -68,14 +69,26 @@ export default function Index() {
     loadFeaturedCourses();
   }, []);
 
+
+
+  // ... existing imports
+
   const loadFeaturedCourses = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.getPublicCourses({
-        limit: 6, // Показываем 6 популярных курсов
-      });
-      setFeaturedCourses(response.courses);
+
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('is_active', true)
+        .limit(6);
+
+      if (error) {
+        throw error;
+      }
+
+      setFeaturedCourses(data || []);
     } catch (err: any) {
       setError(err.message || "Ошибка при загрузке курсов");
       console.error("Error loading featured courses:", err);
@@ -156,7 +169,7 @@ export default function Index() {
                   src={heroImage}
                   alt="Профессиональный маникюр"
                   loading="eager"
-                  fetchpriority="high"
+                  fetchPriority="high"
                   className="aspect-[4/3] w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent" />
@@ -185,33 +198,33 @@ export default function Index() {
       <section className="py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-          <div className="mb-12 text-center">
-            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-              Почему выбирают нас
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              Мы создали идеальные условия для комфортного и эффективного
-              обучения онлайн
-            </p>
-          </div>
+            <div className="mb-12 text-center">
+              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                Почему выбирают нас
+              </h2>
+              <p className="mx-auto max-w-2xl text-muted-foreground">
+                Мы создали идеальные условия для комфортного и эффективного
+                обучения онлайн
+              </p>
+            </div>
           </FadeInOnScroll>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {benefits.map((benefit, index) => (
               <FadeInOnScroll key={benefit.title} delay={index * 100} className="h-full">
                 <Card variant="elevated" className="group h-full">
-                <CardContent className="p-6 text-center">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
-                    <benefit.icon className="h-7 w-7 text-primary" />
-                  </div>
-                  <h3 className="mb-2 font-display text-xl font-semibold">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {benefit.description}
-                  </p>
-                </CardContent>
-              </Card>
+                  <CardContent className="p-6 text-center">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                      <benefit.icon className="h-7 w-7 text-primary" />
+                    </div>
+                    <h3 className="mb-2 font-display text-xl font-semibold">
+                      {benefit.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {benefit.description}
+                    </p>
+                  </CardContent>
+                </Card>
               </FadeInOnScroll>
             ))}
           </div>
@@ -222,22 +235,22 @@ export default function Index() {
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-          <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-                Популярные курсы
-              </h2>
-              <p className="max-w-2xl text-muted-foreground">
-                Выберите свой путь в индустрии красоты
-              </p>
+            <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+                  Популярные курсы
+                </h2>
+                <p className="max-w-2xl text-muted-foreground">
+                  Выберите свой путь в индустрии красоты
+                </p>
+              </div>
+              <Button variant="outline" asChild>
+                <Link to="/courses">
+                  Все курсы
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-            <Button variant="outline" asChild>
-              <Link to="/courses">
-                Все курсы
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
           </FadeInOnScroll>
 
           {loading ? (
@@ -268,24 +281,24 @@ export default function Index() {
                   imageUrl = course.image_url;
                 } else {
                   // Fallback изображение
-                  imageUrl = "https://via.placeholder.com/400x300?text=Course";
+                  imageUrl = `https://placehold.co/400x300?text=${encodeURIComponent(course.title || "Course")}`;
                 }
 
                 return (
                   <FadeInOnScroll key={course.id || course.slug} delay={index * 100} className="h-full">
-                  <CourseCard
-                    id={course.slug}
-                    title={course.title || "Без названия"}
-                    description={course.description || ""}
-                    image={imageUrl}
-                    price={course.price || 0}
-                    oldPrice={course.oldPrice}
-                    duration={course.duration || ""}
-                    students={course.students || 0}
-                    rating={course.rating || 0}
-                    level={course.level || "beginner"}
-                    isNew={course.isNew}
-                  />
+                    <CourseCard
+                      id={course.slug}
+                      title={course.title || "Без названия"}
+                      description={course.description || ""}
+                      image={imageUrl}
+                      price={course.price || 0}
+                      oldPrice={course.oldPrice}
+                      duration={course.duration || ""}
+                      students={course.students || 0}
+                      rating={course.rating || 0}
+                      level={course.level || "beginner"}
+                      isNew={course.isNew}
+                    />
                   </FadeInOnScroll>
                 );
               })}
@@ -311,20 +324,20 @@ export default function Index() {
       <section className="py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-              Готовы начать обучение?
-            </h2>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-              Запишитесь на бесплатный вебинар и получите план развития в
-              профессии nail-мастера
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="xl" asChild>
-                <Link to="/schedule">Записаться бесплатно</Link>
-              </Button>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+                Готовы начать обучение?
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+                Запишитесь на бесплатный вебинар и получите план развития в
+                профессии nail-мастера
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="xl" asChild>
+                  <Link to="/schedule">Записаться бесплатно</Link>
+                </Button>
+              </div>
             </div>
-          </div>
           </FadeInOnScroll>
         </div>
       </section>

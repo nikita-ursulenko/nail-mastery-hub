@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Upload, X } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface FounderInfo {
   id: number;
@@ -55,7 +56,12 @@ export default function AdminFounder() {
 
   const loadFounderInfo = async () => {
     try {
-      const data = await api.getFounderInfo();
+      const { data, error } = await supabase
+        .from('founder_info')
+        .select('*');
+
+      if (error) throw error;
+
       if (data && data.length > 0) {
         const founder = data[0];
         setFounderInfo(founder);
@@ -77,15 +83,27 @@ export default function AdminFounder() {
         });
         // Устанавливаем превью
         if (isUploaded) {
-          setImagePreview(`/uploads/founder/${founder.image_upload_path}`);
+          // Construct public URL for uploaded file if not explicitly stored in image_url (or use image_url if it is full path)
+          // The previous code used /uploads/founder/... which was local proxy.
+          // Now we use Supabase storage public URL.
+          // Check if image_url is already a Supabase URL?
+          if (founder.image_url && founder.image_url.startsWith('http')) {
+            setImagePreview(founder.image_url);
+          } else {
+            // Generate public URL if needed, or assume image_url has it.
+            // If image_upload_path exists, we can get public url.
+            const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(founder.image_upload_path);
+            setImagePreview(publicUrl);
+          }
           setUseUpload(true);
         } else if (founder.image_url) {
           setImagePreview(founder.image_url);
           setUseUpload(false);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load founder info:', error);
+      toast.error('Ошибка при загрузке информации');
     } finally {
       setIsLoading(false);
     }
@@ -147,18 +165,25 @@ export default function AdminFounder() {
       // Если загружен файл, сначала загружаем его
       if (imageFile) {
         setIsUploading(true);
-        try {
-          const uploadResult = await api.uploadFounderImage(imageFile);
-          submitData.image_upload_path = uploadResult.filename;
-          submitData.image_url = null;
-        } catch (uploadError: any) {
-          alert(uploadError.message || 'Ошибка при загрузке файла');
-          setIsUploading(false);
-          setIsSaving(false);
-          return;
-        } finally {
-          setIsUploading(false);
-        }
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `founder-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('general-assets')
+          .upload(filePath, imageFile, {
+            upsert: true
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('general-assets')
+          .getPublicUrl(filePath);
+
+        submitData.image_upload_path = filePath;
+        submitData.image_url = publicUrl;
+        setIsUploading(false);
       } else if (!useUpload && formData.image_url) {
         // Если используется URL, очищаем путь к загруженному файлу
         submitData.image_url = formData.image_url;
@@ -166,24 +191,39 @@ export default function AdminFounder() {
       } else if (formData.image_upload_path) {
         // Используем существующий загруженный файл
         submitData.image_upload_path = formData.image_upload_path;
-        submitData.image_url = null;
+        // Keep existing URL if possible
+        if (founderInfo?.image_url) {
+          submitData.image_url = founderInfo.image_url;
+        } else {
+          // regenerate?
+          const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.image_upload_path);
+          submitData.image_url = publicUrl;
+        }
       } else {
         submitData.image_url = null;
         submitData.image_upload_path = null;
       }
 
       if (founderInfo) {
-        await api.updateFounderInfo(founderInfo.id, submitData);
+        const { error } = await supabase
+          .from('founder_info')
+          .update(submitData)
+          .eq('id', founderInfo.id);
+        if (error) throw error;
       } else {
-        await api.createFounderInfo(submitData);
+        const { error } = await supabase
+          .from('founder_info')
+          .insert([submitData]);
+        if (error) throw error;
       }
       await loadFounderInfo();
-      alert('Информация успешно сохранена!');
+      toast.success('Информация успешно сохранена!');
     } catch (error: any) {
       console.error('Failed to save founder info:', error);
-      alert(error.message || 'Ошибка при сохранении информации об основателе.');
+      toast.error(error.message || 'Ошибка при сохранении информации об основателе.');
     } finally {
       setIsSaving(false);
+      setIsUploading(false);
     }
   };
 

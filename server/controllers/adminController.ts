@@ -1,76 +1,101 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
-
-const pool = new Pool(getDatabaseConfig());
+import { supabase } from '../../database/config';
 
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    // Получаем количество пользователей
-    const usersResult = await pool.query('SELECT COUNT(*) FROM users');
-    const totalUsers = parseInt(usersResult.rows[0].count);
+    // 1. Количество пользователей
+    const { count: totalUsers, error: usersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
 
-    // Активные пользователи (за последние 30 дней)
-    const activeUsersResult = await pool.query(
-      `SELECT COUNT(DISTINCT user_id) 
-       FROM enrollments 
-       WHERE purchased_at >= CURRENT_DATE - INTERVAL '30 days'`
-    );
-    const activeUsers = parseInt(activeUsersResult.rows[0].count || '0');
+    if (usersError) throw usersError;
 
-    // Новые пользователи за сегодня
-    const newUsersTodayResult = await pool.query(
-      `SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURRENT_DATE`
-    );
-    const newUsersToday = parseInt(newUsersTodayResult.rows[0].count || '0');
+    // 2. Активные пользователи (за последние 30 дней)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Получаем количество курсов (используем is_active вместо status)
-    const coursesResult = await pool.query('SELECT COUNT(*) FROM courses WHERE is_active = TRUE');
-    const totalCourses = parseInt(coursesResult.rows[0].count);
+    // Получаем количество уникальных user_id из enrollments за последние 30 дней
+    const { data: activeUsersData, error: activeUsersError } = await supabase
+      .from('enrollments')
+      .select('user_id')
+      .gte('purchased_at', thirtyDaysAgo.toISOString());
 
-    // Получаем количество постов блога (используем is_active вместо status)
-    const postsResult = await pool.query('SELECT COUNT(*) FROM blog_posts WHERE is_active = TRUE');
-    const totalPosts = parseInt(postsResult.rows[0].count);
+    if (activeUsersError) throw activeUsersError;
+    const activeUsers = new Set(activeUsersData?.map(e => e.user_id)).size;
 
-    // Общий доход от продаж
-    const revenueResult = await pool.query(
-      `SELECT COALESCE(SUM(amount_paid), 0) as total_revenue
-       FROM enrollments
-       WHERE payment_status = 'paid'`
-    );
-    const totalRevenue = parseFloat(revenueResult.rows[0].total_revenue || '0');
+    // 3. Новые пользователи за сегодня
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { count: newUsersToday, error: newUsersError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', today.toISOString());
 
-    // Количество активных enrollments
-    const activeEnrollmentsResult = await pool.query(
-      `SELECT COUNT(*) FROM enrollments WHERE status = 'active' AND payment_status = 'paid'`
-    );
-    const activeEnrollments = parseInt(activeEnrollmentsResult.rows[0].count || '0');
+    if (newUsersError) throw newUsersError;
 
-    // Количество завершенных курсов
-    const completedCoursesResult = await pool.query(
-      `SELECT COUNT(*) FROM enrollments WHERE status = 'completed'`
-    );
-    const completedCourses = parseInt(completedCoursesResult.rows[0].count || '0');
+    // 4. Активные курсы
+    const { count: totalCourses, error: coursesError } = await supabase
+      .from('courses')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
 
-    // Покупки за сегодня
-    const todayOrdersResult = await pool.query(
-      `SELECT COUNT(*) as total, COALESCE(SUM(amount_paid), 0) as revenue
-       FROM enrollments
-       WHERE payment_status = 'paid' AND DATE(purchased_at) = CURRENT_DATE`
-    );
-    const todayOrders = parseInt(todayOrdersResult.rows[0].total || '0');
-    const todayRevenue = parseFloat(todayOrdersResult.rows[0].revenue || '0');
+    if (coursesError) throw coursesError;
+
+    // 5. Посты блога
+    const { count: totalPosts, error: postsError } = await supabase
+      .from('blog_posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    if (postsError) throw postsError;
+
+    // 6. Общий доход от продаж
+    const { data: revenueData, error: revenueError } = await supabase
+      .from('enrollments')
+      .select('amount_paid')
+      .eq('payment_status', 'paid');
+
+    if (revenueError) throw revenueError;
+    const totalRevenue = revenueData?.reduce((sum, e) => sum + (parseFloat(e.amount_paid as any) || 0), 0) || 0;
+
+    // 7. Количество активных enrollments
+    const { count: activeEnrollments, error: enrollmentsError } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .eq('payment_status', 'paid');
+
+    if (enrollmentsError) throw enrollmentsError;
+
+    // 8. Количество завершенных курсов
+    const { count: completedCourses, error: completedError } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'completed');
+
+    if (completedError) throw completedError;
+
+    // 9. Покупки за сегодня
+    const { data: todayOrdersData, error: todayOrdersError } = await supabase
+      .from('enrollments')
+      .select('amount_paid')
+      .eq('payment_status', 'paid')
+      .gte('purchased_at', today.toISOString());
+
+    if (todayOrdersError) throw todayOrdersError;
+    const todayOrders = todayOrdersData?.length || 0;
+    const todayRevenue = todayOrdersData?.reduce((sum, e) => sum + (parseFloat(e.amount_paid as any) || 0), 0) || 0;
 
     const stats = {
-      totalUsers,
+      totalUsers: totalUsers || 0,
       activeUsers,
-      newUsersToday,
-      totalCourses,
-      totalPosts,
+      newUsersToday: newUsersToday || 0,
+      totalCourses: totalCourses || 0,
+      totalPosts: totalPosts || 0,
       totalRevenue,
-      activeEnrollments,
-      completedCourses,
+      activeEnrollments: activeEnrollments || 0,
+      completedCourses: completedCourses || 0,
       todayOrders,
       todayRevenue,
     };

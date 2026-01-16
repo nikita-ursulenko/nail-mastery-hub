@@ -4,10 +4,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { getDatabaseConfig } from '../../database/config';
-import { Pool } from 'pg';
-
-const pool = new Pool(getDatabaseConfig());
+import { supabase } from '../../database/config';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -44,17 +41,21 @@ export const authenticateUserToken = async (
     }
 
     // Проверяем, существует ли пользователь в БД
-    const result = await pool.query(
-      'SELECT id, email, name FROM users WHERE id = $1',
-      [decoded.id]
-    );
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, name')
+      .eq('id', decoded.id)
+      .single();
 
-    if (result.rows.length === 0) {
+    if (error || !user) {
+      if (error?.code !== 'PGRST116') { // PGRST116 is "No rows found"
+        console.error('Supabase error checking user:', error);
+      }
       return res.status(401).json({ error: 'Пользователь не найден' });
     }
 
     // Добавляем пользователя в request
-    req.user = result.rows[0];
+    req.user = user;
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {

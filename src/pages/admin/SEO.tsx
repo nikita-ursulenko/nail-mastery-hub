@@ -23,8 +23,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Plus, Pencil, Trash2, Search } from 'lucide-react';
-import { api } from '@/lib/api';
-import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface SEOSetting {
   id: number;
@@ -53,7 +53,7 @@ export default function AdminSEO() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSetting, setEditingSetting] = useState<SEOSetting | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
+
 
   const [formData, setFormData] = useState({
     path: '',
@@ -80,14 +80,15 @@ export default function AdminSEO() {
   const loadSEOSettings = async () => {
     try {
       setIsLoading(true);
-      const data = await api.getSEOSettings();
-      setSeoSettings(data);
+      const { data, error } = await supabase
+        .from('seo_settings')
+        .select('*')
+        .order('path', { ascending: true });
+
+      if (error) throw error;
+      setSeoSettings(data || []);
     } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось загрузить SEO настройки',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Не удалось загрузить SEO настройки');
     } finally {
       setIsLoading(false);
     }
@@ -145,26 +146,25 @@ export default function AdminSEO() {
     e.preventDefault();
     try {
       if (editingSetting) {
-        await api.updateSEO(editingSetting.id, formData);
-        toast({
-          title: 'Успешно',
-          description: 'SEO настройки обновлены',
-        });
+        const { error } = await supabase
+          .from('seo_settings')
+          .update(formData)
+          .eq('id', editingSetting.id);
+
+        if (error) throw error;
+        toast.success('SEO настройки обновлены');
       } else {
-        await api.upsertSEO(formData);
-        toast({
-          title: 'Успешно',
-          description: 'SEO настройки созданы',
-        });
+        const { error } = await supabase
+          .from('seo_settings')
+          .upsert([formData], { onConflict: 'path' }); // Assuming path is unique
+
+        if (error) throw error;
+        toast.success('SEO настройки созданы');
       }
       handleCloseDialog();
       loadSEOSettings();
     } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось сохранить SEO настройки',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Не удалось сохранить SEO настройки');
     }
   };
 
@@ -174,18 +174,17 @@ export default function AdminSEO() {
     }
 
     try {
-      await api.deleteSEO(id);
-      toast({
-        title: 'Успешно',
-        description: 'SEO настройки удалены',
-      });
+      const { error } = await supabase
+        .from('seo_settings')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('SEO настройки удалены');
       loadSEOSettings();
     } catch (error: any) {
-      toast({
-        title: 'Ошибка',
-        description: error.message || 'Не удалось удалить SEO настройки',
-        variant: 'destructive',
-      });
+      toast.error(error.message || 'Не удалось удалить SEO настройки');
     }
   };
 
