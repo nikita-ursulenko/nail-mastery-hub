@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Компонент для редиректа с /referral
@@ -12,18 +12,24 @@ export default function ReferralRedirect() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('referral_token');
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsChecking(false);
-        return;
-      }
-
       try {
-        const response = await api.referralVerifyToken();
-        setIsAuthenticated(response.valid);
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+          setIsAuthenticated(false);
+          setIsChecking(false);
+          return;
+        }
+
+        // Verify user is a referral partner
+        const { data: partner } = await supabase
+          .from('referral_partners')
+          .select('id, is_active')
+          .eq('auth_user_id', session.user.id)
+          .single();
+
+        setIsAuthenticated(!!(partner && partner.is_active));
       } catch (error) {
-        localStorage.removeItem('referral_token');
         setIsAuthenticated(false);
       } finally {
         setIsChecking(false);

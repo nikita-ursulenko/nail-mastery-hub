@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [
-    react(), 
+    react(),
     mode === "development" && componentTagger(),
     createHtmlPlugin({
       minify: mode === "production",

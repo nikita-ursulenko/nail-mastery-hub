@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Copy, Download } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { QRCode } from '@/components/referral/QRCode';
 
@@ -20,8 +20,21 @@ export default function ReferralMaterials() {
   const loadLink = async () => {
     try {
       setIsLoading(true);
-      const linkData = await api.getReferralLink();
-      setReferralLink(linkData.referral_link);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: partner, error } = await supabase
+        .from('referral_partners')
+        .select('referral_code')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (error) throw error;
+      if (!partner) throw new Error('Partner not found');
+
+      const baseUrl = window.location.origin;
+      setReferralLink(`${baseUrl}/ref/${partner.referral_code}`);
     } catch (error: any) {
       console.error('Failed to load link:', error);
       toast.error('Ошибка при загрузке ссылки');

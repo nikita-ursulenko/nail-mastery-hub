@@ -19,7 +19,7 @@ import {
   Filter,
   Search,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -39,7 +39,7 @@ export default function ReferralRewards() {
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
-  
+
   // Фильтры
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -64,9 +64,13 @@ export default function ReferralRewards() {
         params.status = statusFilter;
       }
 
-      const data = await api.getReferralRewards(params);
-      setRewards(data.rewards || []);
-      setTotal(data.total || 0);
+      const { data, error } = await supabase.functions.invoke('referral-rewards', {
+        body: params
+      });
+
+      if (error) throw error;
+      setRewards(data?.rewards || []);
+      setTotal(data?.total || 0);
     } catch (error: any) {
       console.error('Failed to load rewards:', error);
       toast.error('Ошибка при загрузке начислений');
@@ -215,9 +219,8 @@ export default function ReferralRewards() {
                         </p>
                       </div>
                       <div className="text-left sm:text-right ml-0 sm:ml-4 shrink-0">
-                        <div className={`font-bold text-base md:text-lg ${
-                          reward.reward_type === 'manual_remove' ? 'text-destructive' : 'text-green-600'
-                        }`}>
+                        <div className={`font-bold text-base md:text-lg ${reward.reward_type === 'manual_remove' ? 'text-destructive' : 'text-green-600'
+                          }`}>
                           {reward.reward_type === 'manual_remove' ? '-' : '+'}
                           {reward.amount.toFixed(2)}€
                         </div>

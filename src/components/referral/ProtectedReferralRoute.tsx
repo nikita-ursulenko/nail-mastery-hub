@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 interface ProtectedReferralRouteProps {
   children: React.ReactNode;
@@ -12,18 +12,28 @@ export function ProtectedReferralRoute({ children }: ProtectedReferralRouteProps
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem('referral_token');
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const response = await api.referralVerifyToken();
-        setIsAuthenticated(response.valid);
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+          setIsAuthenticated(false);
+          setIsLoading(false);
+          return;
+        }
+
+        // Verify user is a referral partner
+        const { data: partner, error } = await supabase
+          .from('referral_partners')
+          .select('id, is_active')
+          .eq('auth_user_id', session.user.id)
+          .single();
+
+        if (error || !partner || !partner.is_active) {
+          setIsAuthenticated(false);
+        } else {
+          setIsAuthenticated(true);
+        }
       } catch (error) {
-        localStorage.removeItem('referral_token');
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);

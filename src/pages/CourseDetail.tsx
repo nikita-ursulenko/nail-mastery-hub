@@ -24,7 +24,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { useUserAuth } from "@/contexts/UserAuthContext";
 import { toast } from "sonner";
 import { Helmet } from "react-helmet-async";
@@ -59,7 +59,7 @@ export default function CourseDetail() {
       const minPrice = courseData.tariffs && courseData.tariffs.length > 0
         ? Math.min(...courseData.tariffs.map((t: any) => t.price || Infinity))
         : undefined;
-      
+
       trackViewCourse(
         courseData.id?.toString() || courseData.slug,
         courseData.title,
@@ -72,8 +72,69 @@ export default function CourseDetail() {
     try {
       setLoading(true);
       setError(null);
-      const data = await api.getPublicCourseBySlug(id!);
-      setCourseData(data);
+
+      // Fetch course data
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select(`
+          *,
+          tariffs:course_tariffs(id, name, price, old_price, features, not_included, is_popular, tariff_type)
+        `)
+        .eq('slug', id!)
+        .single();
+
+      if (courseError) throw courseError;
+      if (!courseData) throw new Error('Курс не найден');
+
+      // Fetch modules with correct column names (order_index)
+      const { data: modulesData, error: modulesError } = await supabase
+        .from('course_modules')
+        .select('id, title, description, order_index')
+        .eq('course_id', courseData.id)
+        .order('order_index', { ascending: true });
+
+      if (modulesError) throw modulesError;
+
+      // Fetch lessons using course_lessons table and order_index
+      const modulesWithLessons = await Promise.all(
+        (modulesData || []).map(async (module: any) => {
+          const { data: lessonsData } = await supabase
+            .from('course_lessons')
+            .select('id, title, duration, video_url, order_index')
+            .eq('module_id', module.id)
+            .order('order_index', { ascending: true });
+
+          return {
+            ...module,
+            lessons: lessonsData || [],
+            lessons_count: lessonsData?.length || 0,
+          };
+        })
+      );
+
+      console.log('--- DEBUG COURSE DATA ---');
+      console.log('Course:', courseData);
+      console.log('Modules:', modulesWithLessons);
+
+      // Get instructor separately
+      let instructor = null;
+      if (courseData.instructor_id) {
+        const { data: instructorData } = await supabase
+          .from('team_members')
+          .select('name, role, image_url, image_upload_path')
+          .eq('id', courseData.instructor_id)
+          .single();
+        instructor = instructorData;
+        console.log('Instructor:', instructor);
+      }
+
+      setCourseData({
+        ...courseData,
+        instructor,
+        modules: modulesWithLessons,
+        includes: courseData.includes || [],
+        materials: courseData.required_materials || [],
+      });
     } catch (err: any) {
       setError(err.message || "Ошибка при загрузке курса");
       console.error("Error loading course:", err);
@@ -95,7 +156,7 @@ export default function CourseDetail() {
 
     try {
       setPurchasing(tariff.id);
-      
+
       // Трекинг начала покупки
       trackInitiateCheckout(
         courseData.id?.toString() || courseData.slug,
@@ -103,14 +164,20 @@ export default function CourseDetail() {
         tariff.price
       );
 
-      const response = await api.createCheckoutSession({
-        courseId: courseData.id,
-        tariffId: tariff.id,
+      // Call Supabase Edge Function to create Stripe Checkout Session
+      const { data: sessionData, error: sessionError } = await supabase.functions.invoke('create-checkout-session', {
+        body: {
+          courseId: courseData.id,
+          tariffId: tariff.id,
+          userId: user.id,
+        }
       });
 
-      if (response.url) {
+      if (sessionError) throw sessionError;
+
+      if (sessionData?.url) {
         // Перенаправляем на Stripe Checkout
-        window.location.href = response.url;
+        window.location.href = sessionData.url;
       } else {
         throw new Error("Не получен URL для оплаты");
       }
@@ -156,20 +223,20 @@ export default function CourseDetail() {
   }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  
+
   // Формируем URL изображения
   const courseImage = courseData.image_upload_path
     ? (courseData.image_upload_path.startsWith('/uploads/')
-        ? courseData.image_upload_path
-        : `/uploads/courses/${courseData.image_upload_path}`)
+      ? courseData.image_upload_path
+      : `/uploads/courses/${courseData.image_upload_path}`)
     : courseData.image_url || "";
 
-  const courseImageUrl = courseImage.startsWith('http') 
-    ? courseImage 
+  const courseImageUrl = courseImage.startsWith('http')
+    ? courseImage
     : `${baseUrl}${courseImage}`;
 
   // Получаем минимальную цену курса для JSON-LD
-  const minPrice = courseData.tariffs && courseData.tariffs.length > 0
+  const minPrice = Array.isArray(courseData.tariffs) && courseData.tariffs.length > 0
     ? Math.min(...courseData.tariffs.map((t: any) => t.price || Infinity))
     : undefined;
 
@@ -185,25 +252,25 @@ export default function CourseDetail() {
     description: courseData.description,
     image: courseImage,
     duration: courseData.duration,
-    lessons: courseData.modules.reduce(
-      (sum: number, m: any) => sum + (m.lessons_count || m.lessons?.length || 0),
+    lessons: Array.isArray(courseData.modules) ? courseData.modules.reduce(
+      (sum: number, m: any) => sum + (m.lessons_count || (Array.isArray(m.lessons) ? m.lessons.length : 0) || 0),
       0
-    ),
-    students: courseData.students,
-    rating: courseData.rating,
-    reviews: courseData.reviews,
+    ) : 0,
+    students: courseData.students || 0,
+    rating: courseData.rating || 0,
+    reviews: courseData.reviews || 0,
     level: levelLabels[courseData.level] || courseData.level,
-    includes: courseData.includes || [],
-    modules: courseData.modules || [],
-    tariffs: courseData.tariffs || [],
+    includes: Array.isArray(courseData.includes) ? courseData.includes : [],
+    modules: Array.isArray(courseData.modules) ? courseData.modules : [],
+    tariffs: Array.isArray(courseData.tariffs) ? courseData.tariffs : [],
     instructor: courseData.instructor
       ? {
-          name: courseData.instructor.name,
-          role: courseData.instructor.role,
-          image: instructorImage,
-        }
+        name: courseData.instructor.name,
+        role: courseData.instructor.role,
+        image: instructorImage,
+      }
       : null,
-    materials: courseData.materials || [],
+    materials: Array.isArray(courseData.materials) ? courseData.materials : [],
   };
 
   return (
@@ -340,17 +407,17 @@ export default function CourseDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <h2 className="mb-8 font-display text-3xl font-bold">
-            Что входит в курс
-          </h2>
+            <h2 className="mb-8 font-display text-3xl font-bold">
+              Что входит в курс
+            </h2>
           </FadeInOnScroll>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {courseDataFormatted.includes.map((item: string, index: number) => (
               <FadeInOnScroll key={index} delay={index * 50}>
                 <div className="flex items-start gap-3 rounded-lg bg-secondary/50 p-4">
-                <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                <span>{item}</span>
-              </div>
+                  <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <span>{item}</span>
+                </div>
               </FadeInOnScroll>
             ))}
           </div>
@@ -361,42 +428,43 @@ export default function CourseDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <h2 className="mb-8 font-display text-3xl font-bold">
-            Программа курса
-          </h2>
+            <h2 className="mb-8 font-display text-3xl font-bold">
+              Программа курса
+            </h2>
           </FadeInOnScroll>
           <Accordion type="single" collapsible className="space-y-4">
-            {courseDataFormatted.modules.map((module: any, index: number) => (
+            {Array.isArray(courseDataFormatted.modules) && courseDataFormatted.modules.map((module: any, index: number) => (
               <FadeInOnScroll key={module.id || index} delay={index * 100}>
-              <AccordionItem
-                key={module.id || index}
-                value={`module-${module.id || index}`}
-                className="overflow-hidden rounded-xl border bg-card"
-              >
-                <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                  <div className="flex items-center gap-4 text-left">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-bold text-primary">
-                      {index + 1}
-                    </span>
-                    <span className="font-display text-lg font-semibold">
-                      {module.title}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-4">
-                  <ul className="ml-14 space-y-2">
-                    {module.lessons?.map((lesson: any, lessonIndex: number) => (
-                      <li
-                        key={lesson.id || lessonIndex}
-                        className="flex items-center gap-3 text-muted-foreground"
-                      >
-                        <PlayCircle className="h-4 w-4 shrink-0" />
-                        <span>{lesson.title}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </AccordionContent>
-              </AccordionItem>
+                <AccordionItem
+                  key={module.id || index}
+                  value={`module-${module.id || index}`}
+                  className="overflow-hidden rounded-xl border bg-card"
+                >
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <div className="flex items-center gap-4 text-left">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-lg font-bold text-primary">
+                        {index + 1}
+                      </span>
+                      <span className="font-display text-lg font-semibold">
+                        {module.title}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-6 pb-4">
+                    <ul className="ml-14 space-y-2">
+                      {Array.isArray(module.lessons) ? module.lessons.map((lesson: any, lessonIndex: number) => (
+                        <li
+                          key={lesson.id || lessonIndex}
+                          className="flex items-center gap-3 text-muted-foreground"
+                        >
+                          <PlayCircle className="h-4 w-4 shrink-0" />
+                          <span>{lesson.title}</span>
+                          {lesson.duration && <span className="text-xs text-muted-foreground ml-auto">{Math.ceil(lesson.duration / 60)} мин</span>}
+                        </li>
+                      )) : <li className="text-muted-foreground text-sm">Нет уроков</li>}
+                    </ul>
+                  </AccordionContent>
+                </AccordionItem>
               </FadeInOnScroll>
             ))}
           </Accordion>
@@ -407,82 +475,81 @@ export default function CourseDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <h2 className="mb-4 text-center font-display text-3xl font-bold">
-            Выберите тариф
-          </h2>
-          <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
-            Все тарифы включают бессрочный доступ к материалам курса
-          </p>
+            <h2 className="mb-4 text-center font-display text-3xl font-bold">
+              Выберите тариф
+            </h2>
+            <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
+              Все тарифы включают бессрочный доступ к материалам курса
+            </p>
           </FadeInOnScroll>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {courseDataFormatted.tariffs.map((tariff: any, index: number) => (
+            {Array.isArray(courseDataFormatted.tariffs) && courseDataFormatted.tariffs.map((tariff: any, index: number) => (
               <FadeInOnScroll key={tariff.id} delay={index * 100}>
-              <Card
-                key={tariff.id}
-                variant={tariff.popular ? "elevated" : "default"}
-                className={`relative ${
-                  tariff.popular ? "border-primary lg:scale-105" : ""
-                }`}
-              >
-                {tariff.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-primary px-4 py-1">Популярный</Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center">
-                  <CardTitle className="font-display text-2xl">
-                    {tariff.name}
-                  </CardTitle>
-                  <div className="mt-4">
-                    <span className="font-display text-4xl font-bold text-primary">
-                      {tariff.price.toLocaleString("de-DE")} €
-                    </span>
-                    {tariff.oldPrice && (
-                      <span className="ml-2 text-lg text-muted-foreground line-through">
-                        {tariff.oldPrice.toLocaleString("de-DE")} €
+                <Card
+                  key={tariff.id}
+                  variant={tariff.popular ? "elevated" : "default"}
+                  className={`relative ${tariff.popular ? "border-primary lg:scale-105" : ""
+                    }`}
+                >
+                  {tariff.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <Badge className="bg-primary px-4 py-1">Популярный</Badge>
+                    </div>
+                  )}
+                  <CardHeader className="text-center">
+                    <CardTitle className="font-display text-2xl">
+                      {tariff.name}
+                    </CardTitle>
+                    <div className="mt-4">
+                      <span className="font-display text-4xl font-bold text-primary">
+                        {tariff.price?.toLocaleString("de-DE")} €
                       </span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <ul className="space-y-3">
-                    {tariff.features?.map((feature: string, index: number) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                    {tariff.notIncluded?.map((feature: string, index: number) => (
-                      <li
-                        key={`not-${index}`}
-                        className="flex items-start gap-3 text-muted-foreground"
-                      >
-                        <span className="mt-0.5 h-5 w-5 shrink-0 text-center">
-                          —
+                      {tariff.old_price && (
+                        <span className="ml-2 text-lg text-muted-foreground line-through">
+                          {tariff.old_price.toLocaleString("de-DE")} €
                         </span>
-                        <span className="text-sm line-through">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    variant={tariff.popular ? "hero" : "outline"}
-                    size="lg"
-                    className="w-full"
-                    onClick={() => handlePurchase(tariff)}
-                    disabled={purchasing === tariff.id}
-                  >
-                    {purchasing === tariff.id ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Обработка...
-                      </>
-                    ) : (
-                      "Выбрать тариф"
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <ul className="space-y-3">
+                      {Array.isArray(tariff.features) && tariff.features.map((feature: string, index: number) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
+                      {Array.isArray(tariff.not_included) && tariff.not_included.map((feature: string, index: number) => (
+                        <li
+                          key={`not-${index}`}
+                          className="flex items-start gap-3 text-muted-foreground"
+                        >
+                          <span className="mt-0.5 h-5 w-5 shrink-0 text-center">
+                            —
+                          </span>
+                          <span className="text-sm line-through">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button
+                      variant={tariff.popular ? "hero" : "outline"}
+                      size="lg"
+                      className="w-full"
+                      onClick={() => handlePurchase(tariff)}
+                      disabled={purchasing === tariff.id}
+                    >
+                      {purchasing === tariff.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Обработка...
+                        </>
+                      ) : (
+                        "Выбрать тариф"
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
               </FadeInOnScroll>
             ))}
           </div>
@@ -493,38 +560,38 @@ export default function CourseDetail() {
       <section className="bg-secondary/30 py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <h2 className="mb-8 font-display text-3xl font-bold">
-            Необходимые материалы
-          </h2>
+            <h2 className="mb-8 font-display text-3xl font-bold">
+              Необходимые материалы
+            </h2>
           </FadeInOnScroll>
           <FadeInOnScroll delay={100}>
-          <Card>
-            <CardContent className="p-6">
-              <p className="mb-6 text-muted-foreground">
-                Для прохождения курса вам понадобятся следующие материалы и
-                инструменты:
-              </p>
-              <ul className="grid gap-3 md:grid-cols-2">
-                {courseDataFormatted.materials.map((material: any, index: number) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                      <span className="text-sm font-medium text-primary">
-                        {index + 1}
+            <Card>
+              <CardContent className="p-6">
+                <p className="mb-6 text-muted-foreground">
+                  Для прохождения курса вам понадобятся следующие материалы и
+                  инструменты:
+                </p>
+                <ul className="grid gap-3 md:grid-cols-2">
+                  {courseDataFormatted.materials.map((material: any, index: number) => (
+                    <li key={index} className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <span className="text-sm font-medium text-primary">
+                          {index + 1}
+                        </span>
+                      </div>
+                      <span>
+                        {material.name}
+                        {material.price_info && ` ${material.price_info}`}
                       </span>
-                    </div>
-                    <span>
-                      {material.name}
-                      {material.price_info && ` ${material.price_info}`}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-6 text-sm text-muted-foreground">
-                * После оплаты вы получите детальный список с рекомендациями по
-                брендам и ссылками на магазины
-              </p>
-            </CardContent>
-          </Card>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-6 text-sm text-muted-foreground">
+                  * После оплаты вы получите детальный список с рекомендациями по
+                  брендам и ссылками на магазины
+                </p>
+              </CardContent>
+            </Card>
           </FadeInOnScroll>
         </div>
       </section>
@@ -533,20 +600,20 @@ export default function CourseDetail() {
       <section className="py-12 lg:py-16">
         <div className="container">
           <FadeInOnScroll>
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
-              Остались вопросы?
-            </h2>
-            <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
-              Свяжитесь с нами, и мы поможем выбрать подходящий курс и тариф
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="lg">
-                <MessageCircle className="mr-2 h-5 w-5" />
-                Написать в Telegram
-              </Button>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-12">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground">
+                Остались вопросы?
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-primary-foreground/80">
+                Свяжитесь с нами, и мы поможем выбрать подходящий курс и тариф
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="lg">
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  Написать в Telegram
+                </Button>
+              </div>
             </div>
-          </div>
           </FadeInOnScroll>
         </div>
       </section>

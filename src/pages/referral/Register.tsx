@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, Mail, User, Phone } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 export default function ReferralRegister() {
   const [email, setEmail] = useState('');
@@ -25,13 +25,35 @@ export default function ReferralRegister() {
     setIsLoading(true);
 
     try {
-      const response = await api.referralRegister({
+      // Step 1: Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        name: name.trim(),
-        phone: phone.trim() || undefined,
+        options: {
+          data: {
+            name: name.trim(),
+            phone: phone.trim() || undefined,
+            user_type: 'referral_partner',
+          }
+        }
       });
-      localStorage.setItem('referral_token', response.token);
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Не удалось создать аккаунт');
+
+      // Step 2: Create referral partner profile
+      const { error: partnerError } = await supabase
+        .from('referral_partners')
+        .insert({
+          auth_user_id: authData.user.id,
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          phone: phone.trim() || null,
+          is_active: true,
+        });
+
+      if (partnerError) throw partnerError;
+
       navigate('/referral/dashboard');
     } catch (err: any) {
       setError(err.message || 'Ошибка при регистрации');

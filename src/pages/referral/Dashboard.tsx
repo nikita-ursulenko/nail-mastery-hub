@@ -19,7 +19,7 @@ import {
   Clock,
   XCircle,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -94,7 +94,7 @@ export default function ReferralDashboard() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [level, setLevel] = useState<{ level: string; referrals_count: number; total_earnings: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Форма запроса на вывод
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalPaymentDetails, setWithdrawalPaymentDetails] = useState('');
@@ -111,20 +111,27 @@ export default function ReferralDashboard() {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const [statsData, linkData, rewardsData, referralsData, withdrawalsData, levelData] = await Promise.all([
-        api.getReferralDashboardStats(),
-        api.getReferralLink(),
-        api.getReferralRewards({ limit: 5 }),
-        api.getReferralReferrals(),
-        api.getWithdrawalHistory(),
-        api.getReferralLevel(),
+      const [{ data: statsData, error: sError }, { data: linkData, error: lError }, { data: rewardsData, error: rError }, { data: referralsData, error: rfError }, { data: withdrawalsData, error: wError }, { data: levelData, error: lvError }] = await Promise.all([
+        supabase.functions.invoke('referral-stats'),
+        supabase.functions.invoke('referral-link'),
+        supabase.functions.invoke('referral-rewards', { body: { limit: 5 } }),
+        supabase.functions.invoke('referral-list'),
+        supabase.functions.invoke('referral-withdrawals'),
+        supabase.functions.invoke('referral-level'),
       ]);
 
+      if (sError) throw sError;
+      if (lError) throw lError;
+      if (rError) throw rError;
+      if (rfError) throw rfError;
+      if (wError) throw wError;
+      if (lvError) throw lvError;
+
       setStats(statsData);
-      setReferralLink(linkData.referral_link);
-      setRewards(rewardsData.rewards || []);
-      setReferrals(referralsData.referrals || []);
-      setWithdrawals(withdrawalsData.withdrawals || []);
+      setReferralLink(linkData?.referral_link || '');
+      setRewards(rewardsData?.rewards || []);
+      setReferrals(referralsData?.referrals || []);
+      setWithdrawals(withdrawalsData?.withdrawals || []);
       setLevel(levelData);
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
@@ -141,7 +148,7 @@ export default function ReferralDashboard() {
 
   const handleWithdrawalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!withdrawalAmount || !withdrawalPaymentDetails) {
       toast.error('Заполните все обязательные поля');
       return;
@@ -161,12 +168,16 @@ export default function ReferralDashboard() {
     setIsSubmittingWithdrawal(true);
 
     try {
-      await api.createWithdrawalRequest({
-        amount,
-        payment_details: withdrawalPaymentDetails.trim(),
-        telegram_tag: withdrawalTelegram.trim() || undefined,
+      const { data, error } = await supabase.functions.invoke('referral-withdrawal-request', {
+        body: {
+          amount,
+          payment_details: withdrawalPaymentDetails.trim(),
+          telegram_tag: withdrawalTelegram.trim() || undefined,
+        }
       });
-      
+
+      if (error) throw error;
+
       toast.success('Запрос на вывод создан');
       setWithdrawalAmount('');
       setWithdrawalPaymentDetails('');
@@ -390,9 +401,8 @@ export default function ReferralDashboard() {
                         </p>
                       </div>
                       <div className="text-left sm:text-right shrink-0">
-                        <div className={`font-bold text-base md:text-lg ${
-                          reward.reward_type === 'manual_remove' ? 'text-destructive' : 'text-green-600'
-                        }`}>
+                        <div className={`font-bold text-base md:text-lg ${reward.reward_type === 'manual_remove' ? 'text-destructive' : 'text-green-600'
+                          }`}>
                           {reward.reward_type === 'manual_remove' ? '-' : '+'}
                           {reward.amount.toFixed(2)}€
                         </div>

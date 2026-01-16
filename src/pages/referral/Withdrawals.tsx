@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -34,7 +34,7 @@ export default function ReferralWithdrawals() {
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Форма запроса на вывод
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [withdrawalPaymentDetails, setWithdrawalPaymentDetails] = useState('');
@@ -48,11 +48,15 @@ export default function ReferralWithdrawals() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [withdrawalsData, statsData] = await Promise.all([
-        api.getReferralWithdrawals(),
-        api.getReferralDashboardStats(),
+      const [{ data: withdrawalsData, error: wError }, { data: statsData, error: sError }] = await Promise.all([
+        supabase.functions.invoke('referral-withdrawals'),
+        supabase.functions.invoke('referral-stats'),
       ]);
-      setWithdrawals(withdrawalsData.withdrawals || []);
+
+      if (wError) throw wError;
+      if (sError) throw sError;
+
+      setWithdrawals(withdrawalsData?.withdrawals || []);
       setStats(statsData);
     } catch (error: any) {
       console.error('Failed to load data:', error);
@@ -64,7 +68,7 @@ export default function ReferralWithdrawals() {
 
   const handleWithdrawalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!withdrawalAmount || !withdrawalPaymentDetails) {
       toast.error('Заполните все обязательные поля');
       return;
@@ -84,12 +88,16 @@ export default function ReferralWithdrawals() {
     setIsSubmittingWithdrawal(true);
 
     try {
-      await api.requestReferralWithdrawal({
-        amount,
-        payment_details: withdrawalPaymentDetails.trim(),
-        telegram_tag: withdrawalTelegram.trim() || undefined,
+      const { data, error } = await supabase.functions.invoke('referral-withdrawal-request', {
+        body: {
+          amount,
+          payment_details: withdrawalPaymentDetails.trim(),
+          telegram_tag: withdrawalTelegram.trim() || undefined,
+        }
       });
-      
+
+      if (error) throw error;
+
       toast.success('Запрос на вывод создан');
       setWithdrawalAmount('');
       setWithdrawalPaymentDetails('');

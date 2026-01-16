@@ -9,7 +9,7 @@ import {
   Euro,
   Download,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface DashboardStats {
@@ -58,8 +58,104 @@ export default function ReferralStats() {
   const loadStats = async () => {
     try {
       setIsLoading(true);
-      const statsData = await api.getReferralDashboardStats();
-      setStats(statsData);
+
+      // Get current user and partner
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: partner } = await supabase
+        .from('referral_partners')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!partner) throw new Error('Partner not found');
+
+      // Get clicks/visits stats
+      const { count: totalVisits } = await supabase
+        .from('referral_clicks')
+        .select('*', { count: 'exact', head: true })
+        .eq('partner_id', partner.id);
+
+      const { count: uniqueVisits } = await supabase
+        .from('referral_clicks')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('partner_id', partner.id)
+        .not('user_id', 'is', null);
+
+      // Get registrations
+      const { data: referralsData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('referred_by_partner_id', partner.id);
+
+      const totalRegistrations = referralsData?.length || 0;
+
+      // Get purchases (users who bought courses)
+      const { data: purchasesData } = await supabase
+        .from('enrollments')
+        .select('user_id, course:courses(price)')
+        .in('user_id', (referralsData || []).map(r => r.id));
+
+      const totalPurchases = purchasesData?.length || 0;
+      const totalAmount = (purchasesData || []).reduce((sum: number, p: any) => sum + (p.course?.price || 0), 0);
+      const avgAmount = totalPurchases > 0 ? totalAmount / totalPurchases : 0;
+
+      // Get rewards
+      const { data: rewardsData } = await supabase
+        .from('referral_rewards')
+        .select('reward_type, amount, status')
+        .eq('partner_id', partner.id);
+
+      const visitRewards = (rewardsData || []).filter(r => r.reward_type === 'visit').reduce((sum, r) => sum + r.amount, 0);
+      const regRewards = (rewardsData || []).filter(r => r.reward_type === 'registration').reduce((sum, r) => sum + r.amount, 0);
+      const purchaseRewards = (rewardsData || []).filter(r => r.reward_type === 'purchase').reduce((sum, r) => sum + r.amount, 0);
+      const totalRewards = (rewardsData || []).reduce((sum, r) => sum + r.amount, 0);
+
+      // Get balance and withdrawals
+      const { data: withdrawalsData } = await supabase
+        .from('referral_withdrawals')
+        .select('amount, status')
+        .eq('partner_id', partner.id);
+
+      const withdrawn = (withdrawalsData || []).filter(w => w.status === 'paid').reduce((sum, w) => sum + w.amount, 0);
+      const pending = (withdrawalsData || []).filter(w => w.status === 'pending' || w.status === 'approved').reduce((sum, w) => sum + w.amount, 0);
+      const currentBalance = partner.balance || 0;
+
+      setStats({
+        partner: {
+          referral_code: partner.referral_code,
+          level: partner.level || 'novice',
+        },
+        stats: {
+          visits: {
+            total: totalVisits || 0,
+            unique: uniqueVisits || 0,
+          },
+          registrations: {
+            total: totalRegistrations,
+            conversion: totalVisits > 0 ? (totalRegistrations / totalVisits) * 100 : 0,
+          },
+          purchases: {
+            total: totalPurchases,
+            total_amount: totalAmount,
+            avg_amount: avgAmount,
+            conversion: totalRegistrations > 0 ? (totalPurchases / totalRegistrations) * 100 : 0,
+          },
+          rewards: {
+            visit: visitRewards,
+            registration: regRewards,
+            purchase: purchaseRewards,
+            total: totalRewards,
+          },
+          balance: {
+            total_earnings: totalRewards,
+            current_balance: currentBalance,
+            withdrawn,
+            pending,
+          },
+        },
+      });
     } catch (error: any) {
       console.error('Failed to load stats:', error);
       toast.error('Ошибка при загрузке статистики');

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { useUserAuth } from '@/contexts/UserAuthContext';
@@ -26,34 +26,14 @@ export default function PaymentSuccess() {
       return;
     }
 
-    // Проверяем токен напрямую из localStorage
-    const token = localStorage.getItem('user_token');
-    
-    // Если нет токена, перенаправляем на логин
-    if (!token) {
-      console.log('No token found, redirecting to login');
-      navigate('/login');
-      return;
-    }
-
-    // Если токен есть, но user еще не загружен, ждем немного
+    // Если user не загружен, ждем
     if (!user) {
-      console.log('Token exists but user not loaded, waiting...');
+      console.log('User not loaded yet, waiting...');
       const timeout = setTimeout(() => {
-        const retryUser = localStorage.getItem('user_token');
-        if (!retryUser) {
+        if (!user) {
           navigate('/login');
-        } else {
-          // Токен есть, но user не загрузился - возможно проблема с API
-          // Продолжаем обработку платежа, API сам проверит токен
-          if (sessionId) {
-            checkPaymentStatus(sessionId);
-          } else {
-            setError('Сессия не найдена');
-            setLoading(false);
-          }
         }
-      }, 1000);
+      }, 2000);
       return () => clearTimeout(timeout);
     }
 
@@ -68,8 +48,13 @@ export default function PaymentSuccess() {
 
   const checkPaymentStatus = async (sessionIdParam: string) => {
     try {
-      // Проверяем статус и активируем доступ, если нужно
-      const status = await api.getPaymentStatus(sessionIdParam);
+      // Use Supabase Edge Function to verify payment
+      const { data: status, error } = await supabase.functions.invoke('verify-payment', {
+        body: { session_id: sessionIdParam }
+      });
+
+      if (error) throw error;
+
       setPaymentStatus(status.status);
 
       if (status.status === 'paid') {
@@ -90,15 +75,16 @@ export default function PaymentSuccess() {
         }
 
         if (status.enrollmentActivated) {
-          // Доступ активирован, показываем успех
           toast.success('Доступ к курсу активирован!');
           setLoading(false);
         } else {
           // Пытаемся еще раз через небольшую задержку
           setTimeout(async () => {
             try {
-              const retryStatus = await api.getPaymentStatus(sessionIdParam);
-              if (retryStatus.enrollmentActivated) {
+              const { data: retryStatus } = await supabase.functions.invoke('verify-payment', {
+                body: { session_id: sessionIdParam }
+              });
+              if (retryStatus?.enrollmentActivated) {
                 toast.success('Доступ к курсу активирован!');
               }
             } catch (retryErr) {

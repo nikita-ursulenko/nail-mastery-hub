@@ -100,8 +100,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </div>
         )}
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="w-full justify-start gap-3"
           onClick={() => {
             handleLogout();

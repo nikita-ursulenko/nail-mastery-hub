@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Mail, Phone, MapPin, Instagram } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface ContactInfoSectionProps {
   title?: string;
@@ -44,8 +44,14 @@ export function ContactInfoSection({
 
   const loadContacts = async () => {
     try {
-      const data = await api.getPublicContacts();
-      setContacts(data);
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setContacts(data || []);
     } catch (error) {
       console.error('Failed to load contacts:', error);
     } finally {
@@ -65,8 +71,8 @@ export function ContactInfoSection({
   });
 
   const cardsToShow = variant === "compact" ? contactCards.slice(0, 3) : contactCards;
-  const gridCols = variant === "compact" 
-    ? "grid-cols-2 md:grid-cols-3" 
+  const gridCols = variant === "compact"
+    ? "grid-cols-2 md:grid-cols-3"
     : "grid-cols-2 md:grid-cols-2 lg:grid-cols-4";
 
   return (
@@ -96,31 +102,31 @@ export function ContactInfoSection({
                 const Icon = card.icon;
                 return (
                   <Card key={index} variant="elevated">
-                  <CardContent className="p-4 text-center sm:p-6">
-                    <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 sm:mb-4 sm:h-12 sm:w-12">
-                      <Icon className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
-                    </div>
-                    <h3 className="mb-1.5 text-sm font-semibold sm:mb-2 sm:text-base">{card.title}</h3>
-                    {card.href ? (
-                      <a
-                        href={card.href}
-                        target={card.href.startsWith("http") ? "_blank" : undefined}
-                        rel={card.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                        className="text-xs text-primary hover:underline sm:text-sm"
-                      >
-                        {card.content}
-                      </a>
-                    ) : (
-                      <p className="text-xs text-muted-foreground sm:text-sm">{card.content}</p>
-                    )}
-                    {card.subtitle && (
-                      <p className="mt-1 text-[10px] text-muted-foreground sm:text-xs">
-                        {card.subtitle}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              );
+                    <CardContent className="p-4 text-center sm:p-6">
+                      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 sm:mb-4 sm:h-12 sm:w-12">
+                        <Icon className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
+                      </div>
+                      <h3 className="mb-1.5 text-sm font-semibold sm:mb-2 sm:text-base">{card.title}</h3>
+                      {card.href ? (
+                        <a
+                          href={card.href}
+                          target={card.href.startsWith("http") ? "_blank" : undefined}
+                          rel={card.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                          className="text-xs text-primary hover:underline sm:text-sm"
+                        >
+                          {card.content}
+                        </a>
+                      ) : (
+                        <p className="text-xs text-muted-foreground sm:text-sm">{card.content}</p>
+                      )}
+                      {card.subtitle && (
+                        <p className="mt-1 text-[10px] text-muted-foreground sm:text-xs">
+                          {card.subtitle}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
               })}
             </div>
           )}

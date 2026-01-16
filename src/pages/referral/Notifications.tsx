@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Check, CheckCheck } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -32,8 +32,26 @@ export default function ReferralNotifications() {
   const loadNotifications = async () => {
     try {
       setIsLoading(true);
-      const data = await api.getReferralNotifications({ limit: 100 });
-      setNotifications(data.notifications || []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: partner } = await supabase
+        .from('referral_partners')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!partner) return;
+
+      const { data, error } = await supabase
+        .from('referral_notifications')
+        .select('*')
+        .eq('partner_id', partner.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+      setNotifications(data || []);
     } catch (error: any) {
       console.error('Failed to load notifications:', error);
       toast.error('Ошибка при загрузке уведомлений');
@@ -44,8 +62,25 @@ export default function ReferralNotifications() {
 
   const loadUnreadCount = async () => {
     try {
-      const data = await api.getReferralUnreadCount();
-      setUnreadCount(data.unread_count || 0);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: partner } = await supabase
+        .from('referral_partners')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!partner) return;
+
+      const { count, error } = await supabase
+        .from('referral_notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('partner_id', partner.id)
+        .eq('is_read', false);
+
+      if (error) throw error;
+      setUnreadCount(count || 0);
     } catch (error: any) {
       console.error('Failed to load unread count:', error);
     }
@@ -53,7 +88,13 @@ export default function ReferralNotifications() {
 
   const handleMarkAsRead = async (notificationId: number) => {
     try {
-      await api.markNotificationAsRead(notificationId);
+      const { error } = await supabase
+        .from('referral_notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
       );
@@ -65,7 +106,25 @@ export default function ReferralNotifications() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await api.markAllNotificationsAsRead();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: partner } = await supabase
+        .from('referral_partners')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (!partner) return;
+
+      const { error } = await supabase
+        .from('referral_notifications')
+        .update({ is_read: true })
+        .eq('partner_id', partner.id)
+        .eq('is_read', false);
+
+      if (error) throw error;
+
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
       toast.success('Все уведомления отмечены как прочитанные');
@@ -121,9 +180,8 @@ export default function ReferralNotifications() {
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-lg ${
-                      !notification.is_read ? 'bg-muted/50' : ''
-                    }`}
+                    className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 border rounded-lg ${!notification.is_read ? 'bg-muted/50' : ''
+                      }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">

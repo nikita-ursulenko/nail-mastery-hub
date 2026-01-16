@@ -15,7 +15,7 @@ import {
   Coins,
   Menu,
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -48,11 +48,20 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
   useEffect(() => {
     const loadPartnerInfo = async () => {
       try {
-        const response = await api.referralVerifyToken();
-        if (response.partner) {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session?.user) return;
+
+        const { data: partner } = await supabase
+          .from('referral_partners')
+          .select('name, email')
+          .eq('auth_user_id', session.user.id)
+          .single();
+
+        if (partner) {
           setPartnerInfo({
-            name: response.partner.name,
-            email: response.partner.email,
+            name: partner.name,
+            email: partner.email,
           });
         }
       } catch (error) {
@@ -62,8 +71,8 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
     loadPartnerInfo();
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('referral_token');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     navigate('/referral/login');
   };
 

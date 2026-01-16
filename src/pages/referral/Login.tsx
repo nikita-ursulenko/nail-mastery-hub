@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Lock, Mail } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 export default function ReferralLogin() {
   const [email, setEmail] = useState('');
@@ -23,8 +23,32 @@ export default function ReferralLogin() {
     setIsLoading(true);
 
     try {
-      const response = await api.referralLogin(email.trim().toLowerCase(), password);
-      localStorage.setItem('referral_token', response.token);
+      // Sign in with Supabase Auth
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error('Не удалось войти');
+
+      // Verify user is a referral partner
+      const { data: partner, error: partnerError } = await supabase
+        .from('referral_partners')
+        .select('id, is_active')
+        .eq('auth_user_id', data.user.id)
+        .single();
+
+      if (partnerError || !partner) {
+        await supabase.auth.signOut();
+        throw new Error('Этот аккаунт не является партнерским');
+      }
+
+      if (!partner.is_active) {
+        await supabase.auth.signOut();
+        throw new Error('Ваш партнерский аккаунт не активен');
+      }
+
       navigate('/referral/dashboard');
     } catch (err: any) {
       setError(err.message || 'Ошибка при входе в систему');

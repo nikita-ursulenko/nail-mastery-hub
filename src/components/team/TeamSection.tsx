@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 interface TeamMember {
   id: number;
@@ -35,8 +35,14 @@ export function TeamSection({
 
   const loadTeamMembers = async () => {
     try {
-      const data = await api.getPublicTeamMembers();
-      setTeamMembers(data);
+      const { data, error } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) throw error;
+      setTeamMembers(data || []);
     } catch (error) {
       console.error("Failed to load team members:", error);
     } finally {

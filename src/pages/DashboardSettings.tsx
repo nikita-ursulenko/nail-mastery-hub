@@ -12,13 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useUserAuth } from "@/contexts/UserAuthContext";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
 export default function DashboardSettings() {
   const { user } = useUserAuth();
-  
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,13 +26,13 @@ export default function DashboardSettings() {
     avatar_url: "",
     avatar_upload_path: "",
   });
-  
+
   const [passwordData, setPasswordData] = useState({
     oldPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-  
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>("");
   const [useAvatarUpload, setUseAvatarUpload] = useState(false);
@@ -50,7 +50,7 @@ export default function DashboardSettings() {
         avatar_url: user.avatar_url || "",
         avatar_upload_path: user.avatar_upload_path || "",
       });
-      
+
       if (user.avatar_upload_path) {
         setAvatarPreview(`/uploads/avatars/${user.avatar_upload_path}`);
         setUseAvatarUpload(true);
@@ -59,7 +59,7 @@ export default function DashboardSettings() {
         setUseAvatarUpload(false);
       }
     }
-    
+
     // Загружаем тему из localStorage
     const savedTheme = localStorage.getItem("user_theme") || "light";
     setTheme(savedTheme);
@@ -114,12 +114,23 @@ export default function DashboardSettings() {
         phone: formData.phone || null,
       };
 
-      // Если загружен файл, сначала загружаем его
+      // Если загружен файл, сначала загружаем его в Supabase Storage
       if (avatarFile) {
         setIsUploading(true);
         try {
-          const uploadResult = await api.uploadUserAvatar(avatarFile);
-          submitData.avatar_upload_path = uploadResult.filename;
+          const fileExt = avatarFile.name.split('.').pop();
+          const fileName = `${user?.id}_${Date.now()}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, avatarFile, {
+              cacheControl: '3600',
+              upsert: true
+            });
+
+          if (uploadError) throw uploadError;
+
+          submitData.avatar_upload_path = fileName;
           submitData.avatar_url = null;
         } catch (uploadError: any) {
           toast.error(uploadError.message || "Ошибка при загрузке файла");
@@ -139,9 +150,16 @@ export default function DashboardSettings() {
         submitData.avatar_upload_path = null;
       }
 
-      await api.updateUserProfile(submitData);
+      // Update user profile in Supabase
+      const { error: updateError } = await supabase
+        .from('users')
+        .update(submitData)
+        .eq('id', user?.id);
+
+      if (updateError) throw updateError;
+
       toast.success("Профиль успешно обновлен");
-      
+
       // Обновляем данные пользователя в контексте
       window.location.reload(); // Простое решение для обновления данных
     } catch (error: any) {
@@ -165,7 +183,26 @@ export default function DashboardSettings() {
 
     try {
       setIsChangingPassword(true);
-      await api.changeUserPassword(passwordData.oldPassword, passwordData.newPassword);
+
+      // Supabase doesn't require old password for updateUser, but we should verify it first
+      // Re-authenticate with old password
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser?.email) throw new Error('Пользователь не найден');
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: currentUser.email,
+        password: passwordData.oldPassword,
+      });
+
+      if (signInError) throw new Error('Неверный старый пароль');
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      });
+
+      if (updateError) throw updateError;
+
       toast.success("Пароль успешно изменен");
       setPasswordData({
         oldPassword: "",
@@ -183,263 +220,263 @@ export default function DashboardSettings() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-            {/* Profile Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Профиль</CardTitle>
-                <CardDescription>
-                  Обновите информацию о вашем аккаунте
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Avatar */}
-                <div className="space-y-2">
-                  <Label>Аватар</Label>
-                  <div className="space-y-3">
-                    <div className="flex gap-4">
-                      <Button
-                        type="button"
-                        variant={!useAvatarUpload ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => {
-                          setUseAvatarUpload(false);
-                          setAvatarFile(null);
-                          setAvatarPreview(formData.avatar_url || "");
-                          setFormData({ ...formData, avatar_upload_path: "" });
-                        }}
-                      >
-                        URL
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={useAvatarUpload ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => {
-                          setUseAvatarUpload(true);
-                          setFormData({ ...formData, avatar_url: "" });
-                        }}
-                      >
-                        <Upload className="mr-2 h-4 w-4" />
-                        Загрузить файл
-                      </Button>
-                    </div>
+        {/* Profile Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Профиль</CardTitle>
+            <CardDescription>
+              Обновите информацию о вашем аккаунте
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Avatar */}
+            <div className="space-y-2">
+              <Label>Аватар</Label>
+              <div className="space-y-3">
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant={!useAvatarUpload ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setUseAvatarUpload(false);
+                      setAvatarFile(null);
+                      setAvatarPreview(formData.avatar_url || "");
+                      setFormData({ ...formData, avatar_upload_path: "" });
+                    }}
+                  >
+                    URL
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={useAvatarUpload ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setUseAvatarUpload(true);
+                      setFormData({ ...formData, avatar_url: "" });
+                    }}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Загрузить файл
+                  </Button>
+                </div>
 
-                    {!useAvatarUpload && (
-                      <Input
-                        id="avatar_url"
-                        value={formData.avatar_url}
-                        onChange={(e) => {
-                          setFormData({ ...formData, avatar_url: e.target.value });
-                          setAvatarPreview(e.target.value);
-                        }}
-                        placeholder="https://example.com/avatar.jpg"
-                      />
-                    )}
+                {!useAvatarUpload && (
+                  <Input
+                    id="avatar_url"
+                    value={formData.avatar_url}
+                    onChange={(e) => {
+                      setFormData({ ...formData, avatar_url: e.target.value });
+                      setAvatarPreview(e.target.value);
+                    }}
+                    placeholder="https://example.com/avatar.jpg"
+                  />
+                )}
 
-                    {useAvatarUpload && (
-                      <div className="space-y-2">
-                        <input
-                          id="avatar_file"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarFileChange}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            document.getElementById("avatar_file")?.click();
-                          }}
-                          className="w-full"
-                        >
-                          <Upload className="mr-2 h-4 w-4" />
-                          {avatarFile ? avatarFile.name : "Выберите файл"}
-                        </Button>
-                      </div>
-                    )}
-
-                    {avatarPreview && (
-                      <div className="relative inline-block">
-                        <img
-                          src={avatarPreview}
-                          alt="Avatar Preview"
-                          className="h-20 w-20 rounded-full object-cover border"
-                        />
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
-                          onClick={handleRemoveAvatarFile}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
+                {useAvatarUpload && (
+                  <div className="space-y-2">
+                    <input
+                      id="avatar_file"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarFileChange}
+                      className="hidden"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        document.getElementById("avatar_file")?.click();
+                      }}
+                      className="w-full"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {avatarFile ? avatarFile.name : "Выберите файл"}
+                    </Button>
                   </div>
+                )}
+
+                {avatarPreview && (
+                  <div className="relative inline-block">
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar Preview"
+                      className="h-20 w-20 rounded-full object-cover border"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                      onClick={handleRemoveAvatarFile}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Name */}
+            <div className="space-y-2">
+              <Label htmlFor="name">Имя *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                required
+                placeholder="Ваше имя"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                required
+                placeholder="your@email.com"
+              />
+            </div>
+
+            {/* Phone */}
+            <div className="space-y-2">
+              <Label htmlFor="phone">Телефон</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                placeholder="+7 (999) 123-45-67"
+              />
+            </div>
+
+            <Button
+              onClick={handleSaveProfile}
+              disabled={isSaving || isUploading}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving || isUploading ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Password Change */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Смена пароля</CardTitle>
+            <CardDescription>
+              Измените пароль вашего аккаунта
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="oldPassword">Старый пароль *</Label>
+              <Input
+                id="oldPassword"
+                type="password"
+                value={passwordData.oldPassword}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    oldPassword: e.target.value,
+                  })
+                }
+                required
+                placeholder="Введите текущий пароль"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">Новый пароль *</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={passwordData.newPassword}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    newPassword: e.target.value,
+                  })
+                }
+                required
+                placeholder="Минимум 6 символов"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Подтвердите новый пароль *</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={passwordData.confirmPassword}
+                onChange={(e) =>
+                  setPasswordData({
+                    ...passwordData,
+                    confirmPassword: e.target.value,
+                  })
+                }
+                required
+                placeholder="Повторите новый пароль"
+              />
+            </div>
+
+            <Button
+              onClick={handleChangePassword}
+              disabled={isChangingPassword}
+            >
+              {isChangingPassword ? "Изменение..." : "Изменить пароль"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Theme Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Внешний вид</CardTitle>
+            <CardDescription>
+              Настройте внешний вид интерфейса
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <Label className="text-base">Цвет темы</Label>
+              <RadioGroup value={theme} onValueChange={handleThemeChange}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="light" id="light" />
+                  <Label
+                    htmlFor="light"
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Sun className="h-4 w-4" />
+                    Светлая тема
+                  </Label>
                 </div>
-
-                {/* Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="name">Имя *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    required
-                    placeholder="Ваше имя"
-                  />
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="dark" id="dark" />
+                  <Label
+                    htmlFor="dark"
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Moon className="h-4 w-4" />
+                    Темная тема
+                  </Label>
                 </div>
-
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    required
-                    placeholder="your@email.com"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Телефон</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    placeholder="+7 (999) 123-45-67"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleSaveProfile}
-                  disabled={isSaving || isUploading}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {isSaving || isUploading ? "Сохранение..." : "Сохранить"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Password Change */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Смена пароля</CardTitle>
-                <CardDescription>
-                  Измените пароль вашего аккаунта
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="oldPassword">Старый пароль *</Label>
-                  <Input
-                    id="oldPassword"
-                    type="password"
-                    value={passwordData.oldPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        oldPassword: e.target.value,
-                      })
-                    }
-                    required
-                    placeholder="Введите текущий пароль"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">Новый пароль *</Label>
-                  <Input
-                    id="newPassword"
-                    type="password"
-                    value={passwordData.newPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        newPassword: e.target.value,
-                      })
-                    }
-                    required
-                    placeholder="Минимум 6 символов"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Подтвердите новый пароль *</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    required
-                    placeholder="Повторите новый пароль"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleChangePassword}
-                  disabled={isChangingPassword}
-                >
-                  {isChangingPassword ? "Изменение..." : "Изменить пароль"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Theme Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Внешний вид</CardTitle>
-                <CardDescription>
-                  Настройте внешний вид интерфейса
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <Label className="text-base">Цвет темы</Label>
-                  <RadioGroup value={theme} onValueChange={handleThemeChange}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="light" id="light" />
-                      <Label
-                        htmlFor="light"
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Sun className="h-4 w-4" />
-                        Светлая тема
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="dark" id="dark" />
-                      <Label
-                        htmlFor="dark"
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Moon className="h-4 w-4" />
-                        Темная тема
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-              </CardContent>
-            </Card>
+              </RadioGroup>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

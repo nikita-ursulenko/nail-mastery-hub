@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { useUserAuth } from "@/contexts/UserAuthContext";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
@@ -40,13 +41,15 @@ interface Lesson {
 export default function DashboardLesson() {
   const { courseId, lessonId } = useParams();
   const navigate = useNavigate();
+  const { user } = useUserAuth();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [enrollmentId, setEnrollmentId] = useState<number | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (lessonId) {
+    if (lessonId && user) {
       loadLesson();
     }
 
@@ -55,14 +58,72 @@ export default function DashboardLesson() {
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [lessonId]);
+  }, [lessonId, user]);
 
   const loadLesson = async () => {
+    if (!user) return;
+
     try {
       setIsLoading(true);
-      const data = await api.getUserLesson(parseInt(lessonId!));
-      setLesson(data.lesson);
-      setIsCompleted(data.lesson.progress.is_completed);
+
+      // Get enrollment
+      const { data: enrollmentData } = await supabase
+        .from('enrollments')
+        .select('id')
+        .eq('course_id', parseInt(courseId!))
+        .eq('user_id', user.id)
+        .single();
+
+      if (!enrollmentData) throw new Error('Enrollment not found');
+      setEnrollmentId(enrollmentData.id);
+
+      // Get lesson with module info
+      const { data: lessonData, error: lessonError } = await supabase
+        .from('lessons')
+        .select(`
+          id, title, description, video_url, video_upload_path, duration, is_preview, display_order,
+          materials, module_id,
+          module:course_modules(id, title)
+        `)
+        .eq('id', parseInt(lessonId!))
+        .single();
+
+      if (lessonError) throw lessonError;
+
+      // Get lesson progress
+      const { data: progressData } = await supabase
+        .from('lesson_progress')
+        .select('*')
+        .eq('enrollment_id', enrollmentData.id)
+        .eq('lesson_id', parseInt(lessonId!))
+        .maybeSingle();
+
+      // Get prev/next lessons
+      const { data: allLessons } = await supabase
+        .from('lessons')
+        .select('id, display_order')
+        .eq('module_id', lessonData.module_id)
+        .order('display_order', { ascending: true });
+
+      const currentIndex = (allLessons || []).findIndex(l => l.id === parseInt(lessonId!));
+      const prevLesson = currentIndex > 0 ? allLessons![currentIndex - 1] : null;
+      const nextLesson = currentIndex < (allLessons?.length || 0) - 1 ? allLessons![currentIndex + 1] : null;
+
+      setLesson({
+        ...lessonData,
+        module_title: lessonData.module?.title || '',
+        course_id: parseInt(courseId!),
+        order_index: lessonData.display_order,
+        progress: {
+          is_completed: progressData?.is_completed || false,
+          watched_duration: progressData?.watched_duration || 0,
+          last_watched_at: progressData?.last_watched_at || null,
+        },
+        prev_lesson_id: prevLesson?.id || null,
+        next_lesson_id: nextLesson?.id || null,
+      });
+
+      setIsCompleted(progressData?.is_completed || false);
     } catch (error: any) {
       toast.error(error.message || "Ошибка при загрузке урока");
       navigate(`/dashboard/courses/${courseId}`);
@@ -72,14 +133,25 @@ export default function DashboardLesson() {
   };
 
   const handleCompleteToggle = async (checked: boolean) => {
-    if (!lesson) return;
+    if (!lesson || !enrollmentId) return;
 
     try {
       setIsCompleted(checked);
-      await api.updateLessonProgress(lesson.id, {
-        watched_duration: lesson.duration,
-        is_completed: checked,
-      });
+
+      const { error } = await supabase
+        .from('lesson_progress')
+        .upsert({
+          enrollment_id: enrollmentId,
+          lesson_id: lesson.id,
+          watched_duration: lesson.duration,
+          is_completed: checked,
+          last_watched_at: new Date().toISOString(),
+        }, {
+          onConflict: 'enrollment_id,lesson_id'
+        });
+
+      if (error) throw error;
+
       toast.success(checked ? "Урок отмечен как завершенный" : "Метка снята");
     } catch (error: any) {
       toast.error(error.message || "Ошибка при обновлении прогресса");

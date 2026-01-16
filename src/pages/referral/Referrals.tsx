@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ReferralLayout } from '@/components/referral/ReferralLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { maskEmail } from '@/utils/emailMask';
 import { format } from 'date-fns';
@@ -27,8 +27,9 @@ export default function ReferralReferrals() {
   const loadReferrals = async () => {
     try {
       setIsLoading(true);
-      const referralsData = await api.getReferralReferrals();
-      setReferrals(referralsData.referrals || []);
+      const { data: referralsData, error } = await supabase.functions.invoke('referral-list');
+      if (error) throw error;
+      setReferrals(referralsData?.referrals || []);
     } catch (error: any) {
       console.error('Failed to load referrals:', error);
       toast.error('Ошибка при загрузке рефералов');
