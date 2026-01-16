@@ -27,6 +27,7 @@ import { Plus, Pencil, Trash2, Upload, X, Search, BookOpen, Edit } from 'lucide-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { supabase } from '@/lib/supabase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 
 interface User {
@@ -200,22 +201,14 @@ export default function AdminUsers() {
 
       // Upload avatar if needed
       if (avatarFile) {
-        const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `avatar-${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('general-assets')
-          .upload(filePath, avatarFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('general-assets')
-          .getPublicUrl(filePath);
-
-        submitData.avatar_upload_path = filePath;
-        submitData.avatar_url = publicUrl;
+        try {
+          const { secure_url, public_id } = await uploadToCloudinary(avatarFile);
+          submitData.avatar_url = secure_url;
+          submitData.avatar_upload_path = public_id;
+        } catch (uploadError: any) {
+          console.error('Cloudinary avatar upload error:', uploadError);
+          throw uploadError;
+        }
       } else if (!useAvatarUpload && formData.avatar_url) {
         submitData.avatar_url = formData.avatar_url;
         submitData.avatar_upload_path = null;

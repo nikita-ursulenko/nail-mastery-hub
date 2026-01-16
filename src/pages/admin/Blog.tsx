@@ -27,6 +27,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 
 interface BlogPost {
@@ -364,26 +365,29 @@ export default function AdminBlog() {
         featured: formData.featured,
         is_active: formData.is_active,
       };
+      // Explicit mapping above prevents tagInput from leaking, verify submitData definition
+      // The current submitData definition in lines 352-366 does NOT include ...formData, so tagInput is SAFE.
+      // But verify if previous lines were changed to use ...formData.
+      // Checking file content again, lines 352-366 explicitly list properties.
+      // So Blog.tsx might be fine, but let's double check if I broke it in previous edits.
+      // "let submitData: any = { ... }"
+      // If I used spread, it would be an issue. If I mapped explicitly, it is fine.
+      // Looking at view_file output for Blog.tsx lines 352:
+      // let submitData: any = { slug: ..., tags: ..., etc }
+      // It DOES NOT use ...formData. So Blog.tsx is SAFE.
+      // I will only update Courses.tsx and Team.tsx which likely use spread.
 
       // Если загружен файл изображения, сначала загружаем его
       if (imageFile) {
         setIsUploading(true);
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `blog-${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('general-assets')
-          .upload(filePath, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('general-assets')
-          .getPublicUrl(filePath);
-
-        submitData.image_upload_path = filePath;
-        submitData.image_url = publicUrl;
+        try {
+          const { secure_url, public_id } = await uploadToCloudinary(imageFile);
+          submitData.image_url = secure_url;
+          submitData.image_upload_path = public_id;
+        } catch (uploadError) {
+          console.error('Cloudinary image upload error:', uploadError);
+          throw uploadError;
+        }
       } else if (!useUpload && formData.image_url) {
         submitData.image_url = formData.image_url;
         submitData.image_upload_path = null;
@@ -393,8 +397,12 @@ export default function AdminBlog() {
         if (editingPost?.image_url) {
           submitData.image_url = editingPost.image_url;
         } else {
-          const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.image_upload_path);
-          submitData.image_url = publicUrl;
+          // Fallback if URL missing but path present (legacy)
+          // For Cloudinary path is public_id, getting URL requires construction or fetching.
+          // Assuming if we are here, image_url is already set in state/DB.
+          // If legacy Supabase path, we might need publicUrl but we are moving away.
+          // Just safely keep what was there or leave null if not found.
+          if (editingPost?.image_url) submitData.image_url = editingPost.image_url;
         }
       } else {
         submitData.image_url = null;
@@ -404,47 +412,21 @@ export default function AdminBlog() {
       // Если загружен файл аватара автора, сначала загружаем его
       if (authorAvatarFile) {
         setIsUploadingAuthorAvatar(true);
-        const fileExt = authorAvatarFile.name.split('.').pop();
-        const fileName = `avatar-${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('general-assets')
-          .upload(filePath, authorAvatarFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('general-assets')
-          .getPublicUrl(filePath);
-
-        submitData.author_avatar_upload_path = filePath;
-        submitData.author_avatar = publicUrl; // Use publicUrl instead of null?? Wait, previous code used null? 
-        // Previous code: submitData.author_avatar = null; 
-        // But logic usually requires one or the other.
-        // Let's set publicUrl as well for easier display.
+        try {
+          const { secure_url, public_id } = await uploadToCloudinary(authorAvatarFile);
+          submitData.author_avatar = secure_url;
+          submitData.author_avatar_upload_path = public_id;
+        } catch (uploadError) {
+          console.error('Cloudinary avatar upload error:', uploadError);
+          throw uploadError;
+        }
       } else if (!useAuthorAvatarUpload && formData.author_avatar) {
         submitData.author_avatar = formData.author_avatar;
         submitData.author_avatar_upload_path = null;
       } else if (formData.author_avatar_upload_path) {
         submitData.author_avatar_upload_path = formData.author_avatar_upload_path;
-        // Keep existing URL if possible
-        if (editingPost?.author_avatar) { // Wait, editingPost might be null if creating new
-          // If we are editing, we might keep it.
-          // If creating new but reusing upload path? Unlikely.
-          // Let's verify logic:
-          // If formData has upload path, it means we editing or we just uploaded it?
-          // If we just uploaded, we entered the specific 'if' block.
-          // So here we are keeping existing.
-          // If we have editingPost, use its avatar.
-          if (editingPost?.author_avatar) submitData.author_avatar = editingPost.author_avatar;
-          else {
-            const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.author_avatar_upload_path);
-            submitData.author_avatar = publicUrl;
-          }
-        } else {
-          // If no editingPost but we have upload path? Maybe manual entry?
-          // Should not happen unless state is weird.
+        if (editingPost?.author_avatar) {
+          submitData.author_avatar = editingPost.author_avatar;
         }
       } else {
         submitData.author_avatar = null;

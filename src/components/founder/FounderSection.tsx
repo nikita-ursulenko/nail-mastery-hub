@@ -66,9 +66,8 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
     return null;
   }
 
-  const imageUrl = founderInfo.image_upload_path
-    ? `/uploads/founder/${founderInfo.image_upload_path}`
-    : founderInfo.image_url || "";
+  const imageUrl = founderInfo.image_url ||
+    (founderInfo.image_upload_path ? `/uploads/founder/${founderInfo.image_upload_path}` : "");
 
   return (
     <section className={`py-16 lg:py-24 ${className}`}>

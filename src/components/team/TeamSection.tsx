@@ -80,9 +80,10 @@ export function TeamSection({
 
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {teamMembers.map((member) => {
-            const imageUrl = member.image_upload_path
-              ? `/uploads/team/${member.image_upload_path}`
-              : member.image_url || "";
+            const imageUrl = member.image_url ||
+              (member.image_upload_path
+                ? `/uploads/team/${member.image_upload_path}`
+                : "");
 
             return (
               <Card key={member.id} variant="elevated" className="group">

@@ -248,9 +248,10 @@ export default function Blog() {
 
             <div className="grid gap-6 md:grid-cols-2">
               {featuredPosts.map((post, index) => {
-                const imageUrl = post.image_upload_path
-                  ? `/uploads/blog/${post.image_upload_path}`
-                  : post.image_url || "";
+                const imageUrl = post.image_url ||
+                  (post.image_upload_path
+                    ? `/uploads/blog/${post.image_upload_path}`
+                    : "");
                 const formattedDate = new Date(post.date).toLocaleDateString('ru-RU', {
                   day: 'numeric',
                   month: 'long',
@@ -385,9 +386,10 @@ export default function Blog() {
               </FadeInOnScroll>
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredPosts.map((post, index) => {
-                  const imageUrl = post.image_upload_path
-                    ? `/uploads/blog/${post.image_upload_path}`
-                    : post.image_url || "";
+                  const imageUrl = post.image_url ||
+                    (post.image_upload_path
+                      ? `/uploads/blog/${post.image_upload_path}`
+                      : "");
                   const formattedDate = new Date(post.date).toLocaleDateString('ru-RU', {
                     day: 'numeric',
                     month: 'long',

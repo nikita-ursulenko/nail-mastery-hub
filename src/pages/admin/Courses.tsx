@@ -28,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp, Upload } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 
 interface Course {
@@ -413,39 +414,31 @@ export default function AdminCourses() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Exclude UI-only fields
+      const { includeInput, ...courseData } = formData;
       let submitData: any = {
-        ...formData,
+        ...courseData,
         includes: formData.includes,
       };
 
       // Если есть файл изображения, загружаем его
       if (imageFile) {
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('course-content')
-          .upload(filePath, imageFile);
-
-        if (uploadError) {
+        try {
+          const { secure_url, public_id } = await uploadToCloudinary(imageFile);
+          submitData.image_url = secure_url;
+          submitData.image_upload_path = public_id;
+        } catch (uploadError: any) {
           throw new Error('Ошибка при загрузке изображения: ' + uploadError.message);
         }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('course-content')
-          .getPublicUrl(filePath);
-
-        submitData.image_upload_path = filePath;
-        submitData.image_url = publicUrl;
       } else if (!useImageUpload && formData.image_url) {
         submitData.image_url = formData.image_url;
         submitData.image_upload_path = null;
       } else if (formData.image_upload_path) {
         submitData.image_upload_path = formData.image_upload_path;
         // Keep existing URL if we are keeping the uploaded path
-        // The image_url should already be in formData if it was an uploaded image
-        // and we are not changing it.
+        if (editingCourse?.image_url) {
+          submitData.image_url = editingCourse.image_url;
+        }
       } else {
         submitData.image_url = null;
         submitData.image_upload_path = null;
@@ -769,17 +762,19 @@ export default function AdminCourses() {
     if (!selectedCourse) return;
     try {
       if (editingTariff) {
+        const { featureInput, notIncludedInput, ...cleanTariffData } = tariffFormData;
         const { error } = await supabase
           .from('course_tariffs')
-          .update(tariffFormData)
+          .update(cleanTariffData)
           .eq('id', editingTariff.id);
         if (error) throw error;
         toast.success('Тариф успешно обновлен');
       } else {
+        const { featureInput, notIncludedInput, ...cleanTariffData } = tariffFormData;
         const { error } = await supabase
           .from('course_tariffs')
           .insert([{
-            ...tariffFormData,
+            ...cleanTariffData,
             course_id: selectedCourse.id,
           }]);
         if (error) throw error;

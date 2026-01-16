@@ -112,9 +112,19 @@ export default function CourseDetail() {
         })
       );
 
+      // Fetch materials
+      const { data: materialsData, error: materialsError } = await supabase
+        .from('course_materials')
+        .select('*')
+        .eq('course_id', courseData.id)
+        .order('display_order', { ascending: true });
+
+      if (materialsError) throw materialsError;
+
       console.log('--- DEBUG COURSE DATA ---');
       console.log('Course:', courseData);
       console.log('Modules:', modulesWithLessons);
+      console.log('Materials:', materialsData);
 
       // Get instructor separately
       let instructor = null;
@@ -133,7 +143,8 @@ export default function CourseDetail() {
         instructor,
         modules: modulesWithLessons,
         includes: courseData.includes || [],
-        materials: courseData.required_materials || [],
+        materials: materialsData || [],
+        tariffs: courseData.tariffs || [], // Ensure tariffs are passed
       });
     } catch (err: any) {
       setError(err.message || "Ошибка при загрузке курса");
@@ -225,11 +236,13 @@ export default function CourseDetail() {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   // Формируем URL изображения
-  const courseImage = courseData.image_upload_path
-    ? (courseData.image_upload_path.startsWith('/uploads/')
-      ? courseData.image_upload_path
-      : `/uploads/courses/${courseData.image_upload_path}`)
-    : courseData.image_url || "";
+  const courseImage = courseData.image_url
+    ? courseData.image_url
+    : (courseData.image_upload_path
+      ? (courseData.image_upload_path.startsWith('/uploads/')
+        ? courseData.image_upload_path
+        : `/uploads/courses/${courseData.image_upload_path}`)
+      : "");
 
   const courseImageUrl = courseImage.startsWith('http')
     ? courseImage
@@ -241,9 +254,11 @@ export default function CourseDetail() {
     : undefined;
 
   // Формируем URL изображения преподавателя
-  const instructorImage = courseData.instructor?.image_upload_path
-    ? `/uploads/team/${courseData.instructor.image_upload_path}`
-    : courseData.instructor?.image_url || "";
+  const instructorImage = courseData.instructor?.image_url
+    ? courseData.instructor.image_url
+    : (courseData.instructor?.image_upload_path
+      ? `/uploads/team/${courseData.instructor.image_upload_path}`
+      : "");
 
   const courseDataFormatted = {
     id: courseData.slug,

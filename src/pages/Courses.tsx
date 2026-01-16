@@ -274,13 +274,13 @@ export default function Courses() {
                 {filteredCourses.map((course, index) => {
                   // Формируем URL изображения с fallback
                   let imageUrl = "";
-                  if (course.image_upload_path) {
+                  if (course.image_url) {
+                    imageUrl = course.image_url;
+                  } else if (course.image_upload_path) {
                     // Если путь уже начинается с /uploads/, используем как есть, иначе добавляем префикс
                     imageUrl = course.image_upload_path.startsWith('/uploads/')
                       ? course.image_upload_path
                       : `/uploads/courses/${course.image_upload_path}`;
-                  } else if (course.image_url) {
-                    imageUrl = course.image_url;
                   } else {
                     // Fallback изображение (можно использовать placeholder)
                     imageUrl = `https://placehold.co/400x300?text=${encodeURIComponent(course.title)}`;

@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 
 interface TeamMember {
@@ -181,6 +182,7 @@ export default function AdminTeam() {
         name: formData.name,
         role: formData.role,
         bio: formData.bio,
+        // achievementInput is excluded by explicit mapping above.
         achievements: formData.achievements,
         display_order: formData.display_order,
         is_active: formData.is_active,
@@ -189,22 +191,14 @@ export default function AdminTeam() {
       // Если загружен файл, сначала загружаем его
       if (imageFile) {
         setIsUploading(true);
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `team-${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('general-assets')
-          .upload(filePath, imageFile);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('general-assets')
-          .getPublicUrl(filePath);
-
-        submitData.image_upload_path = filePath;
-        submitData.image_url = publicUrl;
+        try {
+          const { secure_url, public_id } = await uploadToCloudinary(imageFile);
+          submitData.image_url = secure_url;
+          submitData.image_upload_path = public_id;
+        } catch (uploadError: any) {
+          console.error('Cloudinary upload error:', uploadError);
+          throw uploadError;
+        }
       } else if (!useUpload && formData.image_url) {
         // Если используется URL, очищаем путь к загруженному файлу
         submitData.image_url = formData.image_url;
@@ -214,9 +208,6 @@ export default function AdminTeam() {
         submitData.image_upload_path = formData.image_upload_path;
         if (editingMember?.image_url) {
           submitData.image_url = editingMember.image_url;
-        } else {
-          const { data: { publicUrl } } = supabase.storage.from('general-assets').getPublicUrl(formData.image_upload_path);
-          submitData.image_url = publicUrl;
         }
       } else {
         submitData.image_url = null;

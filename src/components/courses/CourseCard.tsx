@@ -98,14 +98,7 @@ export function CourseCard({
 
       <CardFooter className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-primary">
-            {price.toLocaleString("de-DE")} €
-          </span>
-          {oldPrice && (
-            <span className="text-sm text-muted-foreground line-through">
-              {oldPrice.toLocaleString("de-DE")} €
-            </span>
-          )}
+          {/* Price hidden as per request */}
         </div>
         <Button size="sm" asChild>
           <Link to={`/courses/${id}`}>Подробнее</Link>
