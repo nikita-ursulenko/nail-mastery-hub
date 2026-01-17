@@ -25,30 +25,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user?.email) {
-        checkAdminStatus(session.user.email);
-      } else {
-        setIsLoading(false);
+    let mounted = true;
+
+    async function initializeAuth() {
+      try {
+        // Get initial session
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          throw error;
+        }
+
+        if (mounted) {
+          setSession(session);
+          if (session?.user?.email) {
+            await checkAdminStatus(session.user.email);
+          } else {
+            setIsLoading(false);
+          }
+        }
+      } catch (error: any) {
+        // If it's an AbortError, don't set loading to false yet
+        // Let onAuthStateChange handle auth state initialization
+        if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
+          console.log('Session fetch aborted, onAuthStateChange will handle initialization');
+          return;
+        }
+        console.error('Auth initialization error:', error);
+        if (mounted) setIsLoading(false);
       }
-    });
+    }
+
+    initializeAuth();
 
     // Listen for changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+
       setSession(session);
+
       if (session?.user?.email) {
-        checkAdminStatus(session.user.email);
+        await checkAdminStatus(session.user.email);
       } else {
         setAdmin(null);
         setIsLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const checkAdminStatus = async (email: string) => {

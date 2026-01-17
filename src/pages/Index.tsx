@@ -169,7 +169,6 @@ export default function Index() {
                   src={heroImage}
                   alt="Профессиональный маникюр"
                   loading="eager"
-                  fetchPriority="high"
                   className="aspect-[4/3] w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent" />
@@ -269,39 +268,23 @@ export default function Index() {
             </div>
           ) : featuredCourses.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {featuredCourses.map((course, index) => {
-                // Формируем URL изображения с fallback
-                let imageUrl = "";
-                if (course.image_upload_path) {
-                  // Если путь уже начинается с /uploads/, используем как есть, иначе добавляем префикс
-                  imageUrl = course.image_upload_path.startsWith('/uploads/')
-                    ? course.image_upload_path
-                    : `/uploads/courses/${course.image_upload_path}`;
-                } else if (course.image_url) {
-                  imageUrl = course.image_url;
-                } else {
-                  // Fallback изображение
-                  imageUrl = `https://placehold.co/400x300?text=${encodeURIComponent(course.title || "Course")}`;
-                }
-
-                return (
-                  <FadeInOnScroll key={course.id || course.slug} delay={index * 100} className="h-full">
-                    <CourseCard
-                      id={course.slug}
-                      title={course.title || "Без названия"}
-                      description={course.description || ""}
-                      image={imageUrl}
-                      price={course.price || 0}
-                      oldPrice={course.oldPrice}
-                      duration={course.duration || ""}
-                      students={course.students || 0}
-                      rating={course.rating || 0}
-                      level={course.level || "beginner"}
-                      isNew={course.isNew}
-                    />
-                  </FadeInOnScroll>
-                );
-              })}
+              {featuredCourses.map((course, index) => (
+                <FadeInOnScroll key={course.id || course.slug} delay={index * 100} className="h-full">
+                  <CourseCard
+                    id={course.slug}
+                    title={course.title || "Без названия"}
+                    description={course.description || ""}
+                    image={course.image_url || `https://placehold.co/400x300?text=${encodeURIComponent(course.title || "Course")}`}
+                    price={course.price || 0}
+                    oldPrice={course.oldPrice}
+                    duration={course.duration || ""}
+                    students={course.students || 0}
+                    rating={course.rating || 0}
+                    level={course.level || "beginner"}
+                    isNew={course.isNew}
+                  />
+                </FadeInOnScroll>
+              ))}
             </div>
           ) : (
             <div className="py-16 text-center">

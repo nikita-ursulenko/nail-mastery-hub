@@ -1,82 +1,24 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { useUserAuth } from '@/contexts/UserAuthContext';
-import { useAnalytics } from '@/hooks/useAnalytics';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Lock, Mail, User, Phone } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, register } = useUserAuth();
-  const { trackSignUp } = useAnalytics();
-  const navigate = useNavigate();
+  const { loginWithGoogle } = useUserAuth();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setError('');
     setIsLoading(true);
 
     try {
-      await login(email.trim().toLowerCase(), password);
-      navigate('/dashboard');
+      await loginWithGoogle();
     } catch (err: any) {
-      setError(err.message || 'Ошибка при входе в систему');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      // Проверяем наличие реферального кода в localStorage или cookie
-      let referralCode: string | null = null;
-      
-      // Проверяем localStorage
-      referralCode = localStorage.getItem('referral_code');
-      
-      // Если нет в localStorage, проверяем cookie
-      if (!referralCode) {
-        const cookies = document.cookie.split(';');
-        for (const cookie of cookies) {
-          const [name, value] = cookie.trim().split('=');
-          if (name === 'referral_code') {
-            referralCode = value;
-            break;
-          }
-        }
-      }
-
-      await register(
-        email.trim().toLowerCase(),
-        password,
-        name.trim(),
-        phone.trim() || undefined,
-        referralCode || undefined
-      );
-      
-      // Трекинг регистрации
-      trackSignUp('email');
-      
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Ошибка при регистрации');
-    } finally {
+      setError(err.message || 'Ошибка при входе');
       setIsLoading(false);
     }
   };
@@ -84,159 +26,59 @@ export default function Login() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <div className="flex flex-1 items-center justify-center bg-muted/30 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <CardTitle className="text-2xl font-bold">Личный кабинет</CardTitle>
-            <CardDescription>
-              Войдите или зарегистрируйтесь для доступа к курсам
+      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+        <Card className="w-full max-w-md border-none shadow-2xl">
+          <CardHeader className="space-y-3 text-center pb-8">
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Добро пожаловать
+            </CardTitle>
+            <CardDescription className="text-base">
+              Войдите с помощью Google для доступа к курсам
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Вход</TabsTrigger>
-                <TabsTrigger value="register">Регистрация</TabsTrigger>
-              </TabsList>
+          <CardContent className="flex flex-col items-center space-y-6 pb-8">
+            {error && (
+              <Alert variant="destructive" className="w-full">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-              <TabsContent value="login" className="space-y-4 mt-4">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
+            <Button
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              size="lg"
+              className="w-64 h-14 rounded-full bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-gray-300 shadow-lg hover:shadow-xl transition-all duration-200"
+            >
+              <svg
+                className="mr-3 h-6 w-6"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  fill="#EA4335"
+                />
+              </svg>
+              <span className="font-semibold text-base">
+                {isLoading ? 'Вход...' : 'Войти через Google'}
+              </span>
+            </Button>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-9"
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Пароль</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-9"
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Вход...' : 'Войти'}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="register" className="space-y-4 mt-4">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="register-name">Имя</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="register-name"
-                        type="text"
-                        placeholder="Ваше имя"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="pl-9"
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-9"
-                        required
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="register-phone">Телефон (необязательно)</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="register-phone"
-                        type="tel"
-                        placeholder="+7 (999) 123-45-67"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="pl-9"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Пароль</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="Минимум 6 символов"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-9"
-                        required
-                        minLength={6}
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <p className="text-sm text-muted-foreground text-center max-w-xs">
+              Продолжая, вы соглашаетесь с нашими условиями использования и политикой конфиденциальности
+            </p>
           </CardContent>
         </Card>
       </div>

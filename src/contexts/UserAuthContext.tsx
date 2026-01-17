@@ -16,6 +16,7 @@ interface UserAuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   register: (email: string, password: string, name: string, phone?: string, referral_code?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -33,6 +34,14 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id);
+
+      // Skip if this is admin email (handled by AuthContext)
+      if (session?.user?.email === 'nik.urs@icloud.com') {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       if (session?.user) {
         await loadUserProfile(session.user);
       } else {
@@ -49,12 +58,24 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   const checkSession = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+
+      // Skip if this is admin email (handled by AuthContext)
+      if (session?.user?.email === 'nik.urs@icloud.com') {
+        setIsLoading(false);
+        return;
+      }
+
       if (session?.user) {
         await loadUserProfile(session.user);
       } else {
         setIsLoading(false);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
+        // Ignore abort errors but ensure loading state is cleared
+        setIsLoading(false);
+        return;
+      }
       console.error('Session check failed:', error);
       setIsLoading(false);
     }
@@ -71,11 +92,42 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
+        // Ignore AbortError
+        if (error.code === 'PGRST000' || error.message?.includes('AbortError')) {
+          console.log('Fetch aborted, ignoring');
+          return;
+        }
+
+        // If user not found (PGRST116), create one automatically (likely OAuth)
+        if (error.code === 'PGRST116') {
+          console.log('User profile not found, creating new profile for:', authUser.email);
+
+          const newProfile = {
+            email: authUser.email!,
+            name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
+            phone: authUser.phone || null,
+            // We can add avatar_url from metadata if available
+            avatar_url: authUser.user_metadata?.avatar_url || null
+          };
+
+          const { data: createdUser, error: createError } = await supabase
+            .from('users')
+            .insert(newProfile)
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Failed to create user profile:', createError);
+          } else if (createdUser) {
+            setUser(createdUser);
+            return;
+          }
+        }
+
         console.error('Supabase fetch error:', error);
-        // If user not found in public table but exists in Auth, we might need to handle it.
-        // For now just stop loading.
+        // Fail gracefully
         setUser({
-          id: 0, // Placeholder
+          id: 0,
           email: authUser.email || '',
           name: authUser.user_metadata?.name || 'User',
           phone: authUser.phone
@@ -83,7 +135,13 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       } else if (data) {
         setUser(data);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Ignore AbortError generic catch
+      if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
+        console.log('Fetch aborted, ignoring');
+        return;
+      }
+
       console.error('Failed to load user profile:', error);
       // Fallback to auth data so checking isAuthenticated works
       setUser({
@@ -111,6 +169,21 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error.message || 'Ошибка входа');
+    }
+  };
+
+  const loginWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      throw new Error(error.message || 'Ошибка входа через Google');
     }
   };
 
@@ -190,6 +263,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        loginWithGoogle,
         register,
         logout,
       }}
