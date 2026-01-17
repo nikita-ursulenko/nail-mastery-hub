@@ -113,7 +113,7 @@ export default function DashboardCourseDetail() {
           )
         `)
         .eq('course_id', parseInt(id!))
-        .eq('user_id', user.id)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (enrollmentError) throw enrollmentError;

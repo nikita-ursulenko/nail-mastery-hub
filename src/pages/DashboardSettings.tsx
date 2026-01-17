@@ -150,18 +150,23 @@ export default function DashboardSettings() {
         submitData.avatar_upload_path = null;
       }
 
-      // Update user profile in Supabase
-      const { error: updateError } = await supabase
-        .from('users')
-        .update(submitData)
-        .eq('id', user?.id);
+      // Update user metadata in auth.users instead of public.users
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: submitData.name,
+          name: submitData.name,
+          phone: submitData.phone,
+          avatar_url: submitData.avatar_url,
+          avatar_upload_path: submitData.avatar_upload_path,
+        }
+      });
 
       if (updateError) throw updateError;
 
       toast.success("Профиль успешно обновлен");
 
-      // Обновляем данные пользователя в контексте
-      window.location.reload(); // Простое решение для обновления данных
+      // Reload user data from auth
+      window.location.reload();
     } catch (error: any) {
       console.error("Failed to save profile:", error);
       toast.error(error.message || "Ошибка при сохранении профиля");

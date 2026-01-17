@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
-  id: number;
+  id: string; // Changed from number to string (UUID from auth.users)
   email: string;
   name: string;
   phone?: string;
@@ -84,59 +84,22 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
   const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
       console.log('Loading profile for:', authUser.email);
-      // Try to find user by email since we lack auth_user_id
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, email, name, phone, avatar_url, avatar_upload_path')
-        .eq('email', authUser.email)
-        .single();
 
-      if (error) {
-        // Ignore AbortError
-        if (error.code === 'PGRST000' || error.message?.includes('AbortError')) {
-          console.log('Fetch aborted, ignoring');
-          return;
-        }
-
-        // If user not found (PGRST116), create one automatically (likely OAuth)
-        if (error.code === 'PGRST116') {
-          console.log('User profile not found, creating new profile for:', authUser.email);
-
-          const newProfile = {
-            email: authUser.email!,
-            name: authUser.user_metadata?.name || authUser.email!.split('@')[0],
-            phone: authUser.phone || null,
-            // We can add avatar_url from metadata if available
-            avatar_url: authUser.user_metadata?.avatar_url || null
-          };
-
-          const { data: createdUser, error: createError } = await supabase
-            .from('users')
-            .insert(newProfile)
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Failed to create user profile:', createError);
-          } else if (createdUser) {
-            setUser(createdUser);
-            return;
-          }
-        }
-
-        console.error('Supabase fetch error:', error);
-        // Fail gracefully
-        setUser({
-          id: 0,
-          email: authUser.email || '',
-          name: authUser.user_metadata?.name || 'User',
-          phone: authUser.phone
-        });
-      } else if (data) {
-        setUser(data);
-      }
+      // Use auth.users metadata directly instead of public.users table
+      setUser({
+        id: authUser.id, // Now UUID instead of integer
+        email: authUser.email || '',
+        name: authUser.user_metadata?.full_name
+          || authUser.user_metadata?.name
+          || authUser.email?.split('@')[0]
+          || 'User',
+        phone: authUser.user_metadata?.phone || authUser.phone || undefined,
+        avatar_url: authUser.user_metadata?.picture
+          || authUser.user_metadata?.avatar_url
+          || undefined,
+      });
     } catch (error: any) {
-      // Ignore AbortError generic catch
+      // Ignore AbortError
       if (error.name === 'AbortError' || error.message?.includes('AbortError')) {
         console.log('Fetch aborted, ignoring');
         return;
@@ -145,7 +108,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load user profile:', error);
       // Fallback to auth data so checking isAuthenticated works
       setUser({
-        id: 0,
+        id: authUser.id, // UUID from auth.users
         email: authUser.email || '',
         name: authUser.user_metadata?.name || 'User'
       });
@@ -195,14 +158,15 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     referral_code?: string
   ) => {
     try {
-      // Step 1: Create auth user
+      // Create auth user with metadata (no need for public.users anymore)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name,
-            phone,
+            full_name: name,
+            name: name,
+            phone: phone || null,
           }
         }
       });
@@ -210,28 +174,14 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Не удалось создать аккаунт');
 
-      // Step 2: Create user profile in users table
-      // Note: we are NOT using auth_user_id as it doesn't exist in the table schema currently
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .insert({
-          email,
-          name,
-          phone: phone || null,
-        })
-        .select('id, email, name, phone, avatar_url, avatar_upload_path')
-        .single();
-
-      if (userError) throw userError;
-
-      // Step 3: Track referral if code provided
-      if (referral_code && userData) {
+      // Track referral if code provided
+      if (referral_code && authData.user) {
         try {
           await supabase
             .from('referral_tracking')
             .insert({
               referral_code,
-              user_id: userData.id,
+              auth_user_id: authData.user.id, // Use auth_user_id instead of user_id
               status: 'registered',
             });
         } catch (refError) {
@@ -240,7 +190,13 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      setUser(userData);
+      // Set user from auth metadata
+      setUser({
+        id: authData.user.id,
+        email: authData.user.email!,
+        name: name,
+        phone: phone,
+      });
     } catch (error: any) {
       console.error('Registration error:', error);
       throw new Error(error.message || 'Ошибка регистрации');

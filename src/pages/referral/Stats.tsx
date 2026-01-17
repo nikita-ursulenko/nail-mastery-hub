@@ -79,23 +79,30 @@ export default function ReferralStats() {
 
       const { count: uniqueVisits } = await supabase
         .from('referral_clicks')
-        .select('user_id', { count: 'exact', head: true })
+        .select('auth_user_id', { count: 'exact', head: true })
         .eq('partner_id', partner.id)
-        .not('user_id', 'is', null);
+        .not('auth_user_id', 'is', null);
 
       // Get registrations
+      // TODO: Replace with referral_tracking table using auth_user_id
+      const referralsData: any[] = [];
+      const totalRegistrations = 0;
+
+      // Get purchases (users who bought courses)
+      // TODO: Use auth_user_id instead of user_id
+      const purchasesData: any[] = [];
+
+      /* DISABLED - public.users table deleted
       const { data: referralsData } = await supabase
         .from('users')
         .select('id')
         .eq('referred_by_partner_id', partner.id);
-
       const totalRegistrations = referralsData?.length || 0;
-
-      // Get purchases (users who bought courses)
       const { data: purchasesData } = await supabase
         .from('enrollments')
         .select('user_id, course:courses(price)')
         .in('user_id', (referralsData || []).map(r => r.id));
+      */
 
       const totalPurchases = purchasesData?.length || 0;
       const totalAmount = (purchasesData || []).reduce((sum: number, p: any) => sum + (p.course?.price || 0), 0);

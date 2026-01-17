@@ -71,7 +71,7 @@ export default function DashboardLesson() {
         .from('enrollments')
         .select('id')
         .eq('course_id', parseInt(courseId!))
-        .eq('user_id', user.id)
+        .eq('auth_user_id', user.id)
         .single();
 
       if (!enrollmentData) throw new Error('Enrollment not found');

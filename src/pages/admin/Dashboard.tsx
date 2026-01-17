@@ -56,8 +56,8 @@ export default function AdminDashboard() {
       const todayIso = today.toISOString();
 
       const [
-        { count: totalUsers },
-        { count: newUsersToday },
+        { data: totalUsers },
+        { data: newUsersToday },
         { count: totalCourses },
         { count: totalPosts },
         { data: paidEnrollments },
@@ -65,8 +65,8 @@ export default function AdminDashboard() {
         { count: completedCourses },
         { data: todayEnrollments }
       ] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }),
-        supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', todayIso),
+        supabase.rpc('count_auth_users'),
+        supabase.rpc('count_new_users_today'),
         supabase.from('courses').select('*', { count: 'exact', head: true }),
         supabase.from('blog_posts').select('*', { count: 'exact', head: true }),
         supabase.from('enrollments').select('amount_paid').eq('payment_status', 'paid'),
@@ -85,10 +85,10 @@ export default function AdminDashboard() {
 
       const todayOrders = todayEnrollments?.length || 0;
 
-      // Active Users (users with at least one enrollment)
+      // Active Users (users with at least one enrollment using auth_user_id)
       const { count: activeUsers } = await supabase
         .from('enrollments')
-        .select('user_id', { count: 'exact', head: true });
+        .select('auth_user_id', { count: 'exact', head: true });
       // distinct count is harder in simple count query, but for dashboard approximation:
       // Let's just use totalUsers as a base or maybe a separate query if needed. 
       // For now, let's assume activeUsers is users who have logged in recently? 

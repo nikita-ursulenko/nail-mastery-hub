@@ -60,7 +60,7 @@ export default function DashboardCourses() {
           ),
           tariff:course_tariffs(name, tariff_type)
         `)
-        .eq('user_id', user.id)
+        .eq('auth_user_id', user.id)
         .eq('payment_status', 'paid')
         .order('created_at', { ascending: false });
 
