@@ -72,32 +72,15 @@ export default function AdminOrders() {
     try {
       setIsLoading(true);
 
-      let query = supabase
-        .from('enrollments')
-        .select(`
-            *,
-            user:users!inner(id, name, email),
-            course:courses(id, slug, title, image_url),
-            tariff:course_tariffs(id, name, tariff_type, price)
-        `, { count: 'exact' })
-        .eq('payment_status', 'paid')
-        .order('created_at', { ascending: false });
-
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      }
-
-      if (searchQuery) {
-        query = query.ilike('user.email', `%${searchQuery}%`);
-      }
-
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      const { data, count, error } = await query.range(from, to);
+      const { data, error } = await supabase.rpc('get_admin_orders', {
+        search_query: searchQuery || null,
+        status_filter: statusFilter,
+        limit_count: ITEMS_PER_PAGE,
+        offset_count: (page - 1) * ITEMS_PER_PAGE
+      });
 
       if (error) throw error;
-      // ... transform logic ...
+
       const formattedOrders: Order[] = (data || []).map((item: any) => {
         return {
           id: item.id,
@@ -105,25 +88,29 @@ export default function AdminOrders() {
           payment_status: item.payment_status,
           amount_paid: item.amount_paid,
           payment_id: item.payment_id,
-          enrollment_status: item.status,
-          user: item.user,
-          course: item.course,
-          tariff: item.tariff ? {
-            id: item.tariff.id,
-            name: item.tariff.name,
-            type: item.tariff.tariff_type || 'unknown',
-            price: item.tariff.price
-          } : {
-            id: 0,
-            name: 'Unknown',
-            type: 'unknown',
-            price: item.amount_paid || 0
+          enrollment_status: item.enrollment_status,
+          user: {
+            id: item.user_id,
+            name: item.user_name,
+            email: item.user_email
+          },
+          course: {
+            id: item.course_id,
+            slug: item.course_slug,
+            title: item.course_title,
+            image_url: item.course_image_url
+          },
+          tariff: {
+            id: item.tariff_id || 0,
+            name: item.tariff_name || 'Individual',
+            type: item.tariff_type || 'individual',
+            price: item.tariff_price || item.amount_paid
           }
         };
       });
 
       setOrders(formattedOrders);
-      setTotal(count || 0);
+      setTotal(data?.[0]?.total_count || 0);
     } catch (error: any) {
       console.error('Failed to load orders:', error);
       toast.error('Ошибка при загрузке заказов');

@@ -81,11 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkAdminStatus = async (email: string) => {
-    // Hardcoded check to match RLS policies
-    // This removes dependency on the 'admins' table
-    if (email === 'nik.urs@icloud.com') {
+    // List of authorized admin emails
+    const adminEmails = ['nik.urs@icloud.com', 'nikita.ursulenco@gmail.com'];
+
+    if (adminEmails.includes(email)) {
       setAdmin({
-        id: 1, // Dummy ID since we don't rely on DB table anymore for ID
+        id: 1,
         email: email,
         name: 'Admin'
       });

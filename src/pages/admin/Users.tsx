@@ -135,7 +135,7 @@ export default function AdminUsers() {
       const { data, error } = await supabase
         .from('courses')
         .select('id, title, slug')
-        .eq('is_published', true)
+        .eq('is_active', true)
         .order('title');
 
       if (error) throw error;

@@ -35,8 +35,8 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id);
 
-      // Skip if this is admin email (handled by AuthContext)
-      if (session?.user?.email === 'nik.urs@icloud.com') {
+      const adminEmails = ['nik.urs@icloud.com', 'nikita.ursulenco@gmail.com'];
+      if (session?.user?.email && adminEmails.includes(session.user.email)) {
         setUser(null);
         setIsLoading(false);
         return;
@@ -59,8 +59,8 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Skip if this is admin email (handled by AuthContext)
-      if (session?.user?.email === 'nik.urs@icloud.com') {
+      const adminEmails = ['nik.urs@icloud.com', 'nikita.ursulenco@gmail.com'];
+      if (session?.user?.email && adminEmails.includes(session.user.email)) {
         setIsLoading(false);
         return;
       }
