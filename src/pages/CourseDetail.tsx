@@ -121,11 +121,6 @@ export default function CourseDetail() {
 
       if (materialsError) throw materialsError;
 
-      console.log('--- DEBUG COURSE DATA ---');
-      console.log('Course:', courseData);
-      console.log('Modules:', modulesWithLessons);
-      console.log('Materials:', materialsData);
-
       // Get instructor separately
       let instructor = null;
       if (courseData.instructor_id) {
@@ -135,7 +130,6 @@ export default function CourseDetail() {
           .eq('id', courseData.instructor_id)
           .single();
         instructor = instructorData;
-        console.log('Instructor:', instructor);
       }
 
       setCourseData({

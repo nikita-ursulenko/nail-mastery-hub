@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   BookOpen,
   Award,
-  Calendar,
   Settings,
   LogOut,
   Menu,
@@ -20,7 +19,6 @@ const navigation = [
   { href: "/dashboard", label: "Главная", icon: LayoutDashboard },
   { href: "/dashboard/courses", label: "Мои курсы", icon: BookOpen },
   { href: "/dashboard/certificates", label: "Сертификаты", icon: Award },
-  { href: "/dashboard/schedule", label: "Расписание", icon: Calendar },
   { href: "/dashboard/settings", label: "Настройки", icon: Settings },
 ];
 
