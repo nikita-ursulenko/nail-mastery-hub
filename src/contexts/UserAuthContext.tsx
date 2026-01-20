@@ -33,7 +33,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id);
+      // Auth state change
 
       const adminEmails = ['nik.urs@icloud.com', 'nikita.ursulenco@gmail.com'];
       if (session?.user?.email && adminEmails.includes(session.user.email)) {
@@ -83,7 +83,7 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
-      console.log('Loading profile for:', authUser.email);
+      // Loading profile
 
       // Use auth.users metadata directly instead of public.users table
       setUser({

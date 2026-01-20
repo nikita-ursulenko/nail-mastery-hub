@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: 'Admin'
       });
     } else {
-      console.warn('User is not authorized as admin:', email);
+      // Not an admin, silently fail
       setAdmin(null);
     }
     setIsLoading(false);
