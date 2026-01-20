@@ -6,6 +6,11 @@ interface ProtectedReferralRouteProps {
   children: React.ReactNode;
 }
 
+// Helper function to generate unique referral code
+const generateReferralCode = (): string => {
+  return Math.random().toString(36).substring(2, 10).toUpperCase();
+};
+
 export function ProtectedReferralRoute({ children }: ProtectedReferralRouteProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,19 +26,40 @@ export function ProtectedReferralRoute({ children }: ProtectedReferralRouteProps
           return;
         }
 
-        // Verify user is a referral partner
-        const { data: partner, error } = await supabase
-          .from('referral_partners')
-          .select('id, is_active')
-          .eq('auth_user_id', session.user.id)
-          .single();
+        // Check if user has partner metadata
+        const isPartner = session.user.user_metadata?.is_partner === true;
+        const hasReferralCode = !!session.user.user_metadata?.referral_code;
 
-        if (error || !partner || !partner.is_active) {
-          setIsAuthenticated(false);
+        // If not a partner yet, auto-create partner status
+        if (!isPartner || !hasReferralCode) {
+          console.log('Setting up partner status for', session.user.email);
+
+          // Generate unique referral code
+          const referralCode = generateReferralCode();
+
+          // Update user metadata to make them a partner
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: {
+              ...session.user.user_metadata,
+              is_partner: true,
+              referral_code: referralCode,
+              partner_level: 'novice',
+            }
+          });
+
+          if (updateError) {
+            console.error('Failed to set partner status:', updateError);
+            setIsAuthenticated(false);
+          } else {
+            console.log('Partner status set successfully');
+            setIsAuthenticated(true);
+          }
         } else {
+          // Already a partner
           setIsAuthenticated(true);
         }
       } catch (error) {
+        console.error('Auth check failed:', error);
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);

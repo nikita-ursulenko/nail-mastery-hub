@@ -52,18 +52,11 @@ export function ReferralLayout({ children }: ReferralLayoutProps) {
 
         if (!session?.user) return;
 
-        const { data: partner } = await supabase
-          .from('referral_partners')
-          .select('name, email')
-          .eq('auth_user_id', session.user.id)
-          .single();
-
-        if (partner) {
-          setPartnerInfo({
-            name: partner.name,
-            email: partner.email,
-          });
-        }
+        // Get partner info from user metadata
+        setPartnerInfo({
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name,
+          email: session.user.email,
+        });
       } catch (error) {
         console.error('Failed to load partner info:', error);
       }

@@ -35,18 +35,10 @@ export default function ReferralNotifications() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: partner } = await supabase
-        .from('referral_partners')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (!partner) return;
-
       const { data, error } = await supabase
         .from('referral_notifications')
         .select('*')
-        .eq('partner_id', partner.id)
+        .eq('partner_auth_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -65,18 +57,10 @@ export default function ReferralNotifications() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: partner } = await supabase
-        .from('referral_partners')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (!partner) return;
-
       const { count, error } = await supabase
         .from('referral_notifications')
         .select('*', { count: 'exact', head: true })
-        .eq('partner_id', partner.id)
+        .eq('partner_auth_id', user.id)
         .eq('is_read', false);
 
       if (error) throw error;
@@ -109,18 +93,10 @@ export default function ReferralNotifications() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: partner } = await supabase
-        .from('referral_partners')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (!partner) return;
-
       const { error } = await supabase
         .from('referral_notifications')
         .update({ is_read: true })
-        .eq('partner_id', partner.id)
+        .eq('partner_auth_id', user.id)
         .eq('is_read', false);
 
       if (error) throw error;

@@ -59,29 +59,22 @@ export default function ReferralStats() {
     try {
       setIsLoading(true);
 
-      // Get current user and partner
+      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data: partner } = await supabase
-        .from('referral_partners')
+      // Partner data is in user metadata
+      const referralCode = user.user_metadata?.referral_code;
+      if (!referralCode) throw new Error('No referral code found');
+
+      // Get clicks/visits stats from referral_tracking
+      const { data: trackingData } = await supabase
+        .from('referral_tracking')
         .select('*')
-        .eq('auth_user_id', user.id)
-        .single();
+        .eq('partner_auth_id', user.id);
 
-      if (!partner) throw new Error('Partner not found');
-
-      // Get clicks/visits stats
-      const { count: totalVisits } = await supabase
-        .from('referral_clicks')
-        .select('*', { count: 'exact', head: true })
-        .eq('partner_id', partner.id);
-
-      const { count: uniqueVisits } = await supabase
-        .from('referral_clicks')
-        .select('auth_user_id', { count: 'exact', head: true })
-        .eq('partner_id', partner.id)
-        .not('auth_user_id', 'is', null);
+      const totalVisits = trackingData?.length || 0;
+      const uniqueVisits = new Set(trackingData?.map(t => t.visitor_ip)).size;
 
       // Get registrations
       // TODO: Replace with referral_tracking table using auth_user_id
@@ -112,7 +105,7 @@ export default function ReferralStats() {
       const { data: rewardsData } = await supabase
         .from('referral_rewards')
         .select('reward_type, amount, status')
-        .eq('partner_id', partner.id);
+        .eq('partner_auth_id', user.id);
 
       const visitRewards = (rewardsData || []).filter(r => r.reward_type === 'visit').reduce((sum, r) => sum + r.amount, 0);
       const regRewards = (rewardsData || []).filter(r => r.reward_type === 'registration').reduce((sum, r) => sum + r.amount, 0);
@@ -123,16 +116,16 @@ export default function ReferralStats() {
       const { data: withdrawalsData } = await supabase
         .from('referral_withdrawals')
         .select('amount, status')
-        .eq('partner_id', partner.id);
+        .eq('partner_auth_id', user.id);
 
       const withdrawn = (withdrawalsData || []).filter(w => w.status === 'paid').reduce((sum, w) => sum + w.amount, 0);
       const pending = (withdrawalsData || []).filter(w => w.status === 'pending' || w.status === 'approved').reduce((sum, w) => sum + w.amount, 0);
-      const currentBalance = partner.balance || 0;
+      const currentBalance = totalRewards - withdrawn - pending;
 
       setStats({
         partner: {
-          referral_code: partner.referral_code,
-          level: partner.level || 'novice',
+          referral_code: referralCode,
+          level: user.user_metadata?.partner_level || 'novice',
         },
         stats: {
           visits: {

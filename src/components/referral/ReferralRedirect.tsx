@@ -21,14 +21,9 @@ export default function ReferralRedirect() {
           return;
         }
 
-        // Verify user is a referral partner
-        const { data: partner } = await supabase
-          .from('referral_partners')
-          .select('id, is_active')
-          .eq('auth_user_id', session.user.id)
-          .single();
-
-        setIsAuthenticated(!!(partner && partner.is_active));
+        // Check if user is a partner from metadata
+        const isPartner = session.user.user_metadata?.is_partner === true;
+        setIsAuthenticated(isPartner);
       } catch (error) {
         setIsAuthenticated(false);
       } finally {

@@ -24,17 +24,11 @@ export default function ReferralMaterials() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data: partner, error } = await supabase
-        .from('referral_partners')
-        .select('referral_code')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (error) throw error;
-      if (!partner) throw new Error('Partner not found');
+      const referralCode = user.user_metadata?.referral_code;
+      if (!referralCode) throw new Error('No referral code found');
 
       const baseUrl = window.location.origin;
-      setReferralLink(`${baseUrl}/ref/${partner.referral_code}`);
+      setReferralLink(`${baseUrl}/?ref=${referralCode}`);
     } catch (error: any) {
       console.error('Failed to load link:', error);
       toast.error('Ошибка при загрузке ссылки');

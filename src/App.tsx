@@ -49,7 +49,6 @@ const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const AdminReferral = lazy(() => import("./pages/admin/Referral"));
 const ReferralRedirect = lazy(() => import("./components/referral/ReferralRedirect"));
 const ReferralLogin = lazy(() => import("./pages/referral/Login"));
-const ReferralRegister = lazy(() => import("./pages/referral/Register"));
 const ReferralDashboard = lazy(() => import("./pages/referral/Dashboard"));
 const ReferralStats = lazy(() => import("./pages/referral/Stats"));
 const ReferralRewards = lazy(() => import("./pages/referral/Rewards"));
@@ -77,253 +76,252 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-            <AnalyticsProvider>
-              <ScrollToTop />
-              <SEOUpdater />
-              <ReferralTracker />
-            <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/courses" element={<Courses />} />
-              <Route path="/courses/:id" element={<CourseDetail />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/blog/:id" element={<BlogDetail />} />
-              <Route path="/schedule" element={<Schedule />} />
-              <Route path="/contacts" element={<Contacts />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/payment/success" element={<PaymentSuccess />} />
-              
-              {/* User routes */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedUserRoute>
-                    <Dashboard />
-                  </ProtectedUserRoute>
-                }
-              />
-              <Route
-                path="/dashboard/courses"
-                element={
-                  <ProtectedUserRoute>
-                    <DashboardCourses />
-                  </ProtectedUserRoute>
-                }
-              />
-              <Route
-                path="/dashboard/courses/:id"
-                element={
-                  <ProtectedUserRoute>
-                    <DashboardCourseDetail />
-                  </ProtectedUserRoute>
-                }
-              />
-              <Route
-                path="/dashboard/courses/:courseId/lessons/:lessonId"
-                element={
-                  <ProtectedUserRoute>
-                    <DashboardLesson />
-                  </ProtectedUserRoute>
-                }
-              />
-              <Route
-                path="/dashboard/settings"
-                element={
-                  <ProtectedUserRoute>
-                    <DashboardSettings />
-                  </ProtectedUserRoute>
-                }
-              />
-              <Route
-                path="/dashboard/certificates"
-                element={
-                  <ProtectedUserRoute>
-                    <DashboardCertificates />
-                  </ProtectedUserRoute>
-                }
-              />
-              
-              {/* Referral routes */}
-              <Route path="/referral" element={<ReferralRedirect />} />
-              <Route path="/referral/login" element={<ReferralLogin />} />
-              <Route path="/referral/register" element={<ReferralRegister />} />
-              <Route
-                path="/referral/dashboard"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralDashboard />
-                  </ProtectedReferralRoute>
-                }
-              />
-              <Route
-                path="/referral/dashboard/stats"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralStats />
-                  </ProtectedReferralRoute>
-                }
-              />
-              <Route
-                path="/referral/dashboard/rewards"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralRewards />
-                  </ProtectedReferralRoute>
-                }
-              />
-              <Route
-                path="/referral/dashboard/referrals"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralReferrals />
-                  </ProtectedReferralRoute>
-                }
-              />
-              <Route
-                path="/referral/dashboard/withdrawals"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralWithdrawals />
-                  </ProtectedReferralRoute>
-                }
-              />
-              <Route
-                path="/referral/dashboard/materials"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralMaterials />
-                  </ProtectedReferralRoute>
-                }
-              />
-              <Route
-                path="/referral/dashboard/notifications"
-                element={
-                  <ProtectedReferralRoute>
-                    <ReferralNotifications />
-                  </ProtectedReferralRoute>
-                }
-              />
-              
-              {/* Admin routes */}
-              <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/testimonials"
-                element={
-                  <ProtectedRoute>
-                    <AdminTestimonials />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/contacts"
-                element={
-                  <ProtectedRoute>
-                    <AdminContacts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/founder"
-                element={
-                  <ProtectedRoute>
-                    <AdminFounder />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/team"
-                element={
-                  <ProtectedRoute>
-                    <AdminTeam />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/blog"
-                element={
-                  <ProtectedRoute>
-                    <AdminBlog />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/seo"
-                element={
-                  <ProtectedRoute>
-                    <AdminSEO />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/courses"
-                element={
-                  <ProtectedRoute>
-                    <AdminCourses />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/users"
-                element={
-                  <ProtectedRoute>
-                    <AdminUsers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/orders"
-                element={
-                  <ProtectedRoute>
-                    <AdminOrders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/settings"
-                element={
-                  <ProtectedRoute>
-                    <AdminSettings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/referral"
-                element={
-                  <ProtectedRoute>
-                    <AdminReferral />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/referral"
-                element={
-                  <ProtectedRoute>
-                    <AdminReferral />
-                  </ProtectedRoute>
-                }
-              />
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-            </AnalyticsProvider>
-          </BrowserRouter>
-        </UserAuthProvider>
-      </AuthProvider>
+              <AnalyticsProvider>
+                <ScrollToTop />
+                <SEOUpdater />
+                <ReferralTracker />
+                <Suspense fallback={<PageLoader />}>
+                  <Routes>
+                    {/* Public routes */}
+                    <Route path="/" element={<Index />} />
+                    <Route path="/courses" element={<Courses />} />
+                    <Route path="/courses/:id" element={<CourseDetail />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/blog" element={<Blog />} />
+                    <Route path="/blog/:id" element={<BlogDetail />} />
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/contacts" element={<Contacts />} />
+                    <Route path="/faq" element={<FAQ />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/payment/success" element={<PaymentSuccess />} />
+
+                    {/* User routes */}
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedUserRoute>
+                          <Dashboard />
+                        </ProtectedUserRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/courses"
+                      element={
+                        <ProtectedUserRoute>
+                          <DashboardCourses />
+                        </ProtectedUserRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/courses/:id"
+                      element={
+                        <ProtectedUserRoute>
+                          <DashboardCourseDetail />
+                        </ProtectedUserRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/courses/:courseId/lessons/:lessonId"
+                      element={
+                        <ProtectedUserRoute>
+                          <DashboardLesson />
+                        </ProtectedUserRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/settings"
+                      element={
+                        <ProtectedUserRoute>
+                          <DashboardSettings />
+                        </ProtectedUserRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard/certificates"
+                      element={
+                        <ProtectedUserRoute>
+                          <DashboardCertificates />
+                        </ProtectedUserRoute>
+                      }
+                    />
+
+                    {/* Referral routes */}
+                    <Route path="/referral" element={<ReferralRedirect />} />
+                    <Route path="/referral/login" element={<ReferralLogin />} />
+                    <Route
+                      path="/referral/dashboard"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralDashboard />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+                    <Route
+                      path="/referral/dashboard/stats"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralStats />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+                    <Route
+                      path="/referral/dashboard/rewards"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralRewards />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+                    <Route
+                      path="/referral/dashboard/referrals"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralReferrals />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+                    <Route
+                      path="/referral/dashboard/withdrawals"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralWithdrawals />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+                    <Route
+                      path="/referral/dashboard/materials"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralMaterials />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+                    <Route
+                      path="/referral/dashboard/notifications"
+                      element={
+                        <ProtectedReferralRoute>
+                          <ReferralNotifications />
+                        </ProtectedReferralRoute>
+                      }
+                    />
+
+                    {/* Admin routes */}
+                    <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+                    <Route path="/admin/login" element={<AdminLogin />} />
+                    <Route
+                      path="/admin/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <AdminDashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/testimonials"
+                      element={
+                        <ProtectedRoute>
+                          <AdminTestimonials />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/contacts"
+                      element={
+                        <ProtectedRoute>
+                          <AdminContacts />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/founder"
+                      element={
+                        <ProtectedRoute>
+                          <AdminFounder />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/team"
+                      element={
+                        <ProtectedRoute>
+                          <AdminTeam />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/blog"
+                      element={
+                        <ProtectedRoute>
+                          <AdminBlog />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/seo"
+                      element={
+                        <ProtectedRoute>
+                          <AdminSEO />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/courses"
+                      element={
+                        <ProtectedRoute>
+                          <AdminCourses />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/users"
+                      element={
+                        <ProtectedRoute>
+                          <AdminUsers />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/orders"
+                      element={
+                        <ProtectedRoute>
+                          <AdminOrders />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/settings"
+                      element={
+                        <ProtectedRoute>
+                          <AdminSettings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/referral"
+                      element={
+                        <ProtectedRoute>
+                          <AdminReferral />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/referral"
+                      element={
+                        <ProtectedRoute>
+                          <AdminReferral />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </AnalyticsProvider>
+            </BrowserRouter>
+          </UserAuthProvider>
+        </AuthProvider>
       </HelmetProvider>
     </TooltipProvider>
   </QueryClientProvider>

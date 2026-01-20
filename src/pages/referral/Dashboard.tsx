@@ -111,28 +111,98 @@ export default function ReferralDashboard() {
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      const [{ data: statsData, error: sError }, { data: linkData, error: lError }, { data: rewardsData, error: rError }, { data: referralsData, error: rfError }, { data: withdrawalsData, error: wError }, { data: levelData, error: lvError }] = await Promise.all([
-        supabase.functions.invoke('referral-stats'),
-        supabase.functions.invoke('referral-link'),
-        supabase.functions.invoke('referral-rewards', { body: { limit: 5 } }),
-        supabase.functions.invoke('referral-list'),
-        supabase.functions.invoke('referral-withdrawals'),
-        supabase.functions.invoke('referral-level'),
-      ]);
 
-      if (sError) throw sError;
-      if (lError) throw lError;
-      if (rError) throw rError;
-      if (rfError) throw rfError;
-      if (wError) throw wError;
-      if (lvError) throw lvError;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
 
-      setStats(statsData);
-      setReferralLink(linkData?.referral_link || '');
-      setRewards(rewardsData?.rewards || []);
-      setReferrals(referralsData?.referrals || []);
-      setWithdrawals(withdrawalsData?.withdrawals || []);
-      setLevel(levelData);
+      // Get referral code from user metadata
+      const referralCode = user.user_metadata?.referral_code || '';
+      const referralLink = `${window.location.origin}/?ref=${referralCode}`;
+      setReferralLink(referralLink);
+
+      // Get partner stats using RPC
+      const { data: partnerStats, error: statsError } = await supabase
+        .rpc('get_partner_stats', { user_id: user.id });
+
+      if (statsError) throw statsError;
+
+      // Get tracking stats
+      const { data: trackingData, error: trackingError } = await supabase
+        .from('referral_tracking')
+        .select('*')
+        .eq('partner_auth_id', user.id);
+
+      if (trackingError) throw trackingError;
+
+      // Get rewards
+      const { data: rewardsData, error: rewardsError } = await supabase
+        .from('referral_rewards')
+        .select('*')
+        .eq('partner_auth_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (rewardsError) throw rewardsError;
+
+      // Get withdrawals
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+        .from('referral_withdrawals')
+        .select('*')
+        .eq('partner_auth_id', user.id)
+        .order('requested_at', { ascending: false });
+
+      if (withdrawalsError) throw withdrawalsError;
+
+      // Calculate stats from tracking data
+      const totalVisits = trackingData?.length || 0;
+      const uniqueVisits = new Set(trackingData?.map(t => t.visitor_ip)).size;
+      const registrations = trackingData?.filter(t => t.auth_user_id).length || 0;
+
+      // Build stats object
+      const stats = {
+        partner: {
+          referral_code: referralCode,
+          level: user.user_metadata?.partner_level || 'novice',
+        },
+        stats: {
+          visits: {
+            total: totalVisits,
+            unique: uniqueVisits,
+          },
+          registrations: {
+            total: registrations,
+            conversion: totalVisits > 0 ? (registrations / totalVisits) * 100 : 0,
+          },
+          purchases: {
+            total: 0, // TODO: calculate from enrollments
+            total_amount: 0,
+            avg_amount: 0,
+            conversion: 0,
+          },
+          rewards: {
+            visit: 0,
+            registration: 0,
+            purchase: 0,
+            total: partnerStats?.total_earnings || 0,
+          },
+          balance: {
+            total_earnings: partnerStats?.total_earnings || 0,
+            current_balance: partnerStats?.current_balance || 0,
+            withdrawn: partnerStats?.withdrawn_amount || 0,
+            pending: partnerStats?.pending_withdrawals || 0,
+          },
+        },
+      };
+
+      setStats(stats);
+      setRewards(rewardsData || []);
+      setReferrals([]); // TODO: Get from enrollments
+      setWithdrawals(withdrawalsData || []);
+      setLevel({
+        level: user.user_metadata?.partner_level || 'novice',
+        referrals_count: registrations,
+        total_earnings: partnerStats?.total_earnings || 0,
+      });
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error);
       toast.error('Ошибка при загрузке данных');
