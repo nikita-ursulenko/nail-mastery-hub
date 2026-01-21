@@ -256,7 +256,7 @@ export function TestimonialsSection({
   return (
     <section className={`${backgroundClass} py-16 lg:py-24 ${className}`}>
       <div className="container">
-        <FadeInOnScroll duration={700}>
+        <FadeInOnScroll duration={500}>
           <div className="mb-12 text-center">
             <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
               {title}
@@ -277,7 +277,7 @@ export function TestimonialsSection({
             <p className="text-muted-foreground">Отзывов пока нет</p>
           </div>
         ) : (
-          <FadeInOnScroll delay={100} duration={700} direction="up">
+          <FadeInOnScroll delay={50} duration={500} direction="up">
             <div
               ref={carouselRef}
               className="relative px-8 lg:px-16"

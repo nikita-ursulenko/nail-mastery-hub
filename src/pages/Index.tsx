@@ -182,7 +182,7 @@ export default function Index() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-[80vh] flex items-center">
+      <section className="relative overflow-hidden min-h-[65vh] lg:min-h-[80vh] flex items-center">
         <div className="absolute inset-0 z-0">
           <video
             ref={videoRef}
@@ -199,9 +199,9 @@ export default function Index() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
         </div>
 
-        <div className="container relative z-10 py-16 lg:py-24">
+        <div className="container relative z-10 py-10 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div className="animate-fade-in space-y-8">
+            <div className="animate-fade-in space-y-6 lg:space-y-8">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 backdrop-blur-md px-4 py-2 text-sm text-primary-foreground border border-primary/20">
                 <Sparkles className="h-4 w-4" />
                 <span>Новогодняя распродажа — скидки до 40%</span>
@@ -232,7 +232,7 @@ export default function Index() {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-4 gap-4 pt-8">
+              <div className="grid grid-cols-4 gap-4 pt-6 lg:pt-8">
                 {stats.map((stat) => (
                   <div key={stat.label} className="text-center">
                     <p className="font-display text-2xl font-bold text-primary lg:text-3xl drop-shadow-md">

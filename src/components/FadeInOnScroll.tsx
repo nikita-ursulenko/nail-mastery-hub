@@ -13,7 +13,7 @@ export function FadeInOnScroll({
   delay = 0,
   className = "",
   direction = "up",
-  duration = 1000,
+  duration = 600,
 }: FadeInOnScrollProps) {
   const [isVisible, setIsVisible] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -53,17 +53,17 @@ export function FadeInOnScroll({
     if (!isVisible) {
       switch (direction) {
         case "up":
-          return "translate-y-20 opacity-0";
+          return "translate-y-10 opacity-0";
         case "down":
-          return "-translate-y-20 opacity-0";
+          return "-translate-y-10 opacity-0";
         case "left":
-          return "translate-x-32 opacity-0 rotate-6 scale-95";
+          return "translate-x-16 opacity-0 rotate-3 scale-95";
         case "right":
-          return "-translate-x-32 opacity-0 -rotate-6 scale-95";
+          return "-translate-x-16 opacity-0 -rotate-3 scale-95";
         case "fade":
           return "opacity-0";
         default:
-          return "translate-y-20 opacity-0";
+          return "translate-y-10 opacity-0";
       }
     }
     return "translate-y-0 translate-x-0 opacity-100 rotate-0 scale-100";
