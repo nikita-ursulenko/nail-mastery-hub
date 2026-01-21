@@ -68,14 +68,16 @@ export function FadeInOnScroll({
   };
 
   return (
-    <div
-      ref={elementRef}
-      className={`transition-all duration-1000 cubic-bezier(0.16, 1, 0.3, 1) ${getTransformClass()} ${className}`}
-      style={{
-        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
-      }}
-    >
-      {children}
+    <div className="overflow-clip">
+      <div
+        ref={elementRef}
+        className={`transition-all duration-1000 cubic-bezier(0.16, 1, 0.3, 1) ${getTransformClass()} ${className}`}
+        style={{
+          transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
