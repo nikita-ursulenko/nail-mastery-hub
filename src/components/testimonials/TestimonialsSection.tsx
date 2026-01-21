@@ -300,8 +300,8 @@ export function TestimonialsSection({
                     className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3"
                   >
                     <FadeInOnScroll
-                      delay={index * 400}
-                      direction={index % 2 === 0 ? "right" : "left"}
+                      delay={index * 150}
+                      direction={index % 2 === 0 ? "up" : "down"}
                       className="h-full"
                     >
                       <TestimonialCard

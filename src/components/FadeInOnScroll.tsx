@@ -67,8 +67,10 @@ export function FadeInOnScroll({
     return "translate-y-0 translate-x-0 opacity-100 rotate-0 scale-100";
   };
 
+  const needsOverflowClip = direction === "left" || direction === "right";
+
   return (
-    <div className="overflow-clip">
+    <div className={needsOverflowClip ? "overflow-clip" : ""}>
       <div
         ref={elementRef}
         className={`transition-all duration-1000 cubic-bezier(0.16, 1, 0.3, 1) ${getTransformClass()} ${className}`}
