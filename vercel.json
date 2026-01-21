@@ -1,0 +1,52 @@
+{
+    "version": 2,
+    "buildCommand": "npm run build",
+    "devCommand": "npm run dev",
+    "installCommand": "npm install",
+    "framework": null,
+    "outputDirectory": "dist",
+    "env": {
+        "VITE_SUPABASE_URL": "@vite_supabase_url",
+        "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
+        "VITE_CLOUDINARY_CLOUD_NAME": "@vite_cloudinary_cloud_name",
+        "VITE_CLOUDINARY_UPLOAD_PRESET": "@vite_cloudinary_upload_preset",
+        "VITE_CLOUDINARY_API_KEY": "@vite_cloudinary_api_key",
+        "VITE_GA_MEASUREMENT_ID": "@vite_ga_measurement_id",
+        "VITE_FB_PIXEL_ID": "@vite_fb_pixel_id",
+        "STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key"
+    },
+    "build": {
+        "env": {
+            "VITE_SUPABASE_URL": "@vite_supabase_url",
+            "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
+            "VITE_CLOUDINARY_CLOUD_NAME": "@vite_cloudinary_cloud_name",
+            "VITE_CLOUDINARY_UPLOAD_PRESET": "@vite_cloudinary_upload_preset",
+            "VITE_CLOUDINARY_API_KEY": "@vite_cloudinary_api_key"
+        }
+    },
+    "headers": [
+        {
+            "source": "/(.*)",
+            "headers": [
+                {
+                    "key": "X-Content-Type-Options",
+                    "value": "nosniff"
+                },
+                {
+                    "key": "X-Frame-Options",
+                    "value": "DENY"
+                },
+                {
+                    "key": "X-XSS-Protection",
+                    "value": "1; mode=block"
+                }
+            ]
+        }
+    ],
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://lorwsdylqykweyecrmuh.supabase.co/rest/v1/:path*"
+        }
+    ]
+}
