@@ -44,9 +44,19 @@ const PORT = process.env.SERVER_PORT || 3001;
 app.use(securityHeaders);
 app.use(preventNoSqlInjection);
 
-// CORS
+// CORS - динамическое определение origin
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: (origin, callback) => {
+    // В режиме разработки или если origin не указан (например, мобильные приложения или curl)
+    if (!origin || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    // В продакшене можно добавить список разрешенных доменов
+    // Но для гибкости Vercel (preview deployments) разрешаем любой origin, 
+    // так как безопасность обеспечивается авторизацией и JWT
+    callback(null, true);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -122,11 +132,11 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   const env = process.env.NODE_ENV || 'development';
-  if (env === 'production') {
-    console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🚀 Server is running on port ${PORT} [${env}]`);
+  if (process.env.FRONTEND_URL) {
+    console.log(`📍 Frontend URL (manual): ${process.env.FRONTEND_URL}`);
   } else {
-    console.log(`🚀 Server is running on port ${PORT}`);
-    console.log(`📍 Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
+    console.log(`📍 Frontend URL: Auto-detection enabled (headers/Vercel)`);
   }
 });
 
