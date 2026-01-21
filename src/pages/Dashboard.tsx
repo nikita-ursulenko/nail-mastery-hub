@@ -89,40 +89,72 @@ export default function Dashboard() {
 
       if (error) throw error;
 
-      const formattedCourses: EnrolledCourse[] = (data || []).map((enrollment: any) => ({
-        id: enrollment.course.id,
-        slug: enrollment.course.slug,
-        title: enrollment.course.title,
-        subtitle: enrollment.course.subtitle || '',
-        image_url: enrollment.course.image_url,
-        image_upload_path: enrollment.course.image_upload_path,
-        duration: enrollment.course.duration || 'N/A',
-        level: enrollment.course.level || 'beginner',
-        category: enrollment.course.category || 'general',
-        status: enrollment.status,
-        progress_percent: enrollment.progress_percent || 0,
-        lessons_completed: enrollment.lessons_completed || 0,
-        total_lessons: enrollment.total_lessons || 0,
-        tariff_name: enrollment.tariff?.name || 'Неизвестно',
-        tariff_type: enrollment.tariff?.tariff_type || 'standard',
+      // Calculate lesson counts for each course
+      const coursesWithCounts = await Promise.all((data || []).map(async (enrollment: any) => {
+        // Get total lessons count
+        const { data: modulesData } = await supabase
+          .from('course_modules')
+          .select('id')
+          .eq('course_id', enrollment.course.id);
+
+        let totalLessons = 0;
+        if (modulesData && modulesData.length > 0) {
+          const moduleIds = modulesData.map(m => m.id);
+          const { count } = await supabase
+            .from('course_lessons')
+            .select('*', { count: 'exact', head: true })
+            .in('module_id', moduleIds);
+          totalLessons = count || 0;
+        }
+
+        // Get completed lessons count
+        const { data: progressData } = await supabase
+          .from('lesson_progress')
+          .select('lesson_id')
+          .eq('enrollment_id', enrollment.id)
+          .eq('is_completed', true);
+
+        const lessonsCompleted = progressData?.length || 0;
+        const progressPercent = totalLessons > 0 ? Math.round((lessonsCompleted / totalLessons) * 100) : 0;
+
+        return {
+          id: enrollment.course.id,
+          slug: enrollment.course.slug,
+          title: enrollment.course.title,
+          subtitle: enrollment.course.subtitle || '',
+          image_url: enrollment.course.image_url,
+          image_upload_path: enrollment.course.image_upload_path,
+          duration: enrollment.course.duration || 'N/A',
+          level: enrollment.course.level || 'beginner',
+          category: enrollment.course.category || 'general',
+          status: enrollment.status,
+          progress_percent: progressPercent,
+          lessons_completed: lessonsCompleted,
+          total_lessons: totalLessons,
+          tariff_name: enrollment.tariff?.name || 'Неизвестно',
+          tariff_type: enrollment.tariff?.tariff_type || 'standard',
+        };
       }));
 
-      setEnrolledCourses(formattedCourses);
+      setEnrolledCourses(coursesWithCounts);
     } catch (error: any) {
       console.error('Failed to load enrolled courses:', error);
-      // Не показываем ошибку, просто оставляем пустой список
     } finally {
       setIsLoadingCourses(false);
     }
   };
 
   const getCourseImage = (course: EnrolledCourse) => {
-    if (course.image_upload_path) {
-      return course.image_upload_path;
-    }
+    // Prioritize full URL if available
     if (course.image_url) {
       return course.image_url;
     }
+
+    // If only upload path exists, construct Cloudinary URL
+    if (course.image_upload_path) {
+      return `https://res.cloudinary.com/diqlvaasz/image/upload/${course.image_upload_path}.jpg`;
+    }
+
     return "/placeholder-course.jpg";
   };
 
@@ -168,7 +200,7 @@ export default function Dashboard() {
     : 0;
 
   return (
-    <DashboardLayout title="Личный кабинет" description="Добро пожаловать!">
+    <DashboardLayout>
       {/* Welcome Banner */}
       {mostProgressCourse && (
         <Card variant="glass" className="mb-8 overflow-hidden">

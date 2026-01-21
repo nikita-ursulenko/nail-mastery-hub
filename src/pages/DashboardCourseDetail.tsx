@@ -109,7 +109,7 @@ export default function DashboardCourseDetail() {
           course:courses(
             id, slug, title, subtitle, description, image_url, image_upload_path,
             video_preview_url, level, category, duration, rating, reviews_count,
-            includes, instructor_id, required_materials
+            includes, instructor_id
           )
         `)
         .eq('course_id', parseInt(id!))
@@ -123,15 +123,22 @@ export default function DashboardCourseDetail() {
       const { data: modulesData, error: modulesError } = await supabase
         .from('course_modules')
         .select(`
-          id, title, display_order,
-          lessons(
-            id, title, description, video_url, duration, is_preview, display_order
+          id, title, order_index,
+          course_lessons(
+            id, title, description, video_url, duration, is_preview, order_index
           )
         `)
         .eq('course_id', parseInt(id!))
-        .order('display_order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       if (modulesError) throw modulesError;
+
+      // Get course materials
+      const { data: materialsData } = await supabase
+        .from('course_materials')
+        .select('id, name, price_info, display_order')
+        .eq('course_id', parseInt(id!))
+        .order('display_order', { ascending: true });
 
       // Get lesson progress
       const { data: progressData } = await supabase
@@ -148,25 +155,33 @@ export default function DashboardCourseDetail() {
       const formattedModules = (modulesData || []).map((module: any) => ({
         id: module.id,
         title: module.title,
-        order_index: module.display_order,
-        lessons: (module.lessons || []).map((lesson: any) => ({
+        order_index: module.order_index,
+        lessons: (module.course_lessons || []).map((lesson: any) => ({
           id: lesson.id,
           title: lesson.title,
           description: lesson.description,
           video_url: lesson.video_url,
           duration: lesson.duration,
           is_preview: lesson.is_preview,
-          order_index: lesson.display_order,
+          order_index: lesson.order_index,
           is_completed: progressMap[lesson.id]?.is_completed || false,
           watched_duration: progressMap[lesson.id]?.watched_duration || 0,
           last_watched_at: progressMap[lesson.id]?.last_watched_at || null,
         })),
       }));
 
+      // Calculate total lessons and completed lessons
+      const totalLessons = formattedModules.reduce((sum, module) => sum + module.lessons.length, 0);
+      const lessonsCompleted = formattedModules.reduce(
+        (sum, module) => sum + module.lessons.filter(l => l.is_completed).length,
+        0
+      );
+      const progressPercent = totalLessons > 0 ? Math.round((lessonsCompleted / totalLessons) * 100) : 0;
+
       setCourse({
         ...enrollmentData.course,
         modules: formattedModules,
-        materials: enrollmentData.course.required_materials || [],
+        materials: materialsData || [],
       });
 
       setEnrollment({
@@ -174,9 +189,9 @@ export default function DashboardCourseDetail() {
         tariff_type: enrollmentData.tariff?.tariff_type || 'standard',
         homework_reviews_limit: enrollmentData.tariff?.homework_reviews_limit || null,
         curator_support_months: enrollmentData.tariff?.curator_support_months || null,
-        progress_percent: enrollmentData.progress_percent || 0,
-        lessons_completed: enrollmentData.lessons_completed || 0,
-        total_lessons: enrollmentData.total_lessons || 0,
+        progress_percent: progressPercent,
+        lessons_completed: lessonsCompleted,
+        total_lessons: totalLessons,
         purchased_at: enrollmentData.purchased_at,
         started_at: enrollmentData.started_at,
         expires_at: enrollmentData.expires_at,
@@ -218,8 +233,15 @@ export default function DashboardCourseDetail() {
 
   const getImageUrl = () => {
     if (!course) return "/placeholder-course.jpg";
-    if (course.image_upload_path) return course.image_upload_path;
+
+    // Prioritize full URL if available
     if (course.image_url) return course.image_url;
+
+    // If only upload path exists, construct Cloudinary URL
+    if (course.image_upload_path) {
+      return `https://res.cloudinary.com/diqlvaasz/image/upload/${course.image_upload_path}.jpg`;
+    }
+
     return "/placeholder-course.jpg";
   };
 
@@ -238,7 +260,7 @@ export default function DashboardCourseDetail() {
   }
 
   return (
-    <DashboardLayout title={course.title} description={course.subtitle}>
+    <DashboardLayout>
       <div>
         {/* Navigation back to courses */}
         <div className="mb-6">

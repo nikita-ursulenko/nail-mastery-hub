@@ -5,6 +5,7 @@ import {
   Moon,
   Sun,
   Save,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -39,6 +40,7 @@ export default function DashboardSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [theme, setTheme] = useState<string>("light");
 
   useEffect(() => {
@@ -303,13 +305,31 @@ export default function DashboardSettings() {
                   </div>
                 )}
 
-                {avatarPreview && (
+                {avatarPreview && !avatarError && (
                   <div className="relative inline-block">
                     <img
                       src={avatarPreview}
                       alt="Avatar Preview"
+                      referrerPolicy="no-referrer"
+                      crossOrigin="anonymous"
                       className="h-20 w-20 rounded-full object-cover border"
+                      onError={() => setAvatarError(true)}
                     />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                      onClick={handleRemoveAvatarFile}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {(avatarError || (!avatarPreview && (formData.avatar_url || formData.avatar_upload_path))) && (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border shrink-0 relative">
+                    <User className="h-10 w-10 text-primary" />
                     <Button
                       type="button"
                       variant="destructive"

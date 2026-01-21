@@ -66,31 +66,60 @@ export default function DashboardCourses() {
 
       if (error) throw error;
 
-      const formattedCourses: Course[] = (data || []).map((enrollment: any) => ({
-        id: enrollment.course.id,
-        slug: enrollment.course.slug,
-        title: enrollment.course.title,
-        subtitle: enrollment.course.subtitle || '',
-        description: enrollment.course.description || '',
-        image_url: enrollment.course.image_url,
-        image_upload_path: enrollment.course.image_upload_path,
-        level: enrollment.course.level || 'beginner',
-        category: enrollment.course.category || 'general',
-        duration: enrollment.course.duration || 'N/A',
-        rating: enrollment.course.rating || 0,
-        reviews_count: enrollment.course.reviews_count || 0,
-        status: enrollment.status,
-        progress_percent: enrollment.progress_percent || 0,
-        lessons_completed: enrollment.lessons_completed || 0,
-        total_lessons: enrollment.total_lessons || 0,
-        purchased_at: enrollment.purchased_at,
-        started_at: enrollment.started_at,
-        expires_at: enrollment.expires_at,
-        tariff_name: enrollment.tariff?.name || 'Неизвестно',
-        tariff_type: enrollment.tariff?.tariff_type || 'standard',
+      // Calculate lesson counts for each course
+      const coursesWithCounts = await Promise.all((data || []).map(async (enrollment: any) => {
+        // Get total lessons count
+        const { data: modulesData } = await supabase
+          .from('course_modules')
+          .select('id')
+          .eq('course_id', enrollment.course.id);
+
+        let totalLessons = 0;
+        if (modulesData && modulesData.length > 0) {
+          const moduleIds = modulesData.map(m => m.id);
+          const { count } = await supabase
+            .from('course_lessons')
+            .select('*', { count: 'exact', head: true })
+            .in('module_id', moduleIds);
+          totalLessons = count || 0;
+        }
+
+        // Get completed lessons count
+        const { data: progressData } = await supabase
+          .from('lesson_progress')
+          .select('lesson_id')
+          .eq('enrollment_id', enrollment.id)
+          .eq('is_completed', true);
+
+        const lessonsCompleted = progressData?.length || 0;
+        const progressPercent = totalLessons > 0 ? Math.round((lessonsCompleted / totalLessons) * 100) : 0;
+
+        return {
+          id: enrollment.course.id,
+          slug: enrollment.course.slug,
+          title: enrollment.course.title,
+          subtitle: enrollment.course.subtitle || '',
+          description: enrollment.course.description || '',
+          image_url: enrollment.course.image_url,
+          image_upload_path: enrollment.course.image_upload_path,
+          level: enrollment.course.level || 'beginner',
+          category: enrollment.course.category || 'general',
+          duration: enrollment.course.duration || 'N/A',
+          rating: enrollment.course.rating || 0,
+          reviews_count: enrollment.course.reviews_count || 0,
+          status: enrollment.status,
+          progress_percent: progressPercent,
+          lessons_completed: lessonsCompleted,
+          total_lessons: totalLessons,
+          purchased_at: enrollment.purchased_at,
+          started_at: enrollment.started_at,
+          expires_at: enrollment.expires_at,
+          tariff_name: enrollment.tariff?.name || 'Неизвестно',
+          tariff_type: enrollment.tariff?.tariff_type || 'standard',
+        };
       }));
 
-      setCourses(formattedCourses);
+      setCourses(coursesWithCounts);
     } catch (error: any) {
       toast.error(error.message || "Ошибка при загрузке курсов");
     } finally {
@@ -99,12 +128,18 @@ export default function DashboardCourses() {
   };
 
   const getImageUrl = (course: Course) => {
-    if (course.image_upload_path) {
-      return course.image_upload_path;
-    }
+    // Prioritize full URL if available
     if (course.image_url) {
       return course.image_url;
     }
+
+    // If only upload path exists, construct Cloudinary URL
+    if (course.image_upload_path) {
+      // Cloudinary base URL from the database examples
+      return `https://res.cloudinary.com/diqlvaasz/image/upload/${course.image_upload_path}.jpg`;
+    }
+
+    // Fallback to placeholder
     return "/placeholder-course.jpg";
   };
 

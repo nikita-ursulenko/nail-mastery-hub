@@ -79,9 +79,9 @@ export default function DashboardLesson() {
 
       // Get lesson with module info
       const { data: lessonData, error: lessonError } = await supabase
-        .from('lessons')
+        .from('course_lessons')
         .select(`
-          id, title, description, video_url, video_upload_path, duration, is_preview, display_order,
+          id, title, description, video_url, video_upload_path, duration, is_preview, order_index,
           materials, module_id,
           module:course_modules(id, title)
         `)
@@ -100,10 +100,10 @@ export default function DashboardLesson() {
 
       // Get prev/next lessons
       const { data: allLessons } = await supabase
-        .from('lessons')
-        .select('id, display_order')
+        .from('course_lessons')
+        .select('id, order_index')
         .eq('module_id', lessonData.module_id)
-        .order('display_order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       const currentIndex = (allLessons || []).findIndex(l => l.id === parseInt(lessonId!));
       const prevLesson = currentIndex > 0 ? allLessons![currentIndex - 1] : null;
@@ -111,9 +111,9 @@ export default function DashboardLesson() {
 
       setLesson({
         ...lessonData,
-        module_title: lessonData.module?.title || '',
+        module_title: (lessonData.module as any)?.title || '',
         course_id: parseInt(courseId!),
-        order_index: lessonData.display_order,
+        order_index: lessonData.order_index,
         progress: {
           is_completed: progressData?.is_completed || false,
           watched_duration: progressData?.watched_duration || 0,
@@ -191,7 +191,7 @@ export default function DashboardLesson() {
   }
 
   return (
-    <DashboardLayout title={lesson.title} description={lesson.module_title}>
+    <DashboardLayout>
       <div>
         {/* Navigation back to course */}
         <div className="mb-6">

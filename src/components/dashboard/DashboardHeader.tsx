@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { User, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserAuth } from "@/contexts/UserAuthContext";
@@ -25,23 +26,39 @@ export function DashboardHeader({ title, description }: DashboardHeaderProps) {
             3
           </span>
         </Button>
-        {user?.avatar_url || user?.avatar_upload_path ? (
-          <img
-            src={
-              user.avatar_upload_path
-                ? `/uploads/avatars/${user.avatar_upload_path}`
-                : user.avatar_url
-            }
-            alt={user.name || "User"}
-            className="h-10 w-10 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-            <User className="h-5 w-5 text-primary" />
-          </div>
-        )}
+        <Avatar
+          src={
+            user.avatar_upload_path
+              ? `/uploads/avatars/${user.avatar_upload_path}`
+              : user.avatar_url
+          }
+          name={user.name || "User"}
+        />
       </div>
     </header>
+  );
+}
+
+function Avatar({ src, name }: { src?: string; name: string }) {
+  const [error, setError] = useState(false);
+
+  if (!src || error) {
+    return (
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+        <User className="h-5 w-5 text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
+      className="h-10 w-10 rounded-full object-cover"
+      onError={() => setError(true)}
+    />
   );
 }
 
