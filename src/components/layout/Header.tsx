@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useUserAuth } from "@/contexts/UserAuthContext";
 
+import logo from "@/assets/course-logo.png";
+
 const navLinks = [
   { href: "/", label: "Главная" },
   { href: "/courses", label: "Курсы" },
@@ -23,12 +25,11 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between lg:h-20">
         <Link to="/" className="flex items-center gap-2">
-          <span className="font-display text-2xl font-bold text-primary lg:text-3xl">
-            NailArt
-          </span>
-          <span className="font-display text-lg text-muted-foreground lg:text-xl">
-            Academy
-          </span>
+          <img
+            src={logo}
+            alt="NailArt Academy"
+            className="h-10 w-auto object-contain lg:h-12"
+          />
         </Link>
 
         {/* Desktop Navigation */}
@@ -79,14 +80,12 @@ export function Header() {
           aria-expanded={isOpen}
         >
           <Menu
-            className={`h-6 w-6 transition-all duration-300 ${
-              isOpen ? "rotate-90 opacity-0 scale-0" : "rotate-0 opacity-100 scale-100"
-            }`}
+            className={`h-6 w-6 transition-all duration-300 ${isOpen ? "rotate-90 opacity-0 scale-0" : "rotate-0 opacity-100 scale-100"
+              }`}
           />
           <X
-            className={`absolute h-6 w-6 transition-all duration-300 ${
-              isOpen ? "rotate-0 opacity-100 scale-100" : "rotate-90 opacity-0 scale-0"
-            }`}
+            className={`absolute h-6 w-6 transition-all duration-300 ${isOpen ? "rotate-0 opacity-100 scale-100" : "rotate-90 opacity-0 scale-0"
+              }`}
           />
         </button>
       </div>

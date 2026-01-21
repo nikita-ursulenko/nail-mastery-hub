@@ -33,6 +33,7 @@
     "db:logs": "docker-compose logs -f postgres"
   },
   "reactSnap": {
+    "source": "dist",
     "include": [
       "/",
       "/courses",

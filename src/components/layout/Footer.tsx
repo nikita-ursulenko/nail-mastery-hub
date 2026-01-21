@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Instagram, Send, Mail, Phone } from "lucide-react";
 
 
+import logo from "@/assets/course-logo.png";
+
 const iconMap: Record<string, any> = {
   Phone,
   Mail,
@@ -26,16 +28,12 @@ export function Footer() {
     loadContacts();
   }, []);
 
-
-
-  // ... existing imports
-
   const loadContacts = async () => {
     try {
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
-        .in('type', ['phone', 'email']);
+        .in('type', ['phone', 'email', 'social']);
 
       if (error) {
         console.error('Failed to load contacts:', error);
@@ -55,12 +53,11 @@ export function Footer() {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
-              <span className="font-display text-2xl font-bold text-primary">
-                NailArt
-              </span>
-              <span className="font-display text-lg text-muted-foreground">
-                Academy
-              </span>
+              <img
+                src={logo}
+                alt="NailArt Academy"
+                className="h-10 w-auto object-contain"
+              />
             </Link>
             <p className="text-sm text-muted-foreground">
               Онлайн-школа маникюра для начинающих и профессионалов. Обучаем с

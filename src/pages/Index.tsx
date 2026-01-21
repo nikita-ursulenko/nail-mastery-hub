@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Award,
@@ -64,6 +64,29 @@ export default function Index() {
   const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isRewinding, setIsRewinding] = useState(false);
+
+  const handleVideoEnded = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Увеличиваем длительность для максимальной мягкости
+    setIsRewinding(true);
+
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        // Короткая пауза, чтобы кадр успел обновиться до появления
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.play();
+            setIsRewinding(false);
+          }
+        }, 100);
+      }
+    }, 1000); // 1.0 сек для очень плавного растворения
+  };
 
   useEffect(() => {
     loadFeaturedCourses();
@@ -115,35 +138,55 @@ export default function Index() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden gradient-hero">
+      <section className="relative overflow-hidden min-h-[80vh] flex items-center">
+        {/* Background Video */}
+        <div className="absolute inset-0 z-0">
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleVideoEnded}
+            className={`h-full w-full object-cover transition-opacity duration-1000 ease-in-out ${isRewinding ? 'opacity-0' : 'opacity-100'}`}
+            style={{
+              filter: 'contrast(1.1) brightness(0.9)'
+            }}
+          >
+            <source src="/video/Hero-Nails.mp4" type="video/mp4" />
+          </video>
+          {/* Overlay to ensure text readability */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
+        </div>
+
         <div className="container relative z-10 py-16 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className="animate-fade-in space-y-8">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm text-primary">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/20 backdrop-blur-md px-4 py-2 text-sm text-primary-foreground border border-primary/20">
                 <Sparkles className="h-4 w-4" />
                 <span>Новогодняя распродажа — скидки до 40%</span>
               </div>
 
-              <h1 className="font-display text-4xl font-bold leading-tight lg:text-6xl">
+              <h1 className="font-display text-4xl font-bold leading-tight lg:text-6xl text-white">
                 Станьте{" "}
-                <span className="text-gradient">профессиональным</span>{" "}
+                <span className="text-primary-foreground drop-shadow-sm">профессиональным</span>{" "}
                 мастером маникюра
               </h1>
 
-              <p className="text-lg text-muted-foreground lg:text-xl">
+              <p className="text-lg text-white/90 lg:text-xl drop-shadow-sm">
                 Онлайн-курсы от практикующих мастеров с международным опытом.
                 Начните зарабатывать от 1 000 € в месяц уже через 2 месяца
                 обучения.
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Button variant="hero" size="lg" asChild>
+                <Button variant="hero" size="lg" asChild className="shadow-2xl">
                   <Link to="/courses">
                     Выбрать курс
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button variant="outline" size="lg" asChild>
+                <Button variant="outline" size="lg" asChild className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20">
                   <Link to="/schedule">Бесплатный вебинар</Link>
                 </Button>
               </div>
@@ -152,10 +195,10 @@ export default function Index() {
               <div className="grid grid-cols-4 gap-4 pt-8">
                 {stats.map((stat) => (
                   <div key={stat.label} className="text-center">
-                    <p className="font-display text-2xl font-bold text-primary lg:text-3xl">
+                    <p className="font-display text-2xl font-bold text-primary lg:text-3xl drop-shadow-md">
                       {stat.value}
                     </p>
-                    <p className="text-xs text-muted-foreground lg:text-sm">
+                    <p className="text-xs text-white/80 lg:text-sm">
                       {stat.label}
                     </p>
                   </div>
@@ -164,20 +207,20 @@ export default function Index() {
             </div>
 
             <div className="relative animate-fade-in-up lg:animate-slide-in-right">
-              <div className="relative overflow-hidden rounded-2xl shadow-elevated">
+              <div className="relative overflow-hidden rounded-2xl border-none shadow-[0_0_80px_5px_rgba(255,255,255,0.3),0_0_40px_2px_rgba(255,255,255,0.2),0_0_120px_10px_rgba(255,255,255,0.1)]">
                 <img
                   src={heroImage}
                   alt="Профессиональный маникюр"
                   loading="eager"
-                  className="aspect-[4/3] w-full object-cover"
+                  className="aspect-[4/3] w-full object-cover opacity-95 transition-opacity hover:opacity-100"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
               </div>
 
               {/* Floating badge */}
-              <div className="absolute -bottom-6 -left-6 animate-float rounded-xl bg-card p-4 shadow-elevated">
+              <div className="absolute -bottom-6 -left-6 animate-float rounded-xl bg-card/80 backdrop-blur-md p-4 shadow-elevated border border-white/20">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
                     <CheckCircle className="h-6 w-6 text-primary" />
                   </div>
                   <div>
