@@ -51,26 +51,29 @@ export function FadeInOnScroll({
     if (!isVisible) {
       switch (direction) {
         case "up":
-          return "translate-y-8 opacity-0";
+          return "translate-y-20 opacity-0";
         case "down":
-          return "-translate-y-8 opacity-0";
+          return "-translate-y-20 opacity-0";
         case "left":
-          return "translate-x-8 opacity-0";
+          return "translate-x-32 opacity-0 rotate-6 scale-95";
         case "right":
-          return "-translate-x-8 opacity-0";
+          return "-translate-x-32 opacity-0 -rotate-6 scale-95";
         case "fade":
           return "opacity-0";
         default:
-          return "translate-y-8 opacity-0";
+          return "translate-y-20 opacity-0";
       }
     }
-    return "translate-y-0 translate-x-0 opacity-100";
+    return "translate-y-0 translate-x-0 opacity-100 rotate-0 scale-100";
   };
 
   return (
     <div
       ref={elementRef}
-      className={`transition-all duration-700 ease-out ${getTransformClass()} ${className}`}
+      className={`transition-all duration-1000 cubic-bezier(0.16, 1, 0.3, 1) ${getTransformClass()} ${className}`}
+      style={{
+        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
+      }}
     >
       {children}
     </div>

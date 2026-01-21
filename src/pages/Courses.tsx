@@ -8,6 +8,7 @@ import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 import { supabase } from "@/lib/supabase";
 import { Helmet } from "react-helmet-async";
 
@@ -114,13 +115,15 @@ export default function Courses() {
       {/* Hero */}
       <section className="gradient-hero py-12 lg:py-16">
         <div className="container text-center">
-          <h1 className="mb-4 font-display text-4xl font-bold lg:text-5xl">
-            Каталог курсов
+          <h1 className="mb-4 font-display text-4xl font-bold lg:text-5xl min-h-[1.2em]">
+            <TypewriterText text="Каталог курсов" speed={25} as="span" />
           </h1>
-          <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-            Выберите свой путь в профессии nail-мастера. От базовых техник до
-            авторского дизайна.
-          </p>
+          <FadeInOnScroll delay={500}>
+            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+              Выберите свой путь в профессии nail-мастера. От базовых техник до
+              авторского дизайна.
+            </p>
+          </FadeInOnScroll>
         </div>
       </section>
 
@@ -129,72 +132,81 @@ export default function Courses() {
         <div className="container">
           <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
-            <div className="relative flex-1 md:max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Поиск курсов..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+            <FadeInOnScroll direction="up" delay={200} className="flex-1 md:max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Поиск курсов..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </FadeInOnScroll>
 
             {/* Toggle Filters (Mobile) */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
-              Фильтры
-            </Button>
+            <FadeInOnScroll direction="up" delay={300} className="lg:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <SlidersHorizontal className="mr-2 h-4 w-4" />
+                Фильтры
+              </Button>
+            </FadeInOnScroll>
 
             {/* Category Filters (Desktop) */}
             <div className="hidden flex-wrap items-center gap-2 lg:flex">
-              {categories.map((cat) => (
-                <Badge
-                  key={cat.id}
-                  variant={selectedCategory === cat.id ? "default" : "outline"}
-                  className="cursor-pointer px-4 py-1.5 text-sm"
-                  onClick={() => setSelectedCategory(cat.id)}
-                >
-                  {cat.label}
-                </Badge>
+              {categories.map((cat, index) => (
+                <FadeInOnScroll key={cat.id} direction="up" delay={400 + (index * 100)}>
+                  <Badge
+                    variant={selectedCategory === cat.id ? "default" : "outline"}
+                    className="cursor-pointer px-4 py-1.5 text-sm"
+                    onClick={() => setSelectedCategory(cat.id)}
+                  >
+                    {cat.label}
+                  </Badge>
+                </FadeInOnScroll>
               ))}
             </div>
 
             {/* Level Filters (Desktop) */}
             <div className="hidden items-center gap-2 lg:flex">
-              <span className="text-sm text-muted-foreground">Уровень:</span>
-              {levels.slice(1).map((level) => (
-                <Badge
-                  key={level.id}
-                  variant={selectedLevel === level.id ? "default" : "outline"}
-                  className="cursor-pointer px-3 py-1 text-xs"
-                  onClick={() =>
-                    setSelectedLevel(
-                      selectedLevel === level.id ? "all" : level.id
-                    )
-                  }
-                >
-                  {level.label}
-                </Badge>
+              <FadeInOnScroll direction="up" delay={1000}>
+                <span className="text-sm text-muted-foreground">Уровень:</span>
+              </FadeInOnScroll>
+              {levels.slice(1).map((level, index) => (
+                <FadeInOnScroll key={level.id} direction="up" delay={1100 + (index * 100)}>
+                  <Badge
+                    variant={selectedLevel === level.id ? "default" : "outline"}
+                    className="cursor-pointer px-3 py-1 text-xs"
+                    onClick={() =>
+                      setSelectedLevel(
+                        selectedLevel === level.id ? "all" : level.id
+                      )
+                    }
+                  >
+                    {level.label}
+                  </Badge>
+                </FadeInOnScroll>
               ))}
             </div>
 
             {/* Clear Filters */}
             {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="hidden lg:flex"
-              >
-                <X className="mr-1 h-4 w-4" />
-                Сбросить
-              </Button>
+              <FadeInOnScroll direction="fade" delay={1500}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="hidden lg:flex"
+                >
+                  <X className="mr-1 h-4 w-4" />
+                  Сбросить
+                </Button>
+              </FadeInOnScroll>
             )}
           </div>
 
@@ -287,7 +299,12 @@ export default function Courses() {
                   }
 
                   return (
-                    <FadeInOnScroll key={course.id || course.slug} delay={index * 50} className="h-full">
+                    <FadeInOnScroll
+                      key={course.id || course.slug}
+                      delay={index * 400}
+                      direction="right"
+                      className="h-full"
+                    >
                       <CourseCard
                         id={course.slug}
                         title={course.title || "Без названия"}

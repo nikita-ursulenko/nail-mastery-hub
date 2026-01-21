@@ -19,6 +19,7 @@ import { CourseCard } from "@/components/courses/CourseCard";
 import { TestimonialsSection } from "@/components/testimonials/TestimonialsSection";
 import { FounderSection } from "@/components/founder/FounderSection";
 import { FadeInOnScroll } from "@/components/FadeInOnScroll";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 
 import { StructuredData, createOrganizationSchema } from "@/components/seo/StructuredData";
 import { Helmet } from "react-helmet-async";
@@ -52,13 +53,67 @@ const benefits = [
   },
 ];
 
-
 const stats = [
   { value: "15 000+", label: "Учеников" },
   { value: "98%", label: "Довольных" },
   { value: "50+", label: "Курсов" },
   { value: "6 лет", label: "Опыта" },
 ];
+
+function Counter({ value, duration = 2000 }: { value: string; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const [isInView, setIsInView] = useState(false);
+  const countRef = useRef<HTMLSpanElement>(null);
+
+  const numericValue = parseInt(value.replace(/[^0-9]/g, '')) || 0;
+  const suffix = value.replace(/[0-9\s]/g, '');
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (countRef.current) {
+      observer.observe(countRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isInView) return;
+
+    let startTime: number | null = null;
+    let animationFrame: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = timestamp - startTime;
+      const percentage = Math.min(progress / duration, 1);
+
+      const easeOutQuart = 1 - Math.pow(1 - percentage, 4);
+      setCount(Math.floor(easeOutQuart * numericValue));
+
+      if (percentage < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [isInView, numericValue, duration]);
+
+  return (
+    <span ref={countRef}>
+      {count.toLocaleString('ru-RU')}{suffix}
+    </span>
+  );
+}
 
 export default function Index() {
   const [featuredCourses, setFeaturedCourses] = useState<any[]>([]);
@@ -71,13 +126,10 @@ export default function Index() {
     const video = videoRef.current;
     if (!video) return;
 
-    // Увеличиваем длительность для максимальной мягкости
     setIsRewinding(true);
-
     setTimeout(() => {
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
-        // Короткая пауза, чтобы кадр успел обновиться до появления
         setTimeout(() => {
           if (videoRef.current) {
             videoRef.current.play();
@@ -85,32 +137,24 @@ export default function Index() {
           }
         }, 100);
       }
-    }, 1000); // 1.0 сек для очень плавного растворения
+    }, 1000);
   };
 
   useEffect(() => {
     loadFeaturedCourses();
   }, []);
 
-
-
-  // ... existing imports
-
   const loadFeaturedCourses = async () => {
     try {
       setLoading(true);
       setError(null);
-
       const { data, error } = await supabase
         .from('courses')
         .select('*')
         .eq('is_active', true)
         .limit(6);
 
-      if (error) {
-        throw error;
-      }
-
+      if (error) throw error;
       setFeaturedCourses(data || []);
     } catch (err: any) {
       setError(err.message || "Ошибка при загрузке курсов");
@@ -139,7 +183,6 @@ export default function Index() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden min-h-[80vh] flex items-center">
-        {/* Background Video */}
         <div className="absolute inset-0 z-0">
           <video
             ref={videoRef}
@@ -148,13 +191,10 @@ export default function Index() {
             playsInline
             onEnded={handleVideoEnded}
             className={`h-full w-full object-cover transition-opacity duration-1000 ease-in-out ${isRewinding ? 'opacity-0' : 'opacity-100'}`}
-            style={{
-              filter: 'contrast(1.1) brightness(0.9)'
-            }}
+            style={{ filter: 'contrast(1.1) brightness(0.9)' }}
           >
             <source src="/video/Hero-Nails.mp4" type="video/mp4" />
           </video>
-          {/* Overlay to ensure text readability */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
         </div>
@@ -196,9 +236,9 @@ export default function Index() {
                 {stats.map((stat) => (
                   <div key={stat.label} className="text-center">
                     <p className="font-display text-2xl font-bold text-primary lg:text-3xl drop-shadow-md">
-                      {stat.value}
+                      <Counter value={stat.value} />
                     </p>
-                    <p className="text-xs text-white/80 lg:text-sm">
+                    <p className="text-xs font-medium text-primary lg:text-sm">
                       {stat.label}
                     </p>
                   </div>
@@ -217,7 +257,6 @@ export default function Index() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
               </div>
 
-              {/* Floating badge */}
               <div className="absolute -bottom-6 -left-6 animate-float rounded-xl bg-card/80 backdrop-blur-md p-4 shadow-elevated border border-white/20">
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
@@ -225,9 +264,7 @@ export default function Index() {
                   </div>
                   <div>
                     <p className="font-semibold">100% гарантия</p>
-                    <p className="text-sm text-muted-foreground">
-                      Вернём деньги
-                    </p>
+                    <p className="text-sm text-muted-foreground">Вернём деньги</p>
                   </div>
                 </div>
               </div>
@@ -245,16 +282,20 @@ export default function Index() {
                 Почему выбирают нас
               </h2>
               <p className="mx-auto max-w-2xl text-muted-foreground">
-                Мы создали идеальные условия для комфортного и эффективного
-                обучения онлайн
+                Мы создали идеальные условия для комфортного и эффективного обучения онлайн
               </p>
             </div>
           </FadeInOnScroll>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {benefits.map((benefit, index) => (
-              <FadeInOnScroll key={benefit.title} delay={index * 100} className="h-full">
-                <Card variant="elevated" className="group h-full">
+              <FadeInOnScroll
+                key={benefit.title}
+                delay={index * 400}
+                direction="right"
+                className="h-full"
+              >
+                <Card variant="elevated" className="group h-full transition-all duration-500 hover:-translate-y-2 hover:shadow-elevated">
                   <CardContent className="p-6 text-center">
                     <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
                       <benefit.icon className="h-7 w-7 text-primary" />
@@ -312,7 +353,12 @@ export default function Index() {
           ) : featuredCourses.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {featuredCourses.map((course, index) => (
-                <FadeInOnScroll key={course.id || course.slug} delay={index * 100} className="h-full">
+                <FadeInOnScroll
+                  key={course.id || course.slug}
+                  delay={index * 600}
+                  direction={index % 2 === 0 ? "right" : "left"}
+                  className="h-full"
+                >
                   <CourseCard
                     id={course.slug}
                     title={course.title || "Без названия"}
@@ -340,10 +386,7 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Founder Section */}
       <FounderSection />
-
-      {/* Testimonials */}
       <TestimonialsSection variant="secondary" />
 
       {/* CTA Section */}

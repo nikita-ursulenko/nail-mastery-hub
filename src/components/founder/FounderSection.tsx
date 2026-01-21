@@ -4,6 +4,7 @@ import { CheckCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FadeInOnScroll } from "@/components/FadeInOnScroll";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 import { supabase } from "@/lib/supabase";
 
 interface FounderInfo {
@@ -105,12 +106,20 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
           <FadeInOnScroll direction="left" delay={200}>
             <div className="space-y-6">
               <div>
-                <h2 className="mb-2 font-display text-3xl font-bold lg:text-4xl">
-                  {founderInfo.greeting} {founderInfo.name}
+                <h2 className="mb-2 font-display text-3xl font-bold lg:text-4xl min-h-[1.2em]">
+                  <TypewriterText
+                    text={`${founderInfo.greeting} ${founderInfo.name}`}
+                    speed={50}
+                    as="span"
+                  />
                 </h2>
-                <p className="text-lg text-muted-foreground">
-                  {founderInfo.role}
-                </p>
+                <div className="text-lg text-muted-foreground min-h-[1.5em]">
+                  <TypewriterText
+                    text={founderInfo.role}
+                    speed={30}
+                    as="span"
+                  />
+                </div>
               </div>
 
               {/* Achievements */}
@@ -119,7 +128,13 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
                   {founderInfo.achievements.map((achievement, index) => (
                     <li key={index} className="flex items-start gap-3">
                       <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-                      <span className="text-muted-foreground">{achievement}</span>
+                      <div className="text-muted-foreground min-h-[1.5em] flex-1">
+                        <TypewriterText
+                          text={achievement}
+                          speed={20}
+                          as="span"
+                        />
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -127,9 +142,9 @@ export function FounderSection({ className = "" }: FounderSectionProps) {
 
               {/* Button */}
               {founderInfo.button_text && (
-                <div>
+                <div className="pt-4">
                   {founderInfo.button_link ? (
-                    <Button size="lg" asChild>
+                    <Button size="lg" asChild className="relative overflow-hidden group">
                       <Link to={founderInfo.button_link}>
                         {founderInfo.button_text}
                         <ArrowRight className="ml-2 h-4 w-4" />

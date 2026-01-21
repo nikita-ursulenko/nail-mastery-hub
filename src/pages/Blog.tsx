@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 import { supabase } from "@/lib/supabase";
 import { Helmet } from "react-helmet-async";
 
@@ -217,14 +218,15 @@ export default function Blog() {
               <Sparkles className="h-4 w-4" />
               <span>Блог NailArt Academy</span>
             </div>
-            <h1 className="mb-6 font-display text-4xl font-bold leading-tight lg:text-6xl">
-              Полезные статьи и{" "}
-              <span className="text-gradient">экспертные советы</span>
+            <h1 className="mb-6 font-display text-4xl font-bold leading-tight lg:text-6xl min-h-[1.2em]">
+              <TypewriterText text="Полезные статьи и экспертные советы" speed={20} as="span" />
             </h1>
-            <p className="text-lg text-muted-foreground lg:text-xl">
-              Узнавайте о новейших трендах, техниках и секретах мастерства от
-              профессионалов индустрии красоты
-            </p>
+            <FadeInOnScroll delay={500}>
+              <p className="text-lg text-muted-foreground lg:text-xl">
+                Узнавайте о новейших трендах, техниках и секретах мастерства от
+                профессионалов индустрии красоты
+              </p>
+            </FadeInOnScroll>
           </div>
         </div>
       </section>
@@ -308,15 +310,17 @@ export default function Blog() {
 
             {/* Category Filters (Desktop) */}
             <div className="hidden flex-wrap items-center gap-2 lg:flex">
-              {categories.map((cat) => (
-                <Badge
-                  key={cat.id}
-                  variant={selectedCategory === cat.id ? "default" : "outline"}
-                  className="cursor-pointer px-4 py-1.5 text-sm transition-colors"
-                  onClick={() => setSelectedCategory(cat.id)}
-                >
-                  {cat.label}
-                </Badge>
+              {categories.map((cat, index) => (
+                <FadeInOnScroll key={cat.id} direction="up" delay={200 + (index * 100)}>
+                  <Badge
+                    key={cat.id}
+                    variant={selectedCategory === cat.id ? "default" : "outline"}
+                    className="cursor-pointer px-4 py-1.5 text-sm transition-colors"
+                    onClick={() => setSelectedCategory(cat.id)}
+                  >
+                    {cat.label}
+                  </Badge>
+                </FadeInOnScroll>
               ))}
             </div>
 
@@ -396,7 +400,12 @@ export default function Blog() {
                     year: 'numeric'
                   });
                   return (
-                    <FadeInOnScroll key={post.id} delay={index * 50} className="h-full">
+                    <FadeInOnScroll
+                      key={post.id}
+                      delay={index * 300}
+                      direction={index % 2 === 0 ? "right" : "left"}
+                      className="h-full"
+                    >
                       <BlogCard
                         id={post.slug}
                         title={post.title}

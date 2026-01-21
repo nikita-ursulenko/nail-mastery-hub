@@ -9,6 +9,8 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { TestimonialCard } from "./TestimonialCard";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
+
 
 
 interface Testimonial {
@@ -254,14 +256,16 @@ export function TestimonialsSection({
   return (
     <section className={`${backgroundClass} py-16 lg:py-24 ${className}`}>
       <div className="container">
-        <div className="mb-12 text-center">
-          <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-            {title}
-          </h2>
-          <p className="mx-auto max-w-2xl text-muted-foreground">
-            {description}
-          </p>
-        </div>
+        <FadeInOnScroll>
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
+              {title}
+            </h2>
+            <p className="mx-auto max-w-2xl text-muted-foreground">
+              {description}
+            </p>
+          </div>
+        </FadeInOnScroll>
 
         {isLoading ? (
           <div className="text-center py-12">
@@ -290,20 +294,26 @@ export function TestimonialsSection({
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
-                {testimonials.map((testimonial) => (
+                {testimonials.map((testimonial, index) => (
                   <CarouselItem
                     key={testimonial.id || testimonial.name}
                     className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3"
                   >
-                    <TestimonialCard
-                      name={testimonial.name}
-                      role={testimonial.role}
-                      avatar={testimonial.avatar || ""}
-                      text={testimonial.text}
-                      rating={testimonial.rating}
-                      beforeImage={testimonial.beforeImage}
-                      afterImage={testimonial.afterImage}
-                    />
+                    <FadeInOnScroll
+                      delay={index * 400}
+                      direction={index % 2 === 0 ? "right" : "left"}
+                      className="h-full"
+                    >
+                      <TestimonialCard
+                        name={testimonial.name}
+                        role={testimonial.role}
+                        avatar={testimonial.avatar || ""}
+                        text={testimonial.text}
+                        rating={testimonial.rating}
+                        beforeImage={testimonial.beforeImage}
+                        afterImage={testimonial.afterImage}
+                      />
+                    </FadeInOnScroll>
                   </CarouselItem>
                 ))}
               </CarouselContent>

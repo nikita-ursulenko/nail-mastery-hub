@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Mail, Phone, MapPin, Instagram } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 
 interface ContactInfoSectionProps {
   title?: string;
@@ -80,12 +82,14 @@ export function ContactInfoSection({
       <div className="container">
         <div className="mx-auto">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-              {title}
+            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl min-h-[1.2em]">
+              <TypewriterText text={title} speed={25} as="span" />
             </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              {description}
-            </p>
+            <FadeInOnScroll delay={500}>
+              <p className="mx-auto max-w-2xl text-muted-foreground">
+                {description}
+              </p>
+            </FadeInOnScroll>
           </div>
 
           {isLoading ? (
@@ -101,31 +105,38 @@ export function ContactInfoSection({
               {cardsToShow.map((card, index) => {
                 const Icon = card.icon;
                 return (
-                  <Card key={index} variant="elevated">
-                    <CardContent className="p-4 text-center sm:p-6">
-                      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 sm:mb-4 sm:h-12 sm:w-12">
-                        <Icon className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
-                      </div>
-                      <h3 className="mb-1.5 text-sm font-semibold sm:mb-2 sm:text-base">{card.title}</h3>
-                      {card.href ? (
-                        <a
-                          href={card.href}
-                          target={card.href.startsWith("http") ? "_blank" : undefined}
-                          rel={card.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                          className="text-xs text-primary hover:underline sm:text-sm"
-                        >
-                          {card.content}
-                        </a>
-                      ) : (
-                        <p className="text-xs text-muted-foreground sm:text-sm">{card.content}</p>
-                      )}
-                      {card.subtitle && (
-                        <p className="mt-1 text-[10px] text-muted-foreground sm:text-xs">
-                          {card.subtitle}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <FadeInOnScroll
+                    key={index}
+                    delay={index * 400}
+                    direction={index % 2 === 0 ? "right" : "left"}
+                    className="h-full"
+                  >
+                    <Card variant="elevated" className="h-full transition-all duration-500 hover:-translate-y-2 hover:shadow-elevated">
+                      <CardContent className="p-4 text-center sm:p-6">
+                        <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 sm:mb-4 sm:h-12 sm:w-12">
+                          <Icon className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
+                        </div>
+                        <h3 className="mb-1.5 text-sm font-semibold sm:mb-2 sm:text-base">{card.title}</h3>
+                        {card.href ? (
+                          <a
+                            href={card.href}
+                            target={card.href.startsWith("http") ? "_blank" : undefined}
+                            rel={card.href.startsWith("http") ? "noopener noreferrer" : undefined}
+                            className="text-xs text-primary hover:underline sm:text-sm"
+                          >
+                            {card.content}
+                          </a>
+                        ) : (
+                          <p className="text-xs text-muted-foreground sm:text-sm">{card.content}</p>
+                        )}
+                        {card.subtitle && (
+                          <p className="mt-1 text-[10px] text-muted-foreground sm:text-xs">
+                            {card.subtitle}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </FadeInOnScroll>
                 );
               })}
             </div>

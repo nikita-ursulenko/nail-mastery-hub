@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
+import { FadeInOnScroll } from "@/components/FadeInOnScroll";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 
 export default function Terms() {
   return (
@@ -19,13 +21,14 @@ export default function Terms() {
               <FileText className="h-4 w-4" />
               <span>Публичная оферта</span>
             </div>
-            <h1 className="mb-4 font-display text-4xl font-bold leading-tight lg:text-5xl">
-              Договор{" "}
-              <span className="text-gradient">публичной оферты</span>
+            <h1 className="mb-4 font-display text-4xl font-bold leading-tight lg:text-5xl min-h-[1.2em]">
+              <TypewriterText text="Договор публичной оферты" speed={25} as="span" />
             </h1>
-            <p className="text-lg text-muted-foreground lg:text-xl">
-              Условия предоставления образовательных услуг онлайн-школой маникюра
-            </p>
+            <FadeInOnScroll delay={1000}>
+              <p className="text-lg text-muted-foreground lg:text-xl">
+                Условия предоставления образовательных услуг онлайн-школой маникюра
+              </p>
+            </FadeInOnScroll>
             <p className="mt-4 text-sm text-muted-foreground">
               Дата последнего обновления: {new Date().toLocaleDateString("ru-RU", {
                 year: "numeric",
@@ -45,25 +48,27 @@ export default function Terms() {
               <CardContent className="p-6 sm:p-8 lg:p-12">
                 <div className="prose prose-slate max-w-none dark:prose-invert">
                   {/* 1. Общие положения */}
-                  <div className="mb-8">
-                    <h2 className="mb-4 font-display text-2xl font-bold text-foreground lg:text-3xl">
-                      1. Общие положения
-                    </h2>
-                    <div className="space-y-4 text-muted-foreground">
-                      <p>
-                        1.1. Настоящий документ является публичной офертой (далее — "Оферта") в адрес физических лиц (далее — "Пользователь") о заключении договора на оказание образовательных услуг на условиях, изложенных ниже.
-                      </p>
-                      <p>
-                        1.2. В соответствии с пунктом 2 статьи 437 Гражданского кодекса Российской Федерации, в случае принятия изложенных ниже условий и оплаты услуг лицо, производящее акцепт этой оферты, становится Заказчиком (акцепт оферты равносилен заключению договора на условиях, изложенных в оферте).
-                      </p>
-                      <p>
-                        1.3. Моментом полного и безоговорочного принятия Пользователем настоящей Оферты (акцептом) считается факт оплаты услуг, что означает полное согласие Пользователя с условиями настоящей Оферты.
-                      </p>
-                      <p>
-                        1.4. Исполнитель оставляет за собой право вносить изменения в настоящую Оферту без уведомления Пользователя. Новая редакция Оферты вступает в силу с момента её размещения на сайте.
-                      </p>
+                  <FadeInOnScroll delay={200}>
+                    <div className="mb-8">
+                      <h2 className="mb-4 font-display text-2xl font-bold text-foreground lg:text-3xl min-h-[1.2em]">
+                        <TypewriterText text="1. Общие положения" speed={30} as="span" />
+                      </h2>
+                      <div className="space-y-4 text-muted-foreground">
+                        <p>
+                          1.1. Настоящий документ является публичной офертой (далее — "Оферта") в адрес физических лиц (далее — "Пользователь") о заключении договора на оказание образовательных услуг на условиях, изложенных ниже.
+                        </p>
+                        <p>
+                          1.2. В соответствии с пунктом 2 статьи 437 Гражданского кодекса Российской Федерации, в случае принятия изложенных ниже условий и оплаты услуг лицо, производящее акцепт этой оферты, становится Заказчиком (акцепт оферты равносилен заключению договора на условиях, изложенных в оферте).
+                        </p>
+                        <p>
+                          1.3. Моментом полного и безоговорочного принятия Пользователем настоящей Оферты (акцептом) считается факт оплаты услуг, что означает полное согласие Пользователя с условиями настоящей Оферты.
+                        </p>
+                        <p>
+                          1.4. Исполнитель оставляет за собой право вносить изменения в настоящую Оферту без уведомления Пользователя. Новая редакция Оферты вступает в силу с момента её размещения на сайте.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </FadeInOnScroll>
 
                   {/* 2. Термины и определения */}
                   <div className="mb-8">
@@ -314,31 +319,33 @@ export default function Terms() {
       {/* CTA Section */}
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-              Готовы начать обучение?
-            </h2>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-              Присоединяйтесь к тысячам мастеров, которые уже изменили свою
-              жизнь благодаря нашим курсам
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="xl" asChild>
-                <Link to="/courses">
-                  Выбрать курс
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="xl"
-                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                asChild
-              >
-                <Link to="/schedule">Бесплатный вебинар</Link>
-              </Button>
+          <FadeInOnScroll>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+                Готовы начать обучение?
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+                Присоединяйтесь к тысячам мастеров, которые уже изменили свою
+                жизнь благодаря нашим курсам
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="xl" asChild>
+                  <Link to="/courses">
+                    Выбрать курс
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xl"
+                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  asChild
+                >
+                  <Link to="/schedule">Бесплатный вебинар</Link>
+                </Button>
+              </div>
             </div>
-          </div>
+          </FadeInOnScroll>
         </div>
       </section>
 

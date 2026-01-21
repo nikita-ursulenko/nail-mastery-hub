@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { HelpCircle, ArrowRight, BookOpen, CreditCard, GraduationCap, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Footer } from "@/components/layout/Footer";
 import { FAQSection } from "@/components/faq/FAQSection";
 import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
 import { FadeInOnScroll } from "@/components/FadeInOnScroll";
+import { TypewriterText } from "@/components/ui/TypewriterText";
 
 type FAQCategory = "general" | "learning" | "payment" | "career" | "support";
 
@@ -174,6 +175,19 @@ const getCategoryItems = (category: FAQCategory) => {
 
 export default function FAQ() {
   const [activeCategory, setActiveCategory] = useState<FAQCategory>("general");
+  const [displayCategory, setDisplayCategory] = useState<FAQCategory>("general");
+  const [exitingCategory, setExitingCategory] = useState<FAQCategory | null>(null);
+
+  useEffect(() => {
+    if (activeCategory !== displayCategory) {
+      setExitingCategory(displayCategory);
+      setDisplayCategory(activeCategory);
+      const timer = setTimeout(() => {
+        setExitingCategory(null);
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [activeCategory, displayCategory]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -187,13 +201,14 @@ export default function FAQ() {
               <HelpCircle className="h-4 w-4" />
               <span>Помощь и поддержка</span>
             </div>
-            <h1 className="mb-4 font-display text-4xl font-bold leading-tight lg:text-5xl">
-              Часто задаваемые{" "}
-              <span className="text-gradient">вопросы</span>
+            <h1 className="mb-4 font-display text-4xl font-bold leading-tight lg:text-5xl min-h-[1.2em]">
+              <TypewriterText text="Часто задаваемые вопросы" speed={25} as="span" />
             </h1>
-            <p className="text-lg text-muted-foreground lg:text-xl">
-              Нашли ответы на самые популярные вопросы о наших курсах, обучении и поддержке
-            </p>
+            <FadeInOnScroll delay={800}>
+              <p className="text-lg text-muted-foreground lg:text-xl">
+                Нашли ответы на самые популярные вопросы о наших курсах, обучении и поддержке
+              </p>
+            </FadeInOnScroll>
           </div>
         </div>
       </section>
@@ -202,14 +217,16 @@ export default function FAQ() {
       <section className="py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-          <div className="mb-8 text-center lg:mb-12">
-            <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
-              Категории вопросов
-            </h2>
-            <p className="mx-auto max-w-2xl text-muted-foreground">
-              Выберите интересующую категорию для быстрого поиска
-            </p>
-          </div>
+            <div className="mb-8 text-center lg:mb-12">
+              <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl min-h-[1.2em]">
+                <TypewriterText text="Категории вопросов" speed={30} as="span" />
+              </h2>
+              <FadeInOnScroll delay={500}>
+                <p className="mx-auto max-w-2xl text-muted-foreground">
+                  Выберите интересующую категорию для быстрого поиска
+                </p>
+              </FadeInOnScroll>
+            </div>
           </FadeInOnScroll>
 
           {/* Mobile: Horizontal Scrollable Categories */}
@@ -223,24 +240,20 @@ export default function FAQ() {
                     <button
                       key={category.id}
                       onClick={() => setActiveCategory(category.id)}
-                      className={`flex min-w-[120px] flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
-                        activeCategory === category.id
-                          ? "border-primary bg-primary/10 shadow-md"
-                          : "border-border bg-card hover:border-primary/50"
-                      }`}
+                      className={`flex min-w-[120px] flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${activeCategory === category.id
+                        ? "border-primary bg-primary/10 shadow-md"
+                        : "border-border bg-card hover:border-primary/50"
+                        }`}
                     >
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                        activeCategory === category.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-primary/10"
-                      }`}>
-                        <Icon className={`h-5 w-5 ${
-                          activeCategory === category.id ? "text-primary-foreground" : "text-primary"
-                        }`} />
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${activeCategory === category.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-primary/10"
+                        }`}>
+                        <Icon className={`h-5 w-5 ${activeCategory === category.id ? "text-primary-foreground" : "text-primary"
+                          }`} />
                       </div>
-                      <span className={`text-xs font-semibold ${
-                        activeCategory === category.id ? "text-primary" : "text-foreground"
-                      }`}>
+                      <span className={`text-xs font-semibold ${activeCategory === category.id ? "text-primary" : "text-foreground"
+                        }`}>
                         {category.title}
                       </span>
                       <span className="text-[10px] text-muted-foreground">
@@ -259,55 +272,96 @@ export default function FAQ() {
               const Icon = category.icon;
               const itemsCount = getCategoryItems(category.id).length;
               return (
-                <FadeInOnScroll key={category.id} delay={index * 100} className="h-full">
-                <Card 
-                  variant="elevated" 
-                    className={`group transition-all cursor-pointer border-2 h-full flex flex-col ${
-                    activeCategory === category.id 
-                      ? "ring-2 ring-primary shadow-lg border-primary" 
-                      : "border-border hover:border-primary/50 hover:shadow-lg"
-                  }`}
-                  onClick={() => setActiveCategory(category.id)}
+                <FadeInOnScroll
+                  key={category.id}
+                  delay={index * 400}
+                  direction={index % 2 === 0 ? "right" : "left"}
+                  className="h-full"
                 >
-                  <CardContent className="p-6 text-center flex flex-col flex-1">
-                    <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl transition-colors ${
-                      activeCategory === category.id 
-                        ? "bg-primary text-primary-foreground" 
+                  <Card
+                    variant="elevated"
+                    className={`group transition-all cursor-pointer border-2 h-full flex flex-col ${activeCategory === category.id
+                      ? "ring-2 ring-primary shadow-lg border-primary"
+                      : "border-border hover:border-primary/50 hover:shadow-lg"
+                      }`}
+                    onClick={() => setActiveCategory(category.id)}
+                  >
+                    <CardContent className="p-6 text-center flex flex-col flex-1">
+                      <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl transition-colors ${activeCategory === category.id
+                        ? "bg-primary text-primary-foreground"
                         : "bg-primary/10 group-hover:bg-primary/20"
-                    }`}>
-                      <Icon className={`h-7 w-7 transition-transform group-hover:scale-110 ${
-                        activeCategory === category.id ? "text-primary-foreground" : "text-primary"
-                      }`} />
-                    </div>
-                    <h3 className={`mb-2 font-display text-xl font-semibold transition-colors ${
-                      activeCategory === category.id 
-                        ? "text-primary" 
+                        }`}>
+                        <Icon className={`h-7 w-7 transition-transform group-hover:scale-110 ${activeCategory === category.id ? "text-primary-foreground" : "text-primary"
+                          }`} />
+                      </div>
+                      <h3 className={`mb-2 font-display text-xl font-semibold transition-colors ${activeCategory === category.id
+                        ? "text-primary"
                         : "group-hover:text-primary"
-                    }`}>
-                      {category.title}
-                    </h3>
-                    <p className="mb-3 text-sm text-muted-foreground">
-                      {category.description}
-                    </p>
-                    <p className="text-xs text-primary font-medium">
-                      {itemsCount} {itemsCount === 1 ? "вопрос" : itemsCount < 5 ? "вопроса" : "вопросов"}
-                    </p>
-                  </CardContent>
-                </Card>
+                        }`}>
+                        {category.title}
+                      </h3>
+                      <p className="mb-3 text-sm text-muted-foreground">
+                        {category.description}
+                      </p>
+                      <p className="text-xs text-primary font-medium">
+                        {itemsCount} {itemsCount === 1 ? "вопрос" : itemsCount < 5 ? "вопроса" : "вопросов"}
+                      </p>
+                    </CardContent>
+                  </Card>
                 </FadeInOnScroll>
               );
             })}
           </div>
 
-          {/* FAQ Content */}
-          <div className="mx-auto max-w-3xl">
-            <FAQSection
-              title={categories.find(c => c.id === activeCategory)?.title || "Вопросы"}
-              description={categories.find(c => c.id === activeCategory)?.description || ""}
-              items={getCategoryItems(activeCategory)}
-              className="py-0"
-              showHeader={true}
-            />
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            @keyframes faqSlideOutRight {
+              0% { transform: translateX(0); opacity: 1; }
+              100% { transform: translateX(100%); opacity: 0; }
+            }
+            @keyframes faqSlideInLeft {
+              0% { transform: translateX(-100%); opacity: 0; }
+              100% { transform: translateX(0); opacity: 1; }
+            }
+            .faq-exit {
+              animation: faqSlideOutRight 0.4s forwards ease-in-out;
+            }
+            .faq-enter {
+              animation: faqSlideInLeft 0.4s forwards ease-in-out;
+            }
+          `}} />
+
+          {/* FAQ Content with Transition */}
+          <div className="mx-auto max-w-3xl relative overflow-hidden min-h-[500px]">
+            {/* Exiting Content */}
+            {exitingCategory && (
+              <div
+                key={`exiting-${exitingCategory}`}
+                className="faq-exit absolute inset-0 w-full"
+              >
+                <FAQSection
+                  title={categories.find(c => c.id === exitingCategory)?.title || "Вопросы"}
+                  description={categories.find(c => c.id === exitingCategory)?.description || ""}
+                  items={getCategoryItems(exitingCategory)}
+                  className="py-0"
+                  showHeader={true}
+                />
+              </div>
+            )}
+
+            {/* Entering Content */}
+            <div
+              key={`active-${displayCategory}`}
+              className="faq-enter"
+            >
+              <FAQSection
+                title={categories.find(c => c.id === displayCategory)?.title || "Вопросы"}
+                description={categories.find(c => c.id === displayCategory)?.description || ""}
+                items={getCategoryItems(displayCategory)}
+                className="py-0"
+                showHeader={true}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -322,31 +376,31 @@ export default function FAQ() {
       <section className="py-16 lg:py-24">
         <div className="container">
           <FadeInOnScroll>
-          <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
-            <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
-              Готовы начать обучение?
-            </h2>
-            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
-              Присоединяйтесь к тысячам мастеров, которые уже изменили свою
-              жизнь благодаря нашим курсам
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button variant="gold" size="xl" asChild>
-                <Link to="/courses">
-                  Выбрать курс
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="xl"
-                className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
-                asChild
-              >
-                <Link to="/schedule">Бесплатный вебинар</Link>
-              </Button>
+            <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
+              <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
+                Готовы начать обучение?
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/80">
+                Присоединяйтесь к тысячам мастеров, которые уже изменили свою
+                жизнь благодаря нашим курсам
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button variant="gold" size="xl" asChild>
+                  <Link to="/courses">
+                    Выбрать курс
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xl"
+                  className="bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20"
+                  asChild
+                >
+                  <Link to="/schedule">Бесплатный вебинар</Link>
+                </Button>
+              </div>
             </div>
-          </div>
           </FadeInOnScroll>
         </div>
       </section>
