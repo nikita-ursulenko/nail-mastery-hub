@@ -89,11 +89,11 @@ export function FAQSection({
               value={`item-${index}`}
               className="border-b border-border/50 last:border-b-0 transition-colors hover:bg-muted/30"
             >
-              <AccordionTrigger className="px-6 py-5 text-left font-semibold text-foreground hover:no-underline">
+              <AccordionTrigger className="px-6 py-5 text-left text-lg font-semibold text-foreground hover:no-underline md:text-xl">
                 <span className="pr-4">{item.question}</span>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-5 text-muted-foreground">
-                <div className="leading-relaxed text-sm">{item.answer}</div>
+                <div className="text-base leading-relaxed md:text-lg">{item.answer}</div>
               </AccordionContent>
             </AccordionItem>
           ))}
