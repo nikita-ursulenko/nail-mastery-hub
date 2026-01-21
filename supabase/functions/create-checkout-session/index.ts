@@ -56,7 +56,10 @@ Deno.serve(async (req: Request) => {
             throw new Error("You already own this course");
         }
 
-        const origin = req.headers.get("origin") || "http://localhost:8080";
+        const origin = req.headers.get("origin");
+        if (!origin) {
+            throw new Error('Origin header is required');
+        }
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ["card"],

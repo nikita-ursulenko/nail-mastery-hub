@@ -69,7 +69,7 @@ export function getConnectionString(): string {
  * Конфигурация для pgAdmin (только для локальной разработки)
  */
 export const pgAdminConfig = {
-  url: process.env.PGADMIN_URL || 'http://localhost:5050',
+  url: process.env.PGADMIN_URL,
   email: process.env.PGADMIN_EMAIL || 'admin@nailmastery.com',
   password: process.env.PGADMIN_PASSWORD || 'admin123',
 };

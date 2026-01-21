@@ -10,6 +10,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
 import { Request } from 'express';
 import { notifyPurchase } from '../utils/referralNotifications';
+import { getFrontendUrl } from '../utils/urlHelper';
 
 // Ленивая инициализация Stripe (создается только при первом использовании)
 let stripeInstance: Stripe | null = null;
@@ -20,7 +21,7 @@ const getStripe = (): Stripe => {
       throw new Error('STRIPE_SECRET_KEY не установлен в .env');
     }
     stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: '2024-11-20.acacia',
+      apiVersion: '2025-12-15.clover',
     });
   }
   return stripeInstance;
@@ -78,8 +79,8 @@ export const createCheckoutSession = asyncHandler(
       }
     }
 
-    // Получаем URL фронтенда
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+    // Получаем URL фронтенда (автоопределение)
+    const frontendUrl = getFrontendUrl(req);
 
     // Создаем сессию в Stripe
     const session = await stripe.checkout.sessions.create({
@@ -310,7 +311,13 @@ export const handleWebhook = asyncHandler(
                       const { data: courseRes } = await supabase.from('courses').select('title').eq('id', courseId).single();
                       const courseTitle = courseRes?.title;
 
-                      await notifyPurchase(partner_id, userId, enrollmentId, purchaseAmount, courseTitle);
+                      await notifyPurchase(
+                        Number(partner_id),
+                        Number(userId),
+                        Number(enrollmentId),
+                        purchaseAmount,
+                        courseTitle
+                      );
                     } else {
                       console.error('Error creating reward:', rewardError);
                     }

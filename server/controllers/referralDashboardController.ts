@@ -4,6 +4,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { AppError } from '../middleware/errorHandler';
 import { ReferralAuthRequest } from '../middleware/referralAuth';
 import { calculatePartnerLevel } from '../utils/referralLevel';
+import { getFrontendUrl } from '../utils/urlHelper';
 
 /**
  * Получение общей статистики партнера
@@ -157,7 +158,7 @@ export const getReferralLink = asyncHandler(async (req: ReferralAuthRequest, res
     throw new AppError('Партнер не найден', 404);
   }
 
-  const baseUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+  const baseUrl = getFrontendUrl(req);
   const referralLink = `${baseUrl}/?ref=${partner.referral_code}`;
 
   res.json({

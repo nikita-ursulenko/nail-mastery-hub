@@ -46,14 +46,14 @@ app.use(preventNoSqlInjection);
 
 // CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: process.env.FRONTEND_URL || '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Webhook для Stripe должен быть ДО express.json() (нужен raw body)
-app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), asyncHandler(handleWebhook));
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), handleWebhook);
 
 // Body parsing с ограничением размера
 app.use(express.json({ limit: '10mb' }));
@@ -125,7 +125,8 @@ app.listen(PORT, () => {
   if (env === 'production') {
     console.log(`🚀 Server is running on port ${PORT}`);
   } else {
-    console.log(`🚀 Server is running on http://localhost:${PORT}`);
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📍 Frontend URL: ${process.env.FRONTEND_URL || 'Not set'}`);
   }
 });
 
