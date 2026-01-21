@@ -4,8 +4,8 @@ import App from "./App.tsx";
 window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason;
     if (
-        reason?.name === 'AbortError' ||
-        reason?.message?.includes('AbortError') ||
+        (reason && reason.name === 'AbortError') ||
+        (reason && reason.message && typeof reason.message === 'string' && reason.message.includes('AbortError')) ||
         reason === 'AbortError'
     ) {
         event.preventDefault();
