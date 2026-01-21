@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-import { FileText, ArrowRight, CheckCircle } from "lucide-react";
+import { FileText, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { FadeInOnScroll } from "@/components/FadeInOnScroll";
 import { ContactInfoSection } from "@/components/contact/ContactInfoSection";
 
 export default function Terms() {
@@ -41,7 +40,6 @@ export default function Terms() {
       {/* Terms Content */}
       <section className="py-16 lg:py-24">
         <div className="container">
-          <FadeInOnScroll>
           <div className="mx-auto max-w-4xl">
             <Card variant="elevated" className="overflow-hidden">
               <CardContent className="p-6 sm:p-8 lg:p-12">
@@ -304,7 +302,6 @@ export default function Terms() {
               </CardContent>
             </Card>
           </div>
-          </FadeInOnScroll>
         </div>
       </section>
 
@@ -317,7 +314,6 @@ export default function Terms() {
       {/* CTA Section */}
       <section className="bg-secondary/30 py-16 lg:py-24">
         <div className="container">
-          <FadeInOnScroll>
           <div className="overflow-hidden rounded-3xl gradient-accent p-8 text-center lg:p-16">
             <h2 className="mb-4 font-display text-3xl font-bold text-primary-foreground lg:text-4xl">
               Готовы начать обучение?
@@ -343,7 +339,6 @@ export default function Terms() {
               </Button>
             </div>
           </div>
-          </FadeInOnScroll>
         </div>
       </section>
 
@@ -351,4 +346,3 @@ export default function Terms() {
     </div>
   );
 }
-

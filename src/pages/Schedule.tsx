@@ -17,8 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-import instructorImage from "@/assets/instructor.jpg";
-import courseArt from "@/assets/course-art.jpg";
+// import instructorImage from "@/assets/instructor.jpg";
+// import courseArt from "@/assets/course-art.jpg";
+const instructorImage = "https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=400&h=400&fit=crop";
+const courseArt = "https://images.unsplash.com/photo-1604654894610-df490c81726a?w=800&h=400&fit=crop";
 
 interface Event {
   id: string;
@@ -224,14 +226,14 @@ export default function Schedule() {
               { value: events.reduce((sum, e) => sum + e.registered, 0).toLocaleString("ru-RU"), label: "Участников всего" },
             ].map((stat, index) => (
               <FadeInOnScroll key={index} delay={index * 100}>
-            <div className="text-center">
-              <p className="mb-2 font-display text-3xl font-bold text-primary">
+                <div className="text-center">
+                  <p className="mb-2 font-display text-3xl font-bold text-primary">
                     {stat.value}
-              </p>
-              <p className="text-sm text-muted-foreground">
+                  </p>
+                  <p className="text-sm text-muted-foreground">
                     {stat.label}
-              </p>
-            </div>
+                  </p>
+                </div>
               </FadeInOnScroll>
             ))}
           </div>
@@ -292,155 +294,154 @@ export default function Schedule() {
             <div className="space-y-6">
               {filteredEvents.map((event, index) => (
                 <FadeInOnScroll key={event.id} delay={index * 100}>
-                <Card
-                  variant="elevated"
-                  className="group overflow-hidden transition-all duration-300 hover:shadow-elevated"
-                >
-                  <div className="grid gap-6 lg:grid-cols-3">
-                    {/* Image */}
-                    {event.image && (
-                      <div className="relative hidden overflow-hidden lg:block">
-                        <img
-                          src={event.image}
-                          alt={event.title}
-                          loading="lazy"
-                          decoding="async"
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent" />
-                      </div>
-                    )}
-
-                    {/* Content */}
-                    <div
-                      className={`space-y-4 p-6 ${
-                        event.image ? "lg:col-span-2" : "lg:col-span-3"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="mb-3 flex flex-wrap items-center gap-2">
-                            <Badge
-                              variant={
-                                event.status === "live"
-                                  ? "default"
-                                  : event.status === "recorded"
-                                    ? "secondary"
-                                    : "outline"
-                              }
-                            >
-                              {statusLabels[event.status]}
-                            </Badge>
-                            <Badge variant="secondary">
-                              {typeLabels[event.type]}
-                            </Badge>
-                            {event.isFree && (
-                              <Badge className="bg-primary text-primary-foreground">
-                                Бесплатно
-                              </Badge>
-                            )}
-                          </div>
-                          <CardTitle className="mb-2 text-2xl lg:text-3xl">
-                            {event.title}
-                          </CardTitle>
-                          <p className="text-muted-foreground">
-                            {event.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Meta Info */}
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          <span>{event.date}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span>
-                            {event.time} • {event.duration}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="h-4 w-4 text-primary" />
-                          <span>
-                            {event.registered.toLocaleString("ru-RU")}
-                            {event.maxParticipants &&
-                              ` / ${event.maxParticipants.toLocaleString("ru-RU")}`}{" "}
-                            участников
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <User className="h-4 w-4 text-primary" />
-                          <span>{event.instructor}</span>
-                        </div>
-                      </div>
-
-                      {/* Instructor */}
-                      <div className="flex items-center gap-3 rounded-lg bg-secondary/50 p-3">
-                        {event.instructorAvatar && (
+                  <Card
+                    variant="elevated"
+                    className="group overflow-hidden transition-all duration-300 hover:shadow-elevated"
+                  >
+                    <div className="grid gap-6 lg:grid-cols-3">
+                      {/* Image */}
+                      {event.image && (
+                        <div className="relative hidden overflow-hidden lg:block">
                           <img
-                            src={event.instructorAvatar}
-                            alt={event.instructor}
+                            src={event.image}
+                            alt={event.title}
                             loading="lazy"
                             decoding="async"
-                            className="h-12 w-12 rounded-full object-cover"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                           />
-                        )}
-                        <div className="flex-1">
-                          <p className="font-medium">{event.instructor}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Преподаватель
-                          </p>
+                          <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent" />
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div
+                        className={`space-y-4 p-6 ${event.image ? "lg:col-span-2" : "lg:col-span-3"
+                          }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="mb-3 flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant={
+                                  event.status === "live"
+                                    ? "default"
+                                    : event.status === "recorded"
+                                      ? "secondary"
+                                      : "outline"
+                                }
+                              >
+                                {statusLabels[event.status]}
+                              </Badge>
+                              <Badge variant="secondary">
+                                {typeLabels[event.type]}
+                              </Badge>
+                              {event.isFree && (
+                                <Badge className="bg-primary text-primary-foreground">
+                                  Бесплатно
+                                </Badge>
+                              )}
+                            </div>
+                            <CardTitle className="mb-2 text-2xl lg:text-3xl">
+                              {event.title}
+                            </CardTitle>
+                            <p className="text-muted-foreground">
+                              {event.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Meta Info */}
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span>{event.date}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4 text-primary" />
+                            <span>
+                              {event.time} • {event.duration}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Users className="h-4 w-4 text-primary" />
+                            <span>
+                              {event.registered.toLocaleString("ru-RU")}
+                              {event.maxParticipants &&
+                                ` / ${event.maxParticipants.toLocaleString("ru-RU")}`}{" "}
+                              участников
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <User className="h-4 w-4 text-primary" />
+                            <span>{event.instructor}</span>
+                          </div>
+                        </div>
+
+                        {/* Instructor */}
+                        <div className="flex items-center gap-3 rounded-lg bg-secondary/50 p-3">
+                          {event.instructorAvatar && (
+                            <img
+                              src={event.instructorAvatar}
+                              alt={event.instructor}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium">{event.instructor}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Преподаватель
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap items-center gap-4">
+                          {event.status === "upcoming" && (
+                            <Button
+                              variant={event.isFree ? "hero" : "default"}
+                              size="lg"
+                              asChild
+                            >
+                              <Link to={`/schedule/${event.id}`}>
+                                {event.isFree ? (
+                                  <>
+                                    Записаться бесплатно
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                  </>
+                                ) : (
+                                  <>
+                                    Записаться за {event.price?.toLocaleString("de-DE")} €
+                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                  </>
+                                )}
+                              </Link>
+                            </Button>
+                          )}
+                          {event.status === "recorded" && (
+                            <Button variant="outline" size="lg" asChild>
+                              <Link to={`/schedule/${event.id}`}>
+                                <PlayCircle className="mr-2 h-4 w-4" />
+                                Смотреть запись
+                              </Link>
+                            </Button>
+                          )}
+                          {event.status === "live" && (
+                            <Button variant="hero" size="lg" asChild>
+                              <Link to={`/schedule/${event.id}`}>
+                                <Video className="mr-2 h-4 w-4" />
+                                Присоединиться
+                              </Link>
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm">
+                            Добавить в календарь
+                          </Button>
                         </div>
                       </div>
-
-                      {/* Actions */}
-                      <div className="flex flex-wrap items-center gap-4">
-                        {event.status === "upcoming" && (
-                          <Button
-                            variant={event.isFree ? "hero" : "default"}
-                            size="lg"
-                            asChild
-                          >
-                            <Link to={`/schedule/${event.id}`}>
-                              {event.isFree ? (
-                                <>
-                                  Записаться бесплатно
-                                  <ArrowRight className="ml-2 h-4 w-4" />
-                                </>
-                              ) : (
-                                <>
-                                  Записаться за {event.price?.toLocaleString("de-DE")} €
-                                  <ArrowRight className="ml-2 h-4 w-4" />
-                                </>
-                              )}
-                            </Link>
-                          </Button>
-                        )}
-                        {event.status === "recorded" && (
-                          <Button variant="outline" size="lg" asChild>
-                            <Link to={`/schedule/${event.id}`}>
-                              <PlayCircle className="mr-2 h-4 w-4" />
-                              Смотреть запись
-                            </Link>
-                          </Button>
-                        )}
-                        {event.status === "live" && (
-                          <Button variant="hero" size="lg" asChild>
-                            <Link to={`/schedule/${event.id}`}>
-                              <Video className="mr-2 h-4 w-4" />
-                              Присоединиться
-                            </Link>
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm">
-                          Добавить в календарь
-                        </Button>
-                      </div>
                     </div>
-                  </div>
-                </Card>
+                  </Card>
                 </FadeInOnScroll>
               ))}
             </div>
