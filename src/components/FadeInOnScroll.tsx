@@ -5,6 +5,7 @@ interface FadeInOnScrollProps {
   delay?: number;
   className?: string;
   direction?: "up" | "down" | "left" | "right" | "fade";
+  duration?: number;
 }
 
 export function FadeInOnScroll({
@@ -12,6 +13,7 @@ export function FadeInOnScroll({
   delay = 0,
   className = "",
   direction = "up",
+  duration = 1000,
 }: FadeInOnScrollProps) {
   const [isVisible, setIsVisible] = useState(false);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -73,8 +75,9 @@ export function FadeInOnScroll({
     <div className={needsOverflowClip ? "overflow-clip" : ""}>
       <div
         ref={elementRef}
-        className={`transition-all duration-1000 cubic-bezier(0.16, 1, 0.3, 1) ${getTransformClass()} ${className}`}
+        className={`transition-all ${getTransformClass()} ${className}`}
         style={{
+          transitionDuration: `${duration}ms`,
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
         }}
       >

@@ -256,7 +256,7 @@ export function TestimonialsSection({
   return (
     <section className={`${backgroundClass} py-16 lg:py-24 ${className}`}>
       <div className="container">
-        <FadeInOnScroll>
+        <FadeInOnScroll duration={700}>
           <div className="mb-12 text-center">
             <h2 className="mb-4 font-display text-3xl font-bold lg:text-4xl">
               {title}
@@ -277,32 +277,28 @@ export function TestimonialsSection({
             <p className="text-muted-foreground">Отзывов пока нет</p>
           </div>
         ) : (
-          <div
-            ref={carouselRef}
-            className="relative px-8 lg:px-16"
-          >
-            <Carousel
-              setApi={setCarouselApi}
-              opts={{
-                align: "start",
-                loop: true,
-              }}
-              className="w-full"
+          <FadeInOnScroll delay={100} duration={700} direction="up">
+            <div
+              ref={carouselRef}
+              className="relative px-8 lg:px-16"
             >
-              <CarouselContent
-                className="-ml-2 md:-ml-4"
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
+              <Carousel
+                setApi={setCarouselApi}
+                opts={{
+                  align: "start",
+                  loop: true,
+                }}
+                className="w-full"
               >
-                {testimonials.map((testimonial, index) => (
-                  <CarouselItem
-                    key={testimonial.id || testimonial.name}
-                    className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3"
-                  >
-                    <FadeInOnScroll
-                      delay={index * 150}
-                      direction={index % 2 === 0 ? "up" : "down"}
-                      className="h-full"
+                <CarouselContent
+                  className="-ml-2 md:-ml-4"
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {testimonials.map((testimonial) => (
+                    <CarouselItem
+                      key={testimonial.id || testimonial.name}
+                      className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3"
                     >
                       <TestimonialCard
                         name={testimonial.name}
@@ -313,18 +309,18 @@ export function TestimonialsSection({
                         beforeImage={testimonial.beforeImage}
                         afterImage={testimonial.afterImage}
                       />
-                    </FadeInOnScroll>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious
-                className="hidden lg:flex"
-              />
-              <CarouselNext
-                className="hidden lg:flex"
-              />
-            </Carousel>
-          </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious
+                  className="hidden lg:flex"
+                />
+                <CarouselNext
+                  className="hidden lg:flex"
+                />
+              </Carousel>
+            </div>
+          </FadeInOnScroll>
         )}
       </div>
     </section>
