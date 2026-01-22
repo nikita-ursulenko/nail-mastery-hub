@@ -28,6 +28,10 @@
         {
             "source": "/api/:path*",
             "destination": "https://lorwsdylqykweyecrmuh.supabase.co/rest/v1/:path*"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
         }
     ]
 }
